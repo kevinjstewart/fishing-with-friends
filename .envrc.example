@@ -1,0 +1,4 @@
+# Copy to .envrc and replace the placeholders with real values.
+export CLOUDFLARE_TOKEN="..."
+export CLOUDFLARE_ACCOUNT_ID="..."
+export TELEGRAM_BOT_TOKEN="..."
