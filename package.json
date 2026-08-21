@@ -1,0 +1,38 @@
+{
+  "name": "fishing-with-friends",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names game,worker --prefix-colors cyan,magenta \"npm run dev --workspace @fishing/game\" \"npm run dev --workspace @fishing/worker\"",
+    "dev:game": "npm run dev --workspace @fishing/game",
+    "dev:worker": "npm run dev --workspace @fishing/worker",
+    "build": "npm run build:game && npm run build:worker",
+    "build:game": "npm run build --workspace @fishing/game",
+    "build:worker": "npm run build --workspace @fishing/worker",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings=0",
+    "db:create": "wrangler d1 create fishing-with-friends",
+    "db:migrate:local": "wrangler d1 migrations apply fishing-with-friends --local --env development",
+    "db:migrate:remote": "wrangler d1 migrations apply fishing-with-friends --remote --env production",
+    "db:migrations": "wrangler d1 migrations list fishing-with-friends --remote --env production",
+    "deploy": "npm run build:game && wrangler deploy --env production",
+    "secret:set:telegram": "node scripts/set-worker-secret.mjs TELEGRAM_BOT_TOKEN"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^24.3.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.33.0",
+    "globals": "^16.3.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.30.0"
+  }
+}

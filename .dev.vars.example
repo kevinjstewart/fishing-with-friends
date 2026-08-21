@@ -1,0 +1,4 @@
+# Used only by `wrangler dev`. Never commit a real token here.
+TELEGRAM_BOT_TOKEN=replace-with-a-development-bot-token
+ENVIRONMENT=development
+DEV_AUTH_ENABLED=true

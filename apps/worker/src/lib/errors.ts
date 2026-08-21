@@ -1,0 +1,26 @@
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function badRequest(message: string): ApiError {
+  return new ApiError(400, "BAD_REQUEST", message);
+}
+
+export function unauthorized(message = "Authentication is required."): ApiError {
+  return new ApiError(401, "UNAUTHORIZED", message);
+}
+
+export function forbidden(message = "This operation is not available."): ApiError {
+  return new ApiError(403, "FORBIDDEN", message);
+}
+
+export function notFound(message = "The requested resource was not found."): ApiError {
+  return new ApiError(404, "NOT_FOUND", message);
+}

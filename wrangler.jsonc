@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fishing-with-friends",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2026-08-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./apps/game/dist",
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "APP_ORIGIN": "http://localhost:5173"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fishing-with-friends",
+      "database_id": "2012a137-d8cf-4a9a-882e-80b8acaf1579",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "development": {
+      "name": "fishing-with-friends-dev",
+      "vars": {
+        "ENVIRONMENT": "development",
+        "DEV_AUTH_ENABLED": "true",
+        "APP_ORIGIN": "http://localhost:5173"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "fishing-with-friends",
+          "database_id": "2012a137-d8cf-4a9a-882e-80b8acaf1579",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "fishing-with-friends",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "APP_ORIGIN": "https://fishing-with-friends.fishing-with-friends.workers.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "fishing-with-friends",
+          "database_id": "2012a137-d8cf-4a9a-882e-80b8acaf1579",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}
