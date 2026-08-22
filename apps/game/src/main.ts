@@ -36,6 +36,7 @@ syncSafeArea();
 window.addEventListener("orientationchange", () => window.setTimeout(syncSafeArea, 120));
 window.visualViewport?.addEventListener("resize", syncSafeArea);
 window.addEventListener("resize", syncSafeArea);
+telegram.syncViewportInsets();
 
 async function refreshGameState(): Promise<void> {
   currentGameState = await api.getGameState();
