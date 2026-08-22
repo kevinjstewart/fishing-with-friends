@@ -19,6 +19,23 @@ const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
 let currentGameState: GameStateResponse | undefined;
 let fishingActive = false;
 
+const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
+
+function syncSafeArea(): void {
+  if (!safeAreaProbe) return;
+  game.registry.set("safeArea", {
+    top: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingTop) || 0,
+    right: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingRight) || 0,
+    bottom: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingBottom) || 0,
+    left: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingLeft) || 0,
+  });
+  game.events.emit("safearea:changed");
+}
+
+syncSafeArea();
+window.addEventListener("orientationchange", () => window.setTimeout(syncSafeArea, 120));
+window.visualViewport?.addEventListener("resize", syncSafeArea);
+
 async function refreshGameState(): Promise<void> {
   currentGameState = await api.getGameState();
 }
@@ -33,6 +50,7 @@ function renderLakes(): void {
 
 async function returnToLakes(): Promise<void> {
   fishingActive = false;
+  document.body.classList.remove("is-fighting");
   try {
     await refreshGameState();
     renderLakes();
@@ -86,9 +104,8 @@ shell.setStartFishingHandler((locationId) => {
       const encounter = await api.startFishing({ locationId, ...currentGameState.activeEquipment });
       fishingActive = true;
       shell.setNavEnabled(false);
-      shell.showEncounter(encounter);
-      game.events.emit("fishing:start", encounter);
-      shell.setStatus("Encounter ready · control the net", "ready");
+      game.events.emit("fight:start", encounter);
+      document.body.classList.add("is-fighting");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to start fishing.", "error");
     } finally {
@@ -98,6 +115,9 @@ shell.setStartFishingHandler((locationId) => {
 });
 
 async function resolveCompletion(event: { encounterId: string; performance: number }): Promise<void> {
+  fishingActive = false;
+  shell.setNavEnabled(true);
+  document.body.classList.remove("is-fighting");
   shell.setStatus("Checking the catch…");
   try {
     const result = await api.completeFishing(event.encounterId, event.performance);
@@ -264,7 +284,6 @@ async function bootstrap(): Promise<void> {
     }
 
     currentGameState = await api.getGameState();
-    shell.setPlayer(player);
     renderLakes();
     shell.setStatus(telegram.isAvailable ? "Connected to Telegram" : "Local development mode", "ready");
   } catch (error) {
