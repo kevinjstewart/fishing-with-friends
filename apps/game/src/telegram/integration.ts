@@ -12,6 +12,9 @@ export function createTelegramIntegration(): TelegramIntegration {
     initialize() {
       webApp?.ready();
       webApp?.expand();
+      webApp?.setHeaderColor?.("#041220");
+      webApp?.setBackgroundColor?.("#041220");
+      webApp?.disableVerticalSwipes?.();
     },
   };
 }

@@ -3,11 +3,9 @@ import type {
   CollectionResponse,
   CompleteFishingResponse,
   FishJournalResponse,
-  FishingEncounterResponse,
   FishSpecimen,
   GameStateResponse,
   LocationAvailability,
-  PlayerProfile,
 } from "@fishing/shared";
 
 export type ScreenId = "lakes" | "shop" | "collection" | "journal";
@@ -114,18 +112,27 @@ const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpe
 
 const BAIT_QUANTITY_CHOICES = [1, 5, 10, 25];
 
+interface ToastHandle {
+  root: HTMLElement;
+  dismissTimer?: number;
+}
+
 export class AppShell {
   private readonly root: HTMLElement;
-  private readonly status: HTMLElement;
-  private readonly player: HTMLElement;
-  private readonly nav: HTMLElement;
-  private readonly game: HTMLElement;
+  private readonly frame: HTMLElement;
+  private readonly topbar: HTMLElement;
+  private readonly walletChip: HTMLButtonElement;
+  private readonly walletAmount: HTMLElement;
+  private readonly content: HTMLElement;
+  private readonly tabbar: HTMLElement;
+  private readonly toastLayer: HTMLElement;
   private gameState?: GameStateResponse;
   private activeScreen: ScreenId = "lakes";
   private selectedLocationId?: string;
   private collectionSort: CollectionSortMode = "newest";
   private latestCollection?: CollectionResponse;
   private latestJournal?: FishJournalResponse;
+  private stickyToast?: ToastHandle;
   private startFishingHandler?: (locationId: string) => void;
   private navigationHandler?: (screen: ScreenId) => void;
   private purchaseHandler?: (itemId: string, quantity?: number) => void;
@@ -136,22 +143,103 @@ export class AppShell {
 
   constructor(root: HTMLElement) {
     this.root = root;
-    this.status = createElement("p", "status-message");
-    this.player = createElement("p", "player-message");
-    this.nav = createElement("nav", "screen-nav");
-    this.nav.setAttribute("aria-label", "Game screens");
-    this.game = createElement("div", "game-dashboard");
-    this.root.replaceChildren(this.status, this.player, this.nav, this.game);
-    this.renderNav();
+    this.topbar = createElement("header", "app-topbar");
+    this.content = createElement("main", "app-content");
+    this.tabbar = createElement("nav", "tabbar");
+    this.tabbar.setAttribute("aria-label", "Game screens");
+    this.toastLayer = createElement("div", "toast-layer");
+
+    const brand = createElement("div", "app-brand");
+    const mark = createElement("span", "brand-mark");
+    mark.append(createIcon("rod"));
+    brand.append(mark, createElement("span", undefined, "Fishing with Friends"));
+
+    this.walletChip = createElement("button", "wallet-chip");
+    this.walletChip.type = "button";
+    this.walletChip.setAttribute("aria-label", "Open the tackle shop");
+    this.walletAmount = createElement("strong", undefined, formatCoins(0));
+    this.walletChip.append(createIcon("coin"), this.walletAmount);
+    this.walletChip.addEventListener("click", () => this.navigationHandler?.("shop"));
+
+    this.topbar.append(brand, this.walletChip);
+    this.frame = createElement("div", "app-frame");
+    this.frame.append(this.topbar, this.content, this.tabbar, this.toastLayer);
+    this.root.replaceChildren(this.frame);
+    this.renderTabs();
   }
 
   setStatus(message: string, state: "loading" | "ready" | "error" = "loading"): void {
-    this.status.textContent = message;
-    this.status.dataset.state = state;
+    if (state === "loading") {
+      if (this.stickyToast && this.stickyToast.root.isConnected) {
+        this.stickyToast.root.querySelector("span")!.textContent = message;
+        return;
+      }
+    } else {
+      if (this.stickyToast) this.dismissToast(this.stickyToast);
+    }
+    this.stickyToast = this.makeToast(message, state, state === "loading" ? 15000 : 3200);
   }
 
-  setPlayer(player: PlayerProfile): void {
-    this.player.textContent = `Signed in as ${player.displayName}`;
+  private makeToast(message: string, state: "loading" | "ready" | "error", lifetimeMs: number): ToastHandle {
+    while (this.toastLayer.children.length >= 3) this.toastLayer.firstElementChild?.remove();
+    const toast = createElement("div", "toast");
+    toast.dataset.state = state;
+    toast.setAttribute("role", "status");
+    toast.append(createElement("span", undefined, message));
+    this.toastLayer.append(toast);
+    requestAnimationFrame(() => toast.classList.add("is-shown"));
+    const handle: ToastHandle = { root: toast };
+    handle.dismissTimer = window.setTimeout(() => this.dismissToast(handle), lifetimeMs);
+    return handle;
+  }
+
+  private dismissToast(handle: ToastHandle): void {
+    if (handle.dismissTimer) window.clearTimeout(handle.dismissTimer);
+    handle.root.classList.remove("is-shown");
+    handle.root.classList.add("is-leaving");
+    window.setTimeout(() => handle.root.remove(), 260);
+  }
+
+  updateWallet(coins: number): void {
+    if (this.gameState) this.gameState = { ...this.gameState, coins };
+    this.walletAmount.textContent = formatCoins(coins);
+    this.walletChip.classList.remove("did-update");
+    void this.walletChip.offsetWidth;
+    this.walletChip.classList.add("did-update");
+  }
+
+  getActiveScreen(): ScreenId {
+    return this.activeScreen;
+  }
+
+  setNavEnabled(enabled: boolean): void {
+    this.tabbar.dataset.disabled = enabled ? "false" : "true";
+  }
+
+  setActiveScreen(screen: ScreenId): void {
+    this.activeScreen = screen;
+    this.renderTabs();
+  }
+
+  private renderTabs(): void {
+    const tabs: Array<{ id: ScreenId; label: string }> = [
+      { id: "lakes", label: "Lakes" },
+      { id: "shop", label: "Shop" },
+      { id: "collection", label: "Collection" },
+      { id: "journal", label: "Journal" },
+    ];
+    this.tabbar.replaceChildren();
+    for (const tab of tabs) {
+      const button = createElement("button", "tab-button");
+      button.type = "button";
+      button.append(createIcon(SCREEN_ICONS[tab.id]), createElement("span", undefined, tab.label));
+      if (this.activeScreen === tab.id) {
+        button.classList.add("is-active");
+        button.setAttribute("aria-current", "page");
+      }
+      button.addEventListener("click", () => this.navigationHandler?.(tab.id));
+      this.tabbar.append(button);
+    }
   }
 
   setStartFishingHandler(handler: (locationId: string) => void): void {
@@ -178,63 +266,12 @@ export class AppShell {
     this.recoveryHandler = handler;
   }
 
-  getActiveScreen(): ScreenId {
-    return this.activeScreen;
-  }
-
-  setNavEnabled(enabled: boolean): void {
-    this.nav.dataset.disabled = enabled ? "false" : "true";
-  }
-
-  updateWallet(coins: number): void {
-    const wallet = this.nav.querySelector<HTMLElement>(".wallet strong");
-    if (wallet && this.gameState) {
-      this.gameState = { ...this.gameState, coins };
-      wallet.textContent = formatCoins(coins);
-      const chip = wallet.closest<HTMLElement>(".wallet");
-      if (chip) {
-        chip.classList.remove("did-update");
-        void chip.offsetWidth;
-        chip.classList.add("did-update");
-      }
-    }
-  }
-
-  setActiveScreen(screen: ScreenId): void {
-    this.activeScreen = screen;
-    this.renderNav();
-  }
-
-  private renderNav(): void {
-    const tabs: Array<{ id: ScreenId; label: string }> = [
-      { id: "lakes", label: "Lakes" },
-      { id: "shop", label: "Shop" },
-      { id: "collection", label: "Collection" },
-      { id: "journal", label: "Journal" },
-    ];
-    this.nav.replaceChildren();
-    for (const tab of tabs) {
-      const button = createElement("button", "screen-tab");
-      button.type = "button";
-      button.append(createIcon(SCREEN_ICONS[tab.id]), createElement("span", undefined, tab.label));
-      button.setAttribute("aria-pressed", String(this.activeScreen === tab.id));
-      button.classList.toggle("is-active", this.activeScreen === tab.id);
-      button.addEventListener("click", () => this.navigationHandler?.(tab.id));
-      this.nav.append(button);
-    }
-    const wallet = createElement("div", "wallet");
-    const amount = createElement("span", "wallet-amount");
-    amount.append(createIcon("coin"), createElement("strong", undefined, formatCoins(this.gameState?.coins ?? 0)));
-    wallet.append(createElement("span", "eyebrow", "Wallet"), amount);
-    this.nav.append(wallet);
-  }
-
   setGameState(state: GameStateResponse): void {
     this.gameState = state;
     if (!this.selectedLocationId || !state.locations.some((location) => location.id === this.selectedLocationId)) {
       this.selectedLocationId = (state.locations.find((location) => location.unlocked) ?? state.locations[0]).id;
     }
-    this.renderNav();
+    this.updateWallet(state.coins);
     if (this.activeScreen === "lakes") this.renderLakes();
   }
 
@@ -244,6 +281,7 @@ export class AppShell {
     const selectedLocation = state.locations.find((location) => location.id === this.selectedLocationId) ?? state.locations[0];
     let selectedLocationId = selectedLocation.id;
 
+    const screen = createElement("div", "screen");
     const header = createElement("div", "dashboard-header");
     const heading = createElement("div");
     heading.append(createElement("span", "eyebrow", "Where to next"), createElement("h1", undefined, "Choose your water"), createElement("p", "muted", "Pick a lake, check your tackle, and spend the next cast."));
@@ -340,13 +378,17 @@ export class AppShell {
     };
     applyStartButtonState(selectedLocation);
     startButton.addEventListener("click", () => this.startFishingHandler?.(selectedLocationId));
-    locationsSection.append(locationsGrid, selection, riskPreview, startButton);
 
-    const children: Element[] = [header, loadout, locationsSection];
+    const castBar = createElement("div", "cast-bar");
+    castBar.append(selection, riskPreview, startButton);
+    locationsSection.append(locationsGrid, castBar);
+
+    screen.append(header, loadout, locationsSection);
     const recoveryBanner = this.buildRecoveryBanner(state);
-    if (recoveryBanner) children.push(recoveryBanner);
+    if (recoveryBanner) screen.append(recoveryBanner);
 
-    this.game.replaceChildren(...children);
+    this.content.replaceChildren(screen);
+    this.content.scrollTop = 0;
   }
 
   private buildLoadoutSwitcher(state: GameStateResponse): HTMLElement {
@@ -434,7 +476,7 @@ export class AppShell {
   renderShop(): void {
     const state = this.gameState;
     if (!state) return;
-    const panel = createElement("section", "shop-screen");
+    const panel = createElement("section", "screen shop-screen");
     const intro = createElement("div", "dashboard-header");
     const shopHeading = createElement("div");
     shopHeading.append(
@@ -564,7 +606,7 @@ export class AppShell {
       sectionEl.append(grid);
       panel.append(sectionEl);
     }
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   showCollection(collection?: CollectionResponse): void {
@@ -575,7 +617,7 @@ export class AppShell {
     }
     const specimens = [...this.latestCollection.fish];
 
-    const panel = createElement("section", "collection-screen");
+    const panel = createElement("section", "screen collection-screen");
     const intro = createElement("div", "dashboard-header");
     const heading = createElement("div");
     heading.append(
@@ -588,7 +630,7 @@ export class AppShell {
 
     if (specimens.length === 0) {
       panel.append(createElement("p", "empty-message", "No kept fish yet. Land a catch and choose “Keep fish” to start your collection."));
-      this.game.replaceChildren(panel);
+      this.replaceScreen(panel);
       return;
     }
 
@@ -618,7 +660,7 @@ export class AppShell {
     const grid = createElement("div", "collection-grid");
     panel.append(grid);
     this.rerenderCollectionGrid(grid, specimens);
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   private rerenderCollectionGrid(grid: HTMLElement, specimens: FishSpecimen[]): void {
@@ -647,7 +689,7 @@ export class AppShell {
     const state = this.gameState;
     const discovered = this.latestJournal.entries.filter((entry) => entry.discovered);
 
-    const panel = createElement("section", "journal-screen");
+    const panel = createElement("section", "screen journal-screen");
     const intro = createElement("div", "dashboard-header");
     const heading = createElement("div");
     heading.append(
@@ -690,13 +732,13 @@ export class AppShell {
       grid.append(card);
     }
     panel.append(grid);
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   showLoadingScreen(message: string): void {
     const panel = createElement("section", "fishing-status is-loading");
     panel.append(createElement("span", "eyebrow", "One moment"), createElement("p", "muted", message));
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   showRetryPanel(eyebrow: string, message: string, retryLabel: string, onRetry: () => void, onBack?: () => void): void {
@@ -714,18 +756,7 @@ export class AppShell {
       actions.append(back);
     }
     panel.append(actions);
-    this.game.replaceChildren(panel);
-  }
-
-  showEncounter(encounter: FishingEncounterResponse): void {
-    const panel = createElement("section", "fishing-status");
-    panel.append(
-      createElement("span", "eyebrow", "Line out"),
-      createElement("h1", undefined, `${encounter.species.commonName} is on`),
-      createElement("p", "muted", `${encounter.locationName} · ${capitalize(encounter.rodRiskBand)} rod risk`),
-      createElement("p", "fishing-instruction", "Keep the fish inside the net until the control meter fills. Hold to lift; release to drop."),
-    );
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   showFishingResult(result: CompleteFishingResponse, onDecision: (decision: "keep" | "sell") => void, onBack: () => void): void {
@@ -760,7 +791,7 @@ export class AppShell {
       back.addEventListener("click", onBack);
       panel.append(back);
     }
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
   }
 
   showDecisionResult(result: CatchDecisionResponse, onBack: () => void): void {
@@ -775,7 +806,12 @@ export class AppShell {
     back.type = "button";
     back.addEventListener("click", onBack);
     panel.append(back);
-    this.game.replaceChildren(panel);
+    this.replaceScreen(panel);
+  }
+
+  private replaceScreen(panel: HTMLElement): void {
+    this.content.replaceChildren(panel);
+    this.content.scrollTop = 0;
   }
 
   private specimenDetails(specimen: FishSpecimen): HTMLElement {

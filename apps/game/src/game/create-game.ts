@@ -1,13 +1,13 @@
 import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene";
-import { MainScene } from "./scenes/MainScene";
+import { OceanScene } from "./scenes/OceanScene";
 
 export function createGame(parent: HTMLElement): Phaser.Game {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent,
-    backgroundColor: "#07111f",
-    scene: [BootScene, MainScene],
+    backgroundColor: "#04121f",
+    scene: [BootScene, OceanScene],
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
