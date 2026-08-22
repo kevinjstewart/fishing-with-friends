@@ -37,7 +37,7 @@ shell.setStartFishingHandler((locationId) => {
       const encounter = await api.startFishing({ locationId, ...currentGameState.activeEquipment });
       shell.showEncounter(encounter);
       game.events.emit("fishing:start", encounter);
-      shell.setStatus("Encounter ready · hold to reel", "ready");
+      shell.setStatus("Encounter ready · control the net", "ready");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to start fishing.", "error");
     }

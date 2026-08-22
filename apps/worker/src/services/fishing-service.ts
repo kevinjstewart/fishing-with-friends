@@ -215,6 +215,7 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
 
   return {
     encounterId,
+    difficultySeed,
     locationId: location.id,
     locationName: location.name,
     species,

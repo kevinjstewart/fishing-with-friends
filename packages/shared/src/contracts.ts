@@ -182,6 +182,7 @@ export interface FishingMiniGameConfig {
 
 export interface FishingEncounterResponse {
   encounterId: string;
+  difficultySeed: number;
   locationId: string;
   locationName: string;
   species: FishSpecies;
