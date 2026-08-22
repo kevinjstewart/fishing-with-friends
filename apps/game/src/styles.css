@@ -274,7 +274,7 @@ body.is-fighting .app-frame {
   padding:
     4px
     max(12px, var(--safe-right))
-    calc(var(--tabbar-h) + var(--safe-bottom) + 18px)
+    calc(var(--tabbar-h) + 18px)
     max(12px, var(--safe-left));
   scrollbar-gutter: stable;
 }
