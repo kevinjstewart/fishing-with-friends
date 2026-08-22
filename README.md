@@ -1,6 +1,6 @@
 # Fishing with Friends
 
-The foundation for a 2D browser fishing game delivered as a Telegram Mini App. The current slice establishes the data-driven freshwater catalogue, persistent starter loadout, lake access progression, and a first playable fishing loop with a touch/mouse-friendly skill challenge.
+The foundation for a 2D browser fishing game delivered as a Telegram Mini App. The current slice includes the data-driven freshwater catalogue, persistent loadouts, lake access progression, a touch/mouse-friendly skill challenge, server-resolved rod break risk, the tackle shop, the kept-fish collection, and the Fish Journal.
 
 ## Architecture
 
@@ -151,16 +151,26 @@ The current workers.dev deployment is `https://fishing-with-friends.fishing-with
 | `POST` | `/api/auth/telegram` | Validate Telegram `initData` and establish a session |
 | `POST` | `/api/auth/dev` | Explicitly gated local development authentication |
 | `GET` | `/api/me` | Return the authenticated internal player profile |
-| `GET` | `/api/game/state` | Return the authoritative starter loadout, catalogue, and lake access |
+| `GET` | `/api/game/state` | Return the authoritative loadout, catalogue, and lake access |
 | `POST` | `/api/game/encounters` | Validate a setup, consume resources, and create a server-owned encounter |
-| `POST` | `/api/game/encounters/:id/complete` | Resolve a bounded mini-game performance into a catch or loss |
+| `POST` | `/api/game/encounters/:id/complete` | Resolve a bounded mini-game performance into a catch or loss, including rod break rolls |
 | `POST` | `/api/game/catches/:id/decision` | Keep a pending catch or sell it for its server-calculated value |
+| `POST` | `/api/game/catches/:id/sell` | Sell a pending or kept fish from the collection |
+| `GET` | `/api/game/collection` | List the player's kept individual specimens |
+| `GET` | `/api/game/journal` | List per-species discovery state and personal records |
+| `POST` | `/api/game/shop/purchase` | Buy bait (with quantity), lures, rods, or boats with guarded coin deductions |
+| `POST` | `/api/game/equipment/select` | Set the active rod, lure, or bait among owned items |
+| `POST` | `/api/game/recovery/dig-worms` | Emergency bait and starter-lure recovery to prevent soft locks |
 
 Route handlers stay thin. Input validation and centralized error responses live at the Worker boundary; authentication is middleware; D1 access is isolated in the player repository.
 
 ## D1
 
-The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. The internal player `id` is independent of Telegram's external ID.
+The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. Migration `0004_create_fish_journal.sql` adds per-species discovery and personal records. The internal player `id` is independent of Telegram's external ID.
+
+## Game systems
+
+All economic outcomes stay on the Worker. Purchases deduct coins with guarded `coins >= cost` updates before equipment rows are inserted or incremented; failed writes refund the deduction. Lures are bought as spare stock: the active lure's durability is consumed per cast, and when it runs out a spare is automatically tied on. Rod breaks are rolled on the Worker after each fight from specimen weight versus rod rating, submitted performance, and the rod's break resistance; a broken rod leaves the inventory, the strongest surviving rod is equipped, and the free starter rod can be reclaimed from the shop. Kept catches are individual specimens that can be inspected in the collection and sold later for their stored value. The journal records discovery and personal bests independently of currency.
 
 ```bash
 # Only needed when creating this project from scratch.

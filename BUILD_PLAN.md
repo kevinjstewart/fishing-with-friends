@@ -24,13 +24,19 @@ Do not reduce the scope of a reasonable implementation only to match one checkli
 
 The game should be functionally complete when the main checklist is complete. Deferred tasks can remain for features that are not required for the intended version.
 
-## Current checkpoint — 2026-08-21
+## Current checkpoint — 2026-08-22
 
 * [x] The initial data-driven catalogue now contains three freshwater locations, three boats, three rods, three lures, four baits, and thirteen fish species with biological ranges, movement profiles, and source attribution.
 * [x] Authenticated players now receive an idempotently persisted starter state: 100 coins, Shore Fishing access, a Starter Fiberglass rod, a Copper Spinner with 10 durability, and 10 Worms.
-* [x] The browser now displays the server-owned loadout and lake access states, including lake selection and a touch/mouse/keyboard fishing challenge.
 * [x] The Worker now creates encounters, consumes bait and lure durability, calculates specimen size/value, resolves bounded skill performance, and supports keep/sell decisions with duplicate-resolution guards.
-* [ ] The collection/journal views, shop purchasing, rod break outcomes, richer progression, and full balance pass still need to be built on top of this loop.
+* [x] The browser displays the server-owned loadout and lake access states, including lake selection and a touch/mouse/keyboard fishing challenge.
+* [x] The shop now sells bait (with quantity), lures (as spare stock), rods (including free replacement of a broken starter rod), and boats, all through guarded server-side coin deductions.
+* [x] Kept catches form an individual-specimen collection: the browser can list kept fish, inspect them, and sell them later for their stored value.
+* [x] The Fish Journal tracks per-species discovery, times caught, heaviest, longest, and best sale value in `player_species_records`, distinguishing discovered from undiscovered species.
+* [x] Rod break outcomes are resolved on the Worker from specimen weight versus rod rating, player performance, and rod break resistance; broken rods leave the inventory, the strongest surviving rod is equipped automatically, and the result screen explains what happened.
+* [x] The loadout can be changed between casts (rod/lure/bait selection among owned items), and each selected lake shows a plain-language rod-suitability warning plus expected catch value range before committing resources.
+* [x] A dig-for-worms recovery action prevents permanent soft locks when a player is broke with no usable tackle.
+* [ ] A full balance play-through, deeper presentation polish, Telegram device verification, and release hardening remain.
 
 ---
 
@@ -92,7 +98,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Build the equipment and inventory systems**
+* [x] **Build the equipment and inventory systems**
 
   Implement ownership, purchase, selection, and use of boats, rods, lures, and bait.
 
@@ -150,7 +156,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Connect fishing outcomes to equipment risk**
+* [x] **Connect fishing outcomes to equipment risk**
 
   Implement bait consumption, lure durability or loss, rod stress, rod damage if retained as a concept, and rod break events.
 
@@ -182,7 +188,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Build catch results, selling, and the collection**
+* [x] **Build catch results, selling, and the collection**
 
   After a successful catch, present the individual fish clearly.
 
@@ -200,7 +206,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Build the Fish Journal and record systems**
+* [x] **Build the Fish Journal and record systems**
 
   Track species discovery independently from fish ownership.
 
@@ -212,7 +218,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Build the shop and overall progression loop**
+* [x] **Build the shop and overall progression loop**
 
   Create the player-facing shop and purchasing flows for bait, lures, rods, and boats.
 
@@ -242,7 +248,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ---
 
-* [ ] **Make risk understandable before the player commits**
+* [x] **Make risk understandable before the player commits**
 
   Present enough information before each fishing attempt for the player to make a meaningful decision.
 
