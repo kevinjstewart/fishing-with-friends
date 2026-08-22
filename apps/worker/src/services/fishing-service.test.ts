@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rodBreakChancePercent } from "./fishing-service";
+import { minimumFightSeconds, rodBreakChancePercent } from "./fishing-service";
 
 const starterRod = { maxFishWeightKg: 2.5, breakResistance: 0.995 };
 const heavyRod = { maxFishWeightKg: 18, breakResistance: 0.985 };
@@ -39,5 +39,13 @@ describe("rodBreakChancePercent", () => {
   it("is capped at twelve percent", () => {
     const chance = rodBreakChancePercent({ weightKg: 200, rodMaxFishWeightKg: 1, breakResistance: 0.98, performance: 0 });
     expect(chance).toBe(12);
+  });
+});
+
+describe("minimumFightSeconds", () => {
+  it("sits below honest fight durations but above scripted instant submissions", () => {
+    expect(minimumFightSeconds(1)).toBeGreaterThanOrEqual(0.5);
+    expect(minimumFightSeconds(1)).toBeLessThan(3);
+    expect(minimumFightSeconds(1.32)).toBeLessThan(3);
   });
 });

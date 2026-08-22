@@ -9,8 +9,10 @@ import type {
   StartFishingRequest,
 } from "@fishing/shared";
 import type { Hono } from "hono";
+import type { Context } from "hono";
 import type { AppVariables, Env } from "../env";
-import { badRequest } from "../lib/errors";
+import { badRequest, tooManyRequests } from "../lib/errors";
+import { actionRateLimit, castRateLimit, checkRateLimit } from "../lib/rate-limit";
 import { requireAuth } from "../middleware/auth";
 import { completeFishing, decideCatch, sellCatch, startFishing } from "../services/fishing-service";
 import { getGameState } from "../services/game-service";
@@ -69,6 +71,14 @@ function ensureSelectEquipmentRequest(value: SelectEquipmentRequest): SelectEqui
   return request;
 }
 
+type GameRateBucket = "casts" | "actions";
+
+function enforceRateLimit(context: Context<{ Bindings: Env; Variables: AppVariables }>, bucket: GameRateBucket): void {
+  const limit = bucket === "casts" ? castRateLimit(context.env) : actionRateLimit(context.env);
+  const result = checkRateLimit(`${context.get("playerId")}:${bucket}`, limit);
+  if (!result.allowed) throw tooManyRequests(result.retryAfterSeconds);
+}
+
 export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVariables }>): void {
   app.get("/api/game/state", requireAuth, async (context) => {
     const state = await getGameState(context.env, context.get("playerId"));
@@ -76,24 +86,28 @@ export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVari
   });
 
   app.post("/api/game/encounters", requireAuth, async (context) => {
+    enforceRateLimit(context, "casts");
     const input = ensureStartRequest(await readJson<StartFishingRequest>(context.req.raw));
     const encounter = await startFishing(context.env, context.get("playerId"), input);
     return context.json<FishingEncounterResponse>(encounter, 201);
   });
 
   app.post("/api/game/encounters/:encounterId/complete", requireAuth, async (context) => {
+    enforceRateLimit(context, "casts");
     const input = ensureCompleteRequest(await readJson<CompleteFishingRequest>(context.req.raw));
     const result = await completeFishing(context.env, context.get("playerId"), context.req.param("encounterId"), input);
     return context.json<CompleteFishingResponse>(result);
   });
 
   app.post("/api/game/catches/:catchId/decision", requireAuth, async (context) => {
+    enforceRateLimit(context, "actions");
     const input = ensureDecisionRequest(await readJson<CatchDecisionRequest>(context.req.raw));
     const result = await decideCatch(context.env, context.get("playerId"), context.req.param("catchId"), input.decision);
     return context.json(result);
   });
 
   app.post("/api/game/catches/:catchId/sell", requireAuth, async (context) => {
+    enforceRateLimit(context, "actions");
     const result = await sellCatch(context.env, context.get("playerId"), context.req.param("catchId"));
     return context.json(result);
   });
@@ -109,18 +123,21 @@ export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVari
   });
 
   app.post("/api/game/shop/purchase", requireAuth, async (context) => {
+    enforceRateLimit(context, "actions");
     const input = ensurePurchaseRequest(await readJson<PurchaseRequest>(context.req.raw));
     const result = await purchaseItem(context.env, context.get("playerId"), input);
     return context.json(result);
   });
 
   app.post("/api/game/equipment/select", requireAuth, async (context) => {
+    enforceRateLimit(context, "actions");
     const input = ensureSelectEquipmentRequest(await readJson<SelectEquipmentRequest>(context.req.raw));
     const result = await selectEquipment(context.env, context.get("playerId"), input);
     return context.json(result);
   });
 
   app.post("/api/game/recovery/dig-worms", requireAuth, async (context) => {
+    enforceRateLimit(context, "actions");
     const result = await digForWorms(context.env, context.get("playerId"));
     return context.json(result);
   });

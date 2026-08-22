@@ -164,6 +164,12 @@ export function rodBreakChancePercent(input: RodBreakInput): number {
   return Math.min(12, base * performanceFactor * resistanceFactor);
 }
 
+export function minimumFightSeconds(rodControl: number): number {
+  const gainRate = 0.34 + rodControl * 0.08;
+  const perfectPlaySeconds = (0.44 + 0.28 / 0.9) / gainRate;
+  return Math.max(0.5, Math.floor(perfectPlaySeconds * 0.6 * 10) / 10);
+}
+
 export function specimenFromRow(row: CatchRow | EncounterRow): FishSpecimen {
   const species = GAME_CATALOG.fish.find((candidate) => candidate.id === row.species_id);
   const location = GAME_CATALOG.locations.find((candidate) => candidate.id === row.location_id);
@@ -273,6 +279,10 @@ export async function completeFishing(env: Env, playerId: string, encounterId: s
   const species = GAME_CATALOG.fish.find((candidate) => candidate.id === encounter.species_id);
   if (!species) throw new Error("The encounter references missing catalogue data.");
   const rod = GAME_CATALOG.rods.find((candidate) => candidate.id === encounter.rod_id);
+  const fightSeconds = (Date.now() - new Date(encounter.started_at).getTime()) / 1000;
+  if (rod && fightSeconds < minimumFightSeconds(rod.control)) {
+    throw conflict("That result arrived faster than any real fight could. Try again once the fight has had time to happen.");
+  }
   const threshold = clamp(0.35 + species.difficulty * 0.38, 0.35, 0.75);
   const caught = input.performance >= threshold;
   const completedAt = new Date().toISOString();

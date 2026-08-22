@@ -74,11 +74,15 @@ async function openScreen(screen: ScreenId): Promise<void> {
 
 shell.setNavigationHandler((screen) => void openScreen(screen));
 
+let startPending = false;
+
 shell.setStartFishingHandler((locationId) => {
+  if (startPending || fishingActive) return;
+  startPending = true;
   void (async () => {
-    if (!currentGameState || fishingActive) return;
-    shell.setStatus("Preparing your line…");
     try {
+      if (!currentGameState) return;
+      shell.setStatus("Preparing your line…");
       const encounter = await api.startFishing({ locationId, ...currentGameState.activeEquipment });
       fishingActive = true;
       shell.setNavEnabled(false);
@@ -87,43 +91,62 @@ shell.setStartFishingHandler((locationId) => {
       shell.setStatus("Encounter ready · control the net", "ready");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to start fishing.", "error");
+    } finally {
+      startPending = false;
     }
   })();
 });
+
+async function resolveCompletion(event: { encounterId: string; performance: number }): Promise<void> {
+  shell.setStatus("Checking the catch…");
+  try {
+    const result = await api.completeFishing(event.encounterId, event.performance);
+    const handleDecision = (decision: "keep" | "sell") => {
+      void (async () => {
+        if (!result.catch) return;
+        shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
+        try {
+          const decisionResult = await api.decideCatch(result.catch.id, decision);
+          shell.showDecisionResult(decisionResult, () => void returnToLakes());
+          shell.setStatus(decision === "sell" ? "Fish sold" : "Fish kept", "ready");
+        } catch (error) {
+          shell.setStatus(error instanceof Error ? error.message : "Unable to record the catch.", "error");
+        }
+      })();
+    };
+    shell.showFishingResult(result, handleDecision, () => void returnToLakes());
+    shell.setStatus(result.outcome === "caught" ? "Catch landed" : "The fish got away", result.outcome === "caught" ? "ready" : "error");
+  } catch (error) {
+    if (error instanceof ApiClientError && (error.status === 409 || error.status === 404)) {
+      await returnToLakes();
+      shell.setStatus("That fishing attempt was already resolved.", "ready");
+      return;
+    }
+    const message = error instanceof Error ? error.message : "Unable to resolve the encounter.";
+    shell.showRetryPanel(
+      "Rough connection",
+      `${message} Your catch is still waiting on the line — nothing is lost.`,
+      "Retry catch resolution",
+      () => void resolveCompletion(event),
+      () => void returnToLakes(),
+    );
+    shell.setStatus(message, "error");
+  }
+}
 
 game.events.on("fishing:complete", (event: { encounterId: string; performance: number }) => {
-  void (async () => {
-    shell.setStatus("Checking the catch…");
-    try {
-      const result = await api.completeFishing(event.encounterId, event.performance);
-      const handleDecision = (decision: "keep" | "sell") => {
-        void (async () => {
-          if (!result.catch) return;
-          shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
-          try {
-            const decisionResult = await api.decideCatch(result.catch.id, decision);
-            shell.showDecisionResult(decisionResult, () => void returnToLakes());
-            shell.setStatus(decision === "sell" ? "Fish sold" : "Fish kept", "ready");
-          } catch (error) {
-            shell.setStatus(error instanceof Error ? error.message : "Unable to record the catch.", "error");
-          }
-        })();
-      };
-      shell.showFishingResult(result, handleDecision, () => void returnToLakes());
-      shell.setStatus(result.outcome === "caught" ? "Catch landed" : "The fish got away", result.outcome === "caught" ? "ready" : "error");
-    } catch (error) {
-      fishingActive = false;
-      shell.setNavEnabled(true);
-      shell.setStatus(error instanceof Error ? error.message : "Unable to resolve the encounter.", "error");
-    }
-  })();
+  void resolveCompletion(event);
 });
 
-shell.setPurchaseHandler((itemId) => {
+let purchasePending = false;
+
+shell.setPurchaseHandler((itemId, quantity) => {
+  if (purchasePending) return;
+  purchasePending = true;
   void (async () => {
-    shell.setStatus("Buying…");
     try {
-      const result = await api.purchase({ itemId });
+      shell.setStatus("Buying…");
+      const result = await api.purchase({ itemId, quantity });
       currentGameState = currentGameState
         ? { ...currentGameState, coins: result.coins, inventory: result.inventory, activeEquipment: result.activeEquipment }
         : await api.getGameState();
@@ -132,14 +155,20 @@ shell.setPurchaseHandler((itemId) => {
       shell.setStatus(`Purchased ${itemId.replace(/-/g, " ")}`, "ready");
     } catch (error) {
       shell.setStatus(error instanceof ApiClientError ? error.message : "Unable to complete that purchase.", "error");
+    } finally {
+      purchasePending = false;
     }
   })();
 });
 
+let sellPending = false;
+
 shell.setSellCatchHandler((catchId) => {
+  if (sellPending) return;
+  sellPending = true;
   void (async () => {
-    shell.setStatus("Selling the fish…");
     try {
+      shell.setStatus("Selling the fish…");
       const result = await api.sellCatch(catchId);
       if (currentGameState) currentGameState.coins = result.coins;
       shell.updateWallet(result.coins);
@@ -147,15 +176,30 @@ shell.setSellCatchHandler((catchId) => {
       shell.showCollection({ fish: remaining });
       shell.setStatus(`Sold ${result.catch.species.commonName} for ${result.catch.saleValueCoins.toLocaleString()} coins`, "ready");
     } catch (error) {
+      if (error instanceof ApiClientError && error.status === 409) {
+        try {
+          shell.showCollection(await api.getCollection());
+        } catch {
+          // Keep the cached list; the wallet is already reconciled.
+        }
+        shell.setStatus("That fish was already sold.", "ready");
+        return;
+      }
       shell.setStatus(error instanceof Error ? error.message : "Unable to sell that fish.", "error");
+    } finally {
+      sellPending = false;
     }
   })();
 });
 
+let selectPending = false;
+
 shell.setSelectEquipmentHandler((request: EquipmentSelectionRequest) => {
+  if (selectPending) return;
+  selectPending = true;
   void (async () => {
-    shell.setStatus("Swapping gear…");
     try {
+      shell.setStatus("Swapping gear…");
       const result = await api.selectEquipment(request);
       if (currentGameState) {
         currentGameState = { ...currentGameState, activeEquipment: result.activeEquipment, inventory: result.inventory };
@@ -164,14 +208,20 @@ shell.setSelectEquipmentHandler((request: EquipmentSelectionRequest) => {
       shell.setStatus("Loadout updated", "ready");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to swap that piece of equipment.", "error");
+    } finally {
+      selectPending = false;
     }
   })();
 });
 
+let recoveryPending = false;
+
 shell.setRecoveryHandler(() => {
+  if (recoveryPending) return;
+  recoveryPending = true;
   void (async () => {
-    shell.setStatus("Digging in the shallows…");
     try {
+      shell.setStatus("Digging in the shallows…");
       const result = await api.digForWorms();
       await refreshGameState();
       renderLakes();
@@ -181,6 +231,8 @@ shell.setRecoveryHandler(() => {
       shell.setStatus(`Emergency tackle: ${parts.join(", ")}`, "ready");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Nothing left to dig up right now.", "error");
+    } finally {
+      recoveryPending = false;
     }
   })();
 });
@@ -216,7 +268,9 @@ async function bootstrap(): Promise<void> {
     renderLakes();
     shell.setStatus(telegram.isAvailable ? "Connected to Telegram" : "Local development mode", "ready");
   } catch (error) {
-    shell.setStatus(error instanceof Error ? error.message : "Unable to connect.", "error");
+    const message = error instanceof Error ? error.message : "Unable to connect.";
+    shell.showRetryPanel("Unable to connect", message, "Try again", () => void bootstrap());
+    shell.setStatus(message, "error");
   }
 }
 

@@ -164,6 +164,8 @@ The current workers.dev deployment is `https://fishing-with-friends.fishing-with
 
 Route handlers stay thin. Input validation and centralized error responses live at the Worker boundary; authentication is middleware; D1 access is isolated in the player repository.
 
+Mutating game routes are rate limited per player (casts and general actions use separate buckets), and authentication routes are rate limited per IP. Limits use best-effort in-memory fixed windows inside each Worker isolate and default to 30 casts/min, 90 actions/min, and 20 auth attempts/min; they can be overridden with the `RATE_LIMIT_CASTS_PER_MINUTE`, `RATE_LIMIT_ACTIONS_PER_MINUTE`, and `RATE_LIMIT_AUTH_PER_MINUTE` bindings. Encounter completions that arrive faster than any real fight could be played are rejected without consuming the encounter, so scripted instant wins fail while honest players are unaffected.
+
 ## D1
 
 The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. Migration `0004_create_fish_journal.sql` adds per-species discovery and personal records. The internal player `id` is independent of Telegram's external ID.

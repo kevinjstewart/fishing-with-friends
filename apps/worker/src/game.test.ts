@@ -2,7 +2,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 import type { CompleteFishingResponse, FishingEncounterResponse, GameStateResponse } from "@fishing/shared";
 import type { Env } from "./env";
 import { app } from "./index";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { resetRateLimits } from "./lib/rate-limit";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface StoredPlayer {
   id: string;
@@ -377,7 +378,7 @@ class FakeD1Statement {
   }
 }
 
-function createEnvironment(): { env: Env; stores: Stores } {
+function createEnvironment(overrides: Partial<Env> = {}): { env: Env; stores: Stores } {
   const stores: Stores = { players: [], gameStates: [], equipment: [], encounters: [], catches: [], records: [] };
   const db = {
     prepare: (sql: string) => new FakeD1Statement(sql, stores),
@@ -389,6 +390,10 @@ function createEnvironment(): { env: Env; stores: Stores } {
     ENVIRONMENT: "development",
     DEV_AUTH_ENABLED: "true",
     APP_ORIGIN: "http://localhost:5173",
+    RATE_LIMIT_AUTH_PER_MINUTE: "100000",
+    RATE_LIMIT_CASTS_PER_MINUTE: "100000",
+    RATE_LIMIT_ACTIONS_PER_MINUTE: "100000",
+    ...overrides,
   };
   return { env, stores };
 }
@@ -417,6 +422,18 @@ async function setup(): Promise<TestHarness> {
   const token = await authenticate(env);
   return { env, stores, token };
 }
+
+const WILLOW_POND_SETUP = { locationId: "willow-pond", rodId: "starter-fiberglass", lureId: "copper-spinner", baitId: "worm" };
+
+async function completeEncounter(harness: { env: Env; token: string }, encounterId: string, performance: number): Promise<Response> {
+  vi.setSystemTime(Date.now() + 15_000);
+  return app.request(`/api/game/encounters/${encodeURIComponent(encounterId)}/complete`, { method: "POST", headers: jsonHeaders(harness.token), body: JSON.stringify({ performance }) }, harness.env);
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  resetRateLimits();
+});
 
 describe("game state route", () => {
   it("initializes a persistent starter loadout and exposes lake progression", async () => {
@@ -475,7 +492,7 @@ describe("fishing loop", () => {
       expect(stateAfterStart.inventory.baits[0].quantity).toBe(9);
       expect(stateAfterStart.inventory.lures[0].durability).toBe(9);
 
-      const completeResponse = await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env);
+      const completeResponse = await completeEncounter({ env, token }, encounter.encounterId, 1);
       expect(completeResponse.status).toBe(200);
       const complete = (await completeResponse.json()) as CompleteFishingResponse;
       expect(complete.outcome).toBe("caught");
@@ -484,7 +501,7 @@ describe("fishing loop", () => {
       expect(complete.catch?.weightKg).toBeGreaterThanOrEqual(encounter.species.minimumWeightKg);
       expect(complete.catch?.weightKg).toBeLessThanOrEqual(encounter.species.maximumWeightKg);
 
-      const duplicate = await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env);
+      const duplicate = await completeEncounter({ env, token }, encounter.encounterId, 1);
       expect(duplicate.status).toBe(409);
 
       const journalResponse = await app.request("/api/game/journal", { headers: { Authorization: `Bearer ${token}` } }, env);
@@ -522,7 +539,7 @@ describe("fishing loop", () => {
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
       expect(encounter.species.id).toBe("smallmouth-bass");
 
-      const completeResponse = await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 0 }) }, env);
+      const completeResponse = await completeEncounter({ env, token }, encounter.encounterId, 0);
       expect(completeResponse.status).toBe(200);
       const complete = (await completeResponse.json()) as CompleteFishingResponse;
       expect(complete.outcome).toBe("lost");
@@ -547,7 +564,7 @@ describe("fishing loop", () => {
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
       expect(["yellow-perch", "pumpkinseed", "rock-bass", "bluegill"]).toContain(encounter.species.id);
 
-      const completeResponse = await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 0 }) }, env);
+      const completeResponse = await completeEncounter({ env, token }, encounter.encounterId, 0);
       const complete = (await completeResponse.json()) as CompleteFishingResponse;
       expect(complete.outcome).toBe("lost");
       expect(complete.rodBroke).toBe(false);
@@ -567,7 +584,7 @@ describe("collection", () => {
 
       const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(setupBody) }, env);
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
-      const complete = (await (await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env)).json()) as CompleteFishingResponse;
+      const complete = (await (await completeEncounter({ env, token }, encounter.encounterId, 1)).json()) as CompleteFishingResponse;
 
       const keep = await app.request(`/api/game/catches/${complete.catch?.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: "keep" }) }, env);
       expect(keep.status).toBe(200);
@@ -620,7 +637,7 @@ describe("shop", () => {
 
       const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify({ locationId: "willow-pond", rodId: "starter-fiberglass", lureId: "copper-spinner", baitId: "worm" }) }, env);
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
-      const complete = (await (await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env)).json()) as CompleteFishingResponse;
+      const complete = (await (await completeEncounter({ env, token }, encounter.encounterId, 1)).json()) as CompleteFishingResponse;
       expect(complete.catch).not.toBeNull();
       const sale = (await (await app.request(`/api/game/catches/${complete.catch?.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: "sell" }) }, env)).json()) as { coins: number };
 
@@ -660,7 +677,7 @@ describe("shop", () => {
           continue;
         }
         const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
-        const complete = (await (await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env)).json()) as CompleteFishingResponse;
+        const complete = (await (await completeEncounter({ env, token }, encounter.encounterId, 1)).json()) as CompleteFishingResponse;
         if (complete.catch) {
           await app.request(`/api/game/catches/${complete.catch.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: "sell" }) }, env);
         }
@@ -731,7 +748,7 @@ describe("shop", () => {
 
       const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(setupBody) }, env);
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
-      await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 0 }) }, env);
+      await completeEncounter({ env, token }, encounter.encounterId, 0);
 
       const replacement = await app.request("/api/game/shop/purchase", { method: "POST", headers, body: JSON.stringify({ itemId: "starter-fiberglass" }) }, env);
       expect(replacement.status).toBe(200);
@@ -748,6 +765,58 @@ describe("shop", () => {
   });
 });
 
+describe("encounter hardening", () => {
+  it("rejects completions that arrive faster than a real fight allows, without consuming the encounter", async () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const { env, token } = await setup();
+      const headers = jsonHeaders(token);
+
+      const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+      expect(encounterResponse.status).toBe(201);
+      const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
+
+      const instant = await app.request(`/api/game/encounters/${encounter.encounterId}/complete`, { method: "POST", headers, body: JSON.stringify({ performance: 1 }) }, env);
+      expect(instant.status).toBe(409);
+      expect(((await instant.json()) as { error: { code: string } }).error.code).toBe("CONFLICT");
+
+      const retry = await completeEncounter({ env, token }, encounter.encounterId, 1);
+      expect(retry.status).toBe(200);
+      expect(((await retry.json()) as CompleteFishingResponse).outcome).toBe("caught");
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+});
+
+describe("rate limiting", () => {
+  it("blocks casting beyond the configured burst while leaving other buckets open", async () => {
+    resetRateLimits();
+    const { env } = createEnvironment({
+      RATE_LIMIT_CASTS_PER_MINUTE: "2",
+      RATE_LIMIT_AUTH_PER_MINUTE: "100000",
+      RATE_LIMIT_ACTIONS_PER_MINUTE: "100000",
+    });
+    const token = await authenticate(env);
+    const headers = jsonHeaders(token);
+
+    const first = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+    expect(first.status).toBe(201);
+    const second = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+    expect(second.status).toBe(409);
+
+    const third = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+    expect(third.status).toBe(429);
+    const blocked = (await third.json()) as { error: { code: string; message: string } };
+    expect(blocked.error.code).toBe("RATE_LIMITED");
+    expect(blocked.error.message).toContain("Try again in");
+
+    const purchase = await app.request("/api/game/shop/purchase", { method: "POST", headers, body: JSON.stringify({ itemId: "worm" }) }, env);
+    expect(purchase.status).toBe(200);
+  });
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
