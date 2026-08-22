@@ -274,7 +274,7 @@ body.is-fighting .app-frame {
   padding:
     4px
     max(12px, var(--safe-right))
-    calc(var(--tabbar-h) + 18px)
+    0
     max(12px, var(--safe-left));
   scrollbar-gutter: stable;
 }
@@ -869,7 +869,7 @@ h2 {
     calc(-1 * max(12px, var(--safe-right)))
     -14px
     calc(-1 * max(12px, var(--safe-left)));
-  padding: 12px max(12px, var(--safe-right)) 12px max(12px, var(--safe-left));
+  padding: 12px max(12px, var(--safe-right)) 0 max(12px, var(--safe-left));
   background: linear-gradient(180deg, transparent, rgba(4, 18, 32, 0.88) 34%);
 }
 
