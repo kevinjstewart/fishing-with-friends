@@ -137,7 +137,7 @@ export class AppShell {
       createElement("span", "eyebrow", "Line out"),
       createElement("h1", undefined, `${encounter.species.commonName} is on`),
       createElement("p", "muted", `${encounter.locationName} · ${encounter.rodRiskBand[0].toUpperCase()}${encounter.rodRiskBand.slice(1)} rod risk`),
-      createElement("p", "fishing-instruction", "Use the playfield above to keep the fish inside the teal net. Hold to move up; release to let it fall."),
+      createElement("p", "fishing-instruction", "Keep the fish inside the net until the control meter fills. Hold to lift; release to drop."),
     );
     this.game.replaceChildren(panel);
   }
