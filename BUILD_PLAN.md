@@ -36,6 +36,9 @@ The game should be functionally complete when the main checklist is complete. De
 * [x] Rod break outcomes are resolved on the Worker from specimen weight versus rod rating, player performance, and rod break resistance; broken rods leave the inventory, the strongest surviving rod is equipped automatically, and the result screen explains what happened.
 * [x] The loadout can be changed between casts (rod/lure/bait selection among owned items), and each selected lake shows a plain-language rod-suitability warning plus expected catch value range before committing resources.
 * [x] A dig-for-worms recovery action prevents permanent soft locks when a player is broke with no usable tackle.
+* [x] Mutating game routes are rate limited per player and authentication routes per IP (fixed in-memory windows, configurable through `RATE_LIMIT_*` bindings).
+* [x] Encounter completions that arrive faster than any real fight could are rejected without consuming the encounter, closing the instant-catch scripting hole.
+* [x] The browser survives rough conditions: failed catch resolutions offer an inline retry (or a reconciling exit), connection failures offer a retry at bootstrap, mutating actions guard against double submits, and bait can be bought in bulk from the shop.
 * [ ] A full balance play-through, deeper presentation polish, Telegram device verification, and release hardening remain.
 
 ---

@@ -25,6 +25,62 @@ function createElement<K extends keyof HTMLElementTagNameMap>(tag: K, className?
   return element;
 }
 
+type IconName = "anchor" | "bait" | "book" | "coin" | "lure" | "rod" | "shop" | "trophy" | "waves";
+
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+const ICON_PATHS: Record<IconName, string[]> = {
+  waves: [
+    "M3 9.5c2-2.2 4-2.2 6 0s4 2.2 6 0 4-2.2 6 0",
+    "M3 15c2-2.2 4-2.2 6 0s4 2.2 6 0 4-2.2 6 0",
+  ],
+  shop: [
+    "M6.5 8.5h11l-.9 11a2 2 0 0 1-2 1.8H9.4a2 2 0 0 1-2-1.8l-.9-11Z",
+    "M9 10.5V7a3 3 0 0 1 6 0v3.5",
+  ],
+  trophy: [
+    "M8 21h8",
+    "M12 17v4",
+    "M7 4h10v5a5 5 0 0 1-10 0V4Z",
+    "M7 6H4.5A2.5 2.5 0 0 0 7 10",
+    "M17 6h2.5A2.5 2.5 0 0 1 17 10",
+  ],
+  book: ["M4 19.5A2.5 2.5 0 0 1 6.5 17H20", "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"],
+  coin: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"],
+  anchor: ["M12 7.5A2.25 2.25 0 1 0 12 3a2.25 2.25 0 0 0 0 4.5Z", "M12 7.5V21", "M4.5 13.5a7.5 7.5 0 0 0 15 0", "M8.5 10.5h7"],
+  rod: [
+    "M4 20C10.5 18.5 17.5 12 20 4",
+    "M20 4c.8 3.2-.3 6.4-3 8.6",
+    "M10.3 16.5a1.8 1.8 0 1 0-3.6 0 1.8 1.8 0 0 0 3.6 0Z",
+  ],
+  lure: [
+    "M12 3v2",
+    "M12 5c3 3.8 5 6 5 9a5 5 0 1 1-10 0c0-3 2-5.2 5-9Z",
+    "M13.2 16.2a1.2 1.2 0 1 0-2.4 0 1.2 1.2 0 0 0 2.4 0Z",
+  ],
+  bait: ["M4 14.5c2-5 5-5 7 0s5 5 7 0"],
+};
+
+function createIcon(name: IconName): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("icon");
+  for (const d of ICON_PATHS[name]) {
+    const path = document.createElementNS(SVG_NAMESPACE, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
+const SCREEN_ICONS: Record<ScreenId, IconName> = {
+  lakes: "waves",
+  shop: "shop",
+  collection: "trophy",
+  journal: "book",
+};
+
 function formatCoins(coins: number): string {
   return `${coins.toLocaleString()} coins`;
 }
@@ -37,9 +93,13 @@ function riskLabel(location: LocationAvailability): string {
   return `${capitalize(location.riskBand)} risk`;
 }
 
-function equipmentCard(label: string, name: string, detail: string): HTMLElement {
+function equipmentCard(icon: IconName, label: string, name: string, detail: string): HTMLElement {
   const card = createElement("article", "equipment-card");
-  card.append(createElement("span", "eyebrow", label), createElement("strong", undefined, name), createElement("span", "muted", detail));
+  const chip = createElement("span", "equipment-icon");
+  chip.append(createIcon(icon));
+  const text = createElement("div", "equipment-text");
+  text.append(createElement("span", "eyebrow", label), createElement("strong", undefined, name), createElement("span", "muted", detail));
+  card.append(chip, text);
   return card;
 }
 
@@ -51,6 +111,8 @@ const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpe
   value: (a, b) => b.saleValueCoins - a.saleValueCoins,
   species: (a, b) => a.species.commonName.localeCompare(b.species.commonName) || b.weightKg - a.weightKg,
 };
+
+const BAIT_QUANTITY_CHOICES = [1, 5, 10, 25];
 
 export class AppShell {
   private readonly root: HTMLElement;
@@ -66,10 +128,11 @@ export class AppShell {
   private latestJournal?: FishJournalResponse;
   private startFishingHandler?: (locationId: string) => void;
   private navigationHandler?: (screen: ScreenId) => void;
-  private purchaseHandler?: (itemId: string) => void;
+  private purchaseHandler?: (itemId: string, quantity?: number) => void;
   private sellCatchHandler?: (catchId: string) => void;
   private selectEquipmentHandler?: (request: EquipmentSelectionRequest) => void;
   private recoveryHandler?: () => void;
+  private baitQuantities = new Map<string, number>();
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -99,7 +162,7 @@ export class AppShell {
     this.navigationHandler = handler;
   }
 
-  setPurchaseHandler(handler: (itemId: string) => void): void {
+  setPurchaseHandler(handler: (itemId: string, quantity?: number) => void): void {
     this.purchaseHandler = handler;
   }
 
@@ -128,6 +191,12 @@ export class AppShell {
     if (wallet && this.gameState) {
       this.gameState = { ...this.gameState, coins };
       wallet.textContent = formatCoins(coins);
+      const chip = wallet.closest<HTMLElement>(".wallet");
+      if (chip) {
+        chip.classList.remove("did-update");
+        void chip.offsetWidth;
+        chip.classList.add("did-update");
+      }
     }
   }
 
@@ -145,15 +214,18 @@ export class AppShell {
     ];
     this.nav.replaceChildren();
     for (const tab of tabs) {
-      const button = createElement("button", "screen-tab", tab.label);
+      const button = createElement("button", "screen-tab");
       button.type = "button";
+      button.append(createIcon(SCREEN_ICONS[tab.id]), createElement("span", undefined, tab.label));
       button.setAttribute("aria-pressed", String(this.activeScreen === tab.id));
       button.classList.toggle("is-active", this.activeScreen === tab.id);
       button.addEventListener("click", () => this.navigationHandler?.(tab.id));
       this.nav.append(button);
     }
     const wallet = createElement("div", "wallet");
-    wallet.append(createElement("span", "eyebrow", "Wallet"), createElement("strong", undefined, formatCoins(this.gameState?.coins ?? 0)));
+    const amount = createElement("span", "wallet-amount");
+    amount.append(createIcon("coin"), createElement("strong", undefined, formatCoins(this.gameState?.coins ?? 0)));
+    wallet.append(createElement("span", "eyebrow", "Wallet"), amount);
     this.nav.append(wallet);
   }
 
@@ -185,10 +257,10 @@ export class AppShell {
     const rod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
     const boat = state.catalog.boats.find((item) => item.id === state.activeEquipment.boatId);
     equipmentGrid.append(
-      equipmentCard("Boat", boat?.name ?? state.activeEquipment.boatId, boat ? `Tier ${boat.tier} access gear` : "Permanent access gear"),
-      equipmentCard("Rod", rod?.name ?? state.activeEquipment.rodId, rod ? `Supports up to ${rod.maxFishWeightKg} kg` : "Ready to cast"),
-      equipmentCard("Lure", lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "No lure equipped", lure ? `${lure.durability ?? 0} uses left${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "No lure equipped"),
-      equipmentCard("Bait", bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "No bait selected", `${bait?.quantity ?? 0} portions ready`),
+      equipmentCard("anchor", "Boat", boat?.name ?? state.activeEquipment.boatId, boat ? `Tier ${boat.tier} access gear` : "Permanent access gear"),
+      equipmentCard("rod", "Rod", rod?.name ?? state.activeEquipment.rodId, rod ? `Supports up to ${rod.maxFishWeightKg} kg` : "Ready to cast"),
+      equipmentCard("lure", "Lure", lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "No lure equipped", lure ? `${lure.durability ?? 0} uses left${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "No lure equipped"),
+      equipmentCard("bait", "Bait", bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "No bait selected", `${bait?.quantity ?? 0} portions ready`),
     );
     loadout.append(equipmentGrid);
     loadout.append(this.buildLoadoutSwitcher(state));
@@ -208,10 +280,11 @@ export class AppShell {
       const weights = location.fishIds.map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.maximumWeightKg ?? 0);
       const heaviest = Math.max(0, ...weights);
       const mismatch = heaviest > rod.maxFishWeightKg;
+      const valueRange = `Typical catch value: ${formatCoins(location.expectedValueMinCoins)}–${formatCoins(location.expectedValueMaxCoins)}.`;
       riskPreview.className = mismatch ? "risk-preview is-warning" : "risk-preview";
       riskPreview.textContent = mismatch
-        ? `Warning: fish here can reach ${heaviest} kg but your ${rod.name} supports up to ${rod.maxFishWeightKg} kg. A big fish could snap it.`
-        : `Your ${rod.name} can handle every fish here (up to ${heaviest} kg). Typical catch value: ${formatCoins(location.expectedValueMinCoins)}–${formatCoins(location.expectedValueMaxCoins)}.`;
+        ? `Warning: fish here can reach ${heaviest} kg but your ${rod.name} supports up to ${rod.maxFishWeightKg} kg. A big fish could snap it. ${valueRange}`
+        : `Your ${rod.name} can handle every fish here (up to ${heaviest} kg). ${valueRange}`;
     };
     describeRisk();
 
@@ -221,9 +294,10 @@ export class AppShell {
       cardTop.append(createElement("h2", undefined, location.name), createElement("span", `risk-badge risk-${location.riskBand}`, riskLabel(location)));
       const fishNames = location.fishIds
         .map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.commonName ?? fishId)
-        .slice(0, 4)
-        .join(" · ");
-      card.append(cardTop, createElement("p", "muted", location.description), createElement("p", "fish-preview", fishNames));
+        .slice(0, 4);
+      const fishChips = createElement("div", "fish-chips");
+      for (const fishName of fishNames) fishChips.append(createElement("span", "fish-chip", fishName));
+      card.append(cardTop, createElement("p", "muted", location.description), fishChips);
 
       if (location.unlocked) {
         const button = createElement("button", "select-location", location.id === selectedLocation.id ? "Selected" : "Select lake");
@@ -241,7 +315,7 @@ export class AppShell {
           selectedLocationId = location.id;
           this.selectedLocationId = location.id;
           selection.textContent = `Selected: ${location.name}`;
-          startButton.textContent = `Start fishing at ${location.name}`;
+          applyStartButtonState(location);
           describeRisk();
         });
         card.append(button);
@@ -252,7 +326,19 @@ export class AppShell {
       locationsGrid.append(card);
     }
     startButton.type = "button";
-    startButton.disabled = !selectedLocation.unlocked || !this.startFishingHandler;
+    const applyStartButtonState = (location: LocationAvailability): void => {
+      const baitAvailable = (bait?.quantity ?? 0) > 0;
+      const lureUsable = Boolean(lure && lure.quantity > 0 && (lure.durability ?? 0) >= 1);
+      const tackleMissing = !baitAvailable || !lureUsable;
+      startButton.disabled = !location.unlocked || !this.startFishingHandler || tackleMissing;
+      startButton.textContent =
+        location.unlocked && tackleMissing
+          ? baitAvailable
+            ? "Lure worn out — buy a new one"
+            : "No bait — visit the shop or dig for worms"
+          : `Start fishing at ${location.name}`;
+    };
+    applyStartButtonState(selectedLocation);
     startButton.addEventListener("click", () => this.startFishingHandler?.(selectedLocationId));
     locationsSection.append(locationsGrid, selection, riskPreview, startButton);
 
@@ -293,16 +379,30 @@ export class AppShell {
         if (state.activeEquipment[`${slot}Id`] === definition.id) optionButton.classList.add("is-active");
         optionButton.addEventListener("click", () => {
           options.hidden = true;
+          options.style.left = "";
           this.selectEquipmentHandler?.({ [`${slot}Id`]: definition.id });
         });
         options.append(optionButton);
       }
 
       toggle.addEventListener("click", () => {
+        const show = options.hidden;
         for (const other of container.querySelectorAll<HTMLElement>(".equipment-options")) {
-          if (other !== options) other.hidden = true;
+          other.hidden = true;
+          other.style.left = "";
         }
-        options.hidden = !options.hidden;
+        if (!show) return;
+        options.hidden = false;
+        const margin = 8;
+        const viewportWidth = document.documentElement.clientWidth;
+        const bounds = options.getBoundingClientRect();
+        if (bounds.right <= viewportWidth - margin && bounds.left >= margin) return;
+        const targetLeft = Math.min(
+          Math.max(margin, bounds.left - Math.max(0, bounds.right - (viewportWidth - margin))),
+          viewportWidth - margin - bounds.width,
+        );
+        const slotLeft = (options.offsetParent as HTMLElement | null)?.getBoundingClientRect().left ?? 0;
+        options.style.left = `${Math.round(targetLeft - slotLeft)}px`;
       });
 
       const group = createElement("div", "loadout-slot");
@@ -406,23 +506,59 @@ export class AppShell {
       for (const item of section.items) {
         const card = createElement("article", "shop-card");
         const top = createElement("div", "shop-card-top");
-        top.append(createElement("h2", undefined, item.name), createElement("span", "price-tag", item.priceCoins === 0 ? "Free" : formatCoins(item.priceCoins)));
-        card.append(top, createElement("p", "muted", item.description), createElement("p", "shop-detail", item.detail));
-        if ((section.title === "Boats" || section.title === "Rods") && item.owned && item.priceCoins > 0) {
-          const ownedBadge = createElement("span", "owned-badge", "Owned");
-          card.append(ownedBadge);
+        const priceTag = createElement("span", "price-tag");
+        if (item.priceCoins === 0) {
+          priceTag.textContent = "Free";
         } else {
-          const button = createElement("button", "primary-action shop-buy");
-          button.type = "button";
-          if (state.coins < item.priceCoins) {
-            button.disabled = true;
-            button.textContent = `Need ${formatCoins(item.priceCoins - state.coins)} more`;
-          } else {
-            button.textContent = item.priceCoins === 0 ? "Claim free" : "Buy";
-            button.addEventListener("click", () => this.purchaseHandler?.(item.id));
-          }
-          card.append(button);
+          priceTag.append(createIcon("coin"), document.createTextNode(item.priceCoins.toLocaleString()));
         }
+        top.append(createElement("h2", undefined, item.name), priceTag);
+        card.append(top, createElement("p", "muted", item.description), createElement("p", "shop-detail", item.detail));
+
+        const isPermanentItem = section.title === "Boats" || section.title === "Rods";
+        const isBait = section.title === "Bait";
+        if (isPermanentItem && item.owned) {
+          card.append(createElement("span", "owned-badge", "Owned"));
+          grid.append(card);
+          continue;
+        }
+
+        let quantity = 1;
+        let totalCost = item.priceCoins;
+        if (isBait) {
+          quantity = this.baitQuantities.get(item.id) ?? 1;
+          totalCost = item.priceCoins * quantity;
+          const pickerRow = createElement("div", "quantity-row");
+          const pickerLabel = createElement("label", "muted", "Amount");
+          pickerLabel.htmlFor = `quantity-${item.id}`;
+          const picker = document.createElement("select");
+          picker.className = "quantity-select";
+          picker.id = `quantity-${item.id}`;
+          for (const choice of BAIT_QUANTITY_CHOICES) {
+            const option = document.createElement("option");
+            option.value = String(choice);
+            option.textContent = `×${choice}`;
+            if (choice === quantity) option.selected = true;
+            picker.append(option);
+          }
+          picker.addEventListener("change", () => {
+            this.baitQuantities.set(item.id, Number(picker.value));
+            this.renderShop();
+          });
+          pickerRow.append(pickerLabel, picker);
+          card.append(pickerRow);
+        }
+
+        const button = createElement("button", "primary-action shop-buy");
+        button.type = "button";
+        if (state.coins < totalCost) {
+          button.disabled = true;
+          button.textContent = `Need ${formatCoins(totalCost - state.coins)} more`;
+        } else {
+          button.textContent = isBait ? `Buy ×${quantity} · ${formatCoins(totalCost)}` : item.priceCoins === 0 ? "Claim free" : "Buy";
+          button.addEventListener("click", () => this.purchaseHandler?.(item.id, isBait ? quantity : undefined));
+        }
+        card.append(button);
         grid.append(card);
       }
       sectionEl.append(grid);
@@ -558,8 +694,26 @@ export class AppShell {
   }
 
   showLoadingScreen(message: string): void {
-    const panel = createElement("section", "fishing-status");
+    const panel = createElement("section", "fishing-status is-loading");
     panel.append(createElement("span", "eyebrow", "One moment"), createElement("p", "muted", message));
+    this.game.replaceChildren(panel);
+  }
+
+  showRetryPanel(eyebrow: string, message: string, retryLabel: string, onRetry: () => void, onBack?: () => void): void {
+    const panel = createElement("section", "fishing-status");
+    panel.append(createElement("span", "eyebrow", eyebrow), createElement("p", "muted", message));
+    const actions = createElement("div", onBack ? "result-actions" : "");
+    const retry = createElement("button", "primary-action", retryLabel);
+    retry.type = "button";
+    retry.addEventListener("click", onRetry);
+    actions.append(retry);
+    if (onBack) {
+      const back = createElement("button", "secondary-action", "Back to lakes");
+      back.type = "button";
+      back.addEventListener("click", onBack);
+      actions.append(back);
+    }
+    panel.append(actions);
     this.game.replaceChildren(panel);
   }
 

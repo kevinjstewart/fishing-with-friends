@@ -7,7 +7,7 @@ export interface TelegramIntegration {
 export function createTelegramIntegration(): TelegramIntegration {
   const webApp = window.Telegram?.WebApp;
   return {
-    isAvailable: Boolean(webApp),
+    isAvailable: Boolean(webApp?.initData),
     initData: webApp?.initData ?? "",
     initialize() {
       webApp?.ready();

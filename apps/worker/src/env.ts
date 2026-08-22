@@ -7,6 +7,9 @@ export interface Env {
   APP_ORIGIN?: string;
   DEV_AUTH_ENABLED?: string;
   SESSION_TTL_SECONDS?: string;
+  RATE_LIMIT_AUTH_PER_MINUTE?: string;
+  RATE_LIMIT_CASTS_PER_MINUTE?: string;
+  RATE_LIMIT_ACTIONS_PER_MINUTE?: string;
 }
 
 export type AppVariables = {

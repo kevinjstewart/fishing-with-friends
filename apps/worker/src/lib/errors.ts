@@ -28,3 +28,8 @@ export function conflict(message: string): ApiError {
 export function notFound(message = "The requested resource was not found."): ApiError {
   return new ApiError(404, "NOT_FOUND", message);
 }
+
+export function tooManyRequests(retryAfterSeconds: number): ApiError {
+  const seconds = Math.max(1, Math.ceil(retryAfterSeconds));
+  return new ApiError(429, "RATE_LIMITED", `Too many requests. Try again in ${seconds} second${seconds === 1 ? "" : "s"}.`);
+}
