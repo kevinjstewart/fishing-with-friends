@@ -1,0 +1,119 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify and deploy staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://fishing-with-friends-staging.fishing-with-friends.workers.dev
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_APP_ORIGIN: https://fishing-with-friends-staging.fishing-with-friends.workers.dev
+
+    steps:
+      - name: Validate deployment credentials
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::CLOUDFLARE_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets are required."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: |
+          npm run typecheck
+          npm test
+          npm run lint
+
+      - name: Create or find isolated staging database
+        id: database
+        run: |
+          database_id=$(npx wrangler d1 list --json | node -e '
+            let input = "";
+            process.stdin.on("data", chunk => input += chunk);
+            process.stdin.on("end", () => {
+              const database = JSON.parse(input).find(item => item.name === "fishing-with-friends-staging");
+              if (database) process.stdout.write(database.uuid);
+            });
+          ')
+          if [[ -z "$database_id" ]]; then
+            npx wrangler d1 create fishing-with-friends-staging --location enam
+            database_id=$(npx wrangler d1 list --json | node -e '
+              let input = "";
+              process.stdin.on("data", chunk => input += chunk);
+              process.stdin.on("end", () => {
+                const database = JSON.parse(input).find(item => item.name === "fishing-with-friends-staging");
+                if (database) process.stdout.write(database.uuid);
+              });
+            ')
+          fi
+          if [[ -z "$database_id" ]]; then
+            echo "::error::Unable to resolve the staging D1 database ID."
+            exit 1
+          fi
+          echo "STAGING_D1_DATABASE_ID=$database_id" >> "$GITHUB_ENV"
+
+      - name: Build staging bundle
+        run: npm run build:staging
+
+      - name: Apply staging database migrations
+        run: npm run db:migrate:staging
+
+      - name: Deploy staging Worker
+        run: npm run deploy:staging
+
+      - name: Configure staging Telegram secret
+        env:
+          STAGING_TELEGRAM_BOT_TOKEN: ${{ secrets.STAGING_TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [[ -z "$STAGING_TELEGRAM_BOT_TOKEN" ]]; then
+            echo "::warning::Staging deployed without Telegram auth. Add STAGING_TELEGRAM_BOT_TOKEN to the staging GitHub environment and rerun this workflow."
+            exit 0
+          fi
+          npm run secret:set:telegram:staging
+
+      - name: Smoke test staging
+        run: |
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error "$STAGING_APP_ORIGIN/api/health" | grep -q '"status":"ok"'; then
+              break
+            fi
+            if [[ "$attempt" == 12 ]]; then
+              echo "::error::Staging health check did not become ready."
+              exit 1
+            fi
+            sleep 5
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'X-Dev-Auth: true' \
+            --data '{}' \
+            "$STAGING_APP_ORIGIN/api/auth/dev")" = "403"
+          curl --fail --silent --show-error "$STAGING_APP_ORIGIN/" | grep -q "Fishing with Friends"

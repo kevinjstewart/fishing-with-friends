@@ -107,4 +107,14 @@ describe("authentication routes", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("never enables development auth in staging", async () => {
+    const response = await app.request(
+      "/api/auth/dev",
+      { method: "POST", headers: { "X-Dev-Auth": "true" } },
+      createEnvironment({ ENVIRONMENT: "staging" }),
+    );
+
+    expect(response.status).toBe(403);
+  });
 });

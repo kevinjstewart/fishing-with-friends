@@ -80,6 +80,8 @@ Deployment credentials are read by Wrangler from the process environment:
 CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 TELEGRAM_BOT_TOKEN
+STAGING_D1_DATABASE_ID
+STAGING_TELEGRAM_BOT_TOKEN
 ```
 
 `.envrc`, `.dev.vars`, `.env`, and `.env.*` are ignored. The Worker needs `TELEGRAM_BOT_TOKEN` as a deployed Worker secret, not as a normal `wrangler.jsonc` variable. The helper below reads the existing process variable and pipes it directly to Wrangler without printing it:
@@ -87,6 +89,8 @@ TELEGRAM_BOT_TOKEN
 ```bash
 npm run secret:set:telegram
 ```
+
+Staging uses a different Telegram bot and D1 database. `STAGING_D1_DATABASE_ID` is the non-secret UUID of that database; `STAGING_TELEGRAM_BOT_TOKEN` is read only when setting the staging Worker secret. Never use the production database ID or production bot token for staging.
 
 The checked-in Wrangler development environment supplies these non-secret flags automatically:
 
@@ -181,6 +185,35 @@ npm run deploy
 
 `npm run deploy` builds the Vite frontend and deploys the Worker with the static assets directory. Update `APP_ORIGIN` in `wrangler.jsonc` if the frontend will be served from a separate origin. The initial deployment does not configure KV or R2.
 
+## Staging
+
+Staging is a production-like, isolated Cloudflare environment at `https://fishing-with-friends-staging.fishing-with-friends.workers.dev`. It has its own Worker, D1 database, Telegram bot token, player data, and one-day session lifetime. Local development auth is disabled there.
+
+The `Deploy staging` GitHub Actions workflow runs on pushes to the `staging` branch or by manual dispatch. It:
+
+1. Runs typechecking, tests, and linting.
+2. Creates or reuses the `fishing-with-friends-staging` D1 database in Eastern North America.
+3. Generates a temporary Wrangler config that refuses the production D1 database ID.
+4. Builds, migrates, and deploys staging serially.
+5. Installs the staging Telegram bot token when configured.
+6. Smoke-tests health, frontend delivery, and rejection of development auth.
+
+Create a separate bot with BotFather for staging, then add its token as the `STAGING_TELEGRAM_BOT_TOKEN` secret in the GitHub `staging` environment. Configure that bot's Mini App URL to the staging URL above. The Cloudflare credentials remain the existing repository secrets, while the bot token is scoped to the staging environment.
+
+To run the same operations locally after authenticating Wrangler:
+
+```bash
+export STAGING_D1_DATABASE_ID="your-staging-d1-uuid"
+export STAGING_TELEGRAM_BOT_TOKEN="your-staging-bot-token"
+
+npm run build:staging
+npm run db:migrate:staging
+npm run deploy:staging
+npm run secret:set:telegram:staging
+```
+
+The generated `.wrangler.staging.jsonc` is ignored and contains no secret. Do not copy production player data into staging; use synthetic Telegram accounts and resettable test data.
+
 ## CI/CD
 
 GitHub Actions runs typechecking, tests, linting, and both production builds for every pull request targeting `main`. The `Checks` job is required by the `main` branch protection rule.
@@ -195,6 +228,8 @@ CLOUDFLARE_ACCOUNT_ID
 ```
 
 `CLOUDFLARE_TOKEN` must be a narrowly scoped Cloudflare API token with permission to deploy this Worker and edit its D1 database. `CLOUDFLARE_ACCOUNT_ID` identifies the account containing the Worker. The Telegram bot token remains a deployed Worker secret and is not copied into each deployment run.
+
+The separate staging workflow uses the GitHub `staging` environment. A manual dispatch from `main` validates that exact release candidate; pushes to a long-lived `staging` branch are also supported when changes need soak time before merging.
 
 ## Verification
 
