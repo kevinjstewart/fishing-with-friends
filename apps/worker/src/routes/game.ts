@@ -4,14 +4,17 @@ import type {
   CompleteFishingResponse,
   FishingEncounterResponse,
   GameStateResponse,
+  PurchaseRequest,
+  SelectEquipmentRequest,
   StartFishingRequest,
 } from "@fishing/shared";
 import type { Hono } from "hono";
 import type { AppVariables, Env } from "../env";
 import { badRequest } from "../lib/errors";
 import { requireAuth } from "../middleware/auth";
-import { completeFishing, decideCatch, startFishing } from "../services/fishing-service";
+import { completeFishing, decideCatch, sellCatch, startFishing } from "../services/fishing-service";
 import { getGameState } from "../services/game-service";
+import { digForWorms, getCollection, getFishJournal, purchaseItem, selectEquipment } from "../services/shop-service";
 
 async function readJson<T>(request: Request): Promise<T> {
   try {
@@ -42,6 +45,30 @@ function ensureDecisionRequest(value: CatchDecisionRequest): CatchDecisionReques
   return value;
 }
 
+function ensurePurchaseRequest(value: PurchaseRequest): PurchaseRequest {
+  if (!value || typeof value.itemId !== "string" || value.itemId.trim().length === 0) {
+    throw badRequest("itemId is required.");
+  }
+  if (value.quantity !== undefined && typeof value.quantity !== "number") {
+    throw badRequest("quantity must be a number.");
+  }
+  return value;
+}
+
+function ensureSelectEquipmentRequest(value: SelectEquipmentRequest): SelectEquipmentRequest {
+  if (!value || (typeof value.rodId !== "string" && typeof value.lureId !== "string" && typeof value.baitId !== "string")) {
+    throw badRequest("Provide at least one of rodId, lureId, or baitId.");
+  }
+  const request: SelectEquipmentRequest = {};
+  for (const key of ["rodId", "lureId", "baitId"] as const) {
+    const id = value[key];
+    if (id === undefined) continue;
+    if (typeof id !== "string" || id.trim().length === 0) throw badRequest(`${key} must be a non-empty string.`);
+    request[key] = id;
+  }
+  return request;
+}
+
 export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVariables }>): void {
   app.get("/api/game/state", requireAuth, async (context) => {
     const state = await getGameState(context.env, context.get("playerId"));
@@ -63,6 +90,38 @@ export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVari
   app.post("/api/game/catches/:catchId/decision", requireAuth, async (context) => {
     const input = ensureDecisionRequest(await readJson<CatchDecisionRequest>(context.req.raw));
     const result = await decideCatch(context.env, context.get("playerId"), context.req.param("catchId"), input.decision);
+    return context.json(result);
+  });
+
+  app.post("/api/game/catches/:catchId/sell", requireAuth, async (context) => {
+    const result = await sellCatch(context.env, context.get("playerId"), context.req.param("catchId"));
+    return context.json(result);
+  });
+
+  app.get("/api/game/collection", requireAuth, async (context) => {
+    const collection = await getCollection(context.env, context.get("playerId"));
+    return context.json(collection);
+  });
+
+  app.get("/api/game/journal", requireAuth, async (context) => {
+    const journal = await getFishJournal(context.env, context.get("playerId"));
+    return context.json(journal);
+  });
+
+  app.post("/api/game/shop/purchase", requireAuth, async (context) => {
+    const input = ensurePurchaseRequest(await readJson<PurchaseRequest>(context.req.raw));
+    const result = await purchaseItem(context.env, context.get("playerId"), input);
+    return context.json(result);
+  });
+
+  app.post("/api/game/equipment/select", requireAuth, async (context) => {
+    const input = ensureSelectEquipmentRequest(await readJson<SelectEquipmentRequest>(context.req.raw));
+    const result = await selectEquipment(context.env, context.get("playerId"), input);
+    return context.json(result);
+  });
+
+  app.post("/api/game/recovery/dig-worms", requireAuth, async (context) => {
+    const result = await digForWorms(context.env, context.get("playerId"));
     return context.json(result);
   });
 }

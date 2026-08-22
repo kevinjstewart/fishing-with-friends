@@ -2,11 +2,19 @@ import type {
   AuthResponse,
   CatchDecision,
   CatchDecisionResponse,
+  CollectionResponse,
   CompleteFishingResponse,
   ErrorResponse,
+  FishJournalResponse,
   FishingEncounterResponse,
   GameStateResponse,
   MeResponse,
+  PurchaseRequest,
+  PurchaseResponse,
+  RecoveryResponse,
+  SellCatchResponse,
+  SelectEquipmentRequest,
+  SelectEquipmentResponse,
   StartFishingRequest,
   TelegramAuthRequest,
 } from "@fishing/shared";
@@ -79,6 +87,38 @@ export class ApiClient {
       body: JSON.stringify({ decision }),
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  async sellCatch(catchId: string): Promise<SellCatchResponse> {
+    return this.request<SellCatchResponse>(`/api/game/catches/${encodeURIComponent(catchId)}/sell`, { method: "POST" });
+  }
+
+  async getCollection(): Promise<CollectionResponse> {
+    return this.request<CollectionResponse>("/api/game/collection");
+  }
+
+  async getJournal(): Promise<FishJournalResponse> {
+    return this.request<FishJournalResponse>("/api/game/journal");
+  }
+
+  async purchase(input: PurchaseRequest): Promise<PurchaseResponse> {
+    return this.request<PurchaseResponse>("/api/game/shop/purchase", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  async selectEquipment(input: SelectEquipmentRequest): Promise<SelectEquipmentResponse> {
+    return this.request<SelectEquipmentResponse>("/api/game/equipment/select", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  async digForWorms(): Promise<RecoveryResponse> {
+    return this.request<RecoveryResponse>("/api/game/recovery/dig-worms", { method: "POST" });
   }
 
   private async authenticate<TBody>(path: string, body: TBody, extraHeaders: Record<string, string> = {}): Promise<AuthResponse> {

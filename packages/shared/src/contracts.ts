@@ -212,6 +212,8 @@ export interface CompleteFishingResponse {
   outcome: "caught" | "lost";
   message: string;
   catch: FishSpecimen | null;
+  rodBroke: boolean;
+  replacementRodId: string | null;
 }
 
 export type CatchDecision = "keep" | "sell";
@@ -224,6 +226,60 @@ export interface CatchDecisionResponse {
   decision: CatchDecision;
   coins: number;
   catch: FishSpecimen;
+}
+
+export interface PurchaseRequest {
+  itemId: string;
+  quantity?: number;
+}
+
+export interface PurchaseResponse {
+  coins: number;
+  inventory: PlayerInventory;
+  activeEquipment: ActiveEquipment;
+}
+
+export type ShopSection = "boat" | "rod" | "lure" | "bait";
+
+export interface SelectEquipmentRequest {
+  rodId?: string;
+  lureId?: string;
+  baitId?: string;
+}
+
+export interface SelectEquipmentResponse {
+  activeEquipment: ActiveEquipment;
+  inventory: PlayerInventory;
+}
+
+export interface CollectionResponse {
+  fish: FishSpecimen[];
+}
+
+export interface SellCatchResponse {
+  coins: number;
+  catch: FishSpecimen;
+}
+
+export interface JournalEntry {
+  speciesId: string;
+  discovered: boolean;
+  timesCaught: number;
+  heaviestWeightKg: number | null;
+  longestLengthCm: number | null;
+  bestSaleValueCoins: number | null;
+  firstCaughtAt: string | null;
+  lastCaughtAt: string | null;
+}
+
+export interface FishJournalResponse {
+  entries: JournalEntry[];
+}
+
+export interface RecoveryResponse {
+  wormsGranted: number;
+  lureRestored: boolean;
+  coins: number;
 }
 
 export interface ErrorResponse {

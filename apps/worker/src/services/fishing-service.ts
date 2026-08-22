@@ -10,6 +10,7 @@ import type {
   FishingEncounterResponse,
   FishingMiniGameConfig,
   RiskBand,
+  SellCatchResponse,
   StartFishingRequest,
 } from "@fishing/shared";
 import { GAME_CATALOG } from "@fishing/shared";
@@ -17,7 +18,7 @@ import type { Env } from "../env";
 import { conflict, badRequest, notFound } from "../lib/errors";
 import { GameRepository } from "../persistence/game-repository";
 
-interface PlayerStateRow {
+export interface PlayerDataRow {
   coins: number;
   active_boat_id: string;
   active_rod_id: string;
@@ -25,11 +26,20 @@ interface PlayerStateRow {
   active_bait_id: string;
 }
 
-interface EquipmentRow {
+export interface EquipmentRow {
   equipment_type: EquipmentType;
   equipment_id: string;
   quantity: number;
   durability: number | null;
+}
+
+export async function loadPlayerData(db: D1Database, playerId: string): Promise<{ state: PlayerDataRow; equipment: EquipmentRow[] }> {
+  const [state, equipment] = await Promise.all([
+    db.prepare("SELECT coins, active_boat_id, active_rod_id, active_lure_id, active_bait_id FROM player_game_states WHERE player_id = ? LIMIT 1").bind(playerId).first<PlayerDataRow>(),
+    db.prepare("SELECT equipment_type, equipment_id, quantity, durability FROM player_equipment WHERE player_id = ?").bind(playerId).all<EquipmentRow>(),
+  ]);
+  if (!state) throw notFound("The player game state was not found.");
+  return { state, equipment: equipment.results };
 }
 
 interface EncounterRow {
@@ -51,7 +61,7 @@ interface EncounterRow {
   completed_at: string | null;
 }
 
-interface CatchRow {
+export interface CatchRow {
   id: string;
   encounter_id: string;
   player_id: string;
@@ -134,7 +144,27 @@ function riskFor(weightKg: number, rod: (typeof GAME_CATALOG.rods)[number]): Ris
   return "high";
 }
 
-function specimenFromRow(row: CatchRow | EncounterRow): FishSpecimen {
+export interface RodBreakInput {
+  weightKg: number;
+  rodMaxFishWeightKg: number;
+  breakResistance: number;
+  performance: number;
+}
+
+export function rodBreakChancePercent(input: RodBreakInput): number {
+  const ratio = input.weightKg / input.rodMaxFishWeightKg;
+  let base: number;
+  if (ratio <= 0.65) base = 0;
+  else if (ratio <= 0.85) base = 0.05;
+  else if (ratio <= 1) base = 0.25;
+  else if (ratio <= 1.35) base = 0.9;
+  else base = Math.min(4 + (ratio - 1.35) * 2, 10);
+  const performanceFactor = 1.7 - clamp(input.performance, 0, 1) * 1.2;
+  const resistanceFactor = 1.15 - (clamp(input.breakResistance, 0.98, 1) - 0.98) * 15;
+  return Math.min(12, base * performanceFactor * resistanceFactor);
+}
+
+export function specimenFromRow(row: CatchRow | EncounterRow): FishSpecimen {
   const species = GAME_CATALOG.fish.find((candidate) => candidate.id === row.species_id);
   const location = GAME_CATALOG.locations.find((candidate) => candidate.id === row.location_id);
   if (!species || !location) throw new Error("The stored fish references missing catalogue data.");
@@ -152,14 +182,6 @@ function specimenFromRow(row: CatchRow | EncounterRow): FishSpecimen {
   };
 }
 
-async function loadPlayerData(db: D1Database, playerId: string): Promise<{ state: PlayerStateRow; equipment: EquipmentRow[] }> {
-  const [state, equipment] = await Promise.all([
-    db.prepare("SELECT coins, active_boat_id, active_rod_id, active_lure_id, active_bait_id FROM player_game_states WHERE player_id = ? LIMIT 1").bind(playerId).first<PlayerStateRow>(),
-    db.prepare("SELECT equipment_type, equipment_id, quantity, durability FROM player_equipment WHERE player_id = ?").bind(playerId).all<EquipmentRow>(),
-  ]);
-  if (!state) throw notFound("The player game state was not found.");
-  return { state, equipment: equipment.results };
-}
 
 export async function startFishing(env: Env, playerId: string, input: StartFishingRequest): Promise<FishingEncounterResponse> {
   await new GameRepository(env.DB).ensurePlayerState(playerId);
@@ -179,7 +201,8 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
   const ownedLure = getEquipment(equipment, "lure", lure.id);
   const ownedBait = getEquipment(equipment, "bait", bait.id);
   if (!ownedRod || ownedRod.quantity < 1) throw conflict("You do not own that rod.");
-  if (!ownedLure || ownedLure.quantity < 1 || (ownedLure.durability ?? 0) < 1) throw conflict("That lure has no uses remaining.");
+  if (!ownedLure || ownedLure.quantity < 1) throw conflict("You do not own that lure.");
+  if ((ownedLure.durability ?? 0) < 1 && ownedLure.quantity < 2) throw conflict("That lure has no uses remaining. Buy a fresh one from the shop.");
   if (!ownedBait || ownedBait.quantity < 1) throw conflict("You are out of that bait. Dig for Worms or visit the shop.");
 
   const activeEncounter = await env.DB.prepare("SELECT id FROM fishing_encounters WHERE player_id = ? AND status = 'active' AND expires_at > ? LIMIT 1").bind(playerId, new Date().toISOString()).first<{ id: string }>();
@@ -198,8 +221,16 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
   if (baitUpdate.meta.changes !== 1) throw conflict("Your bait changed. Check your loadout and try again.");
   const lureUpdate = await env.DB.prepare("UPDATE player_equipment SET durability = durability - 1 WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ? AND durability > 0").bind(playerId, lure.id).run();
   if (lureUpdate.meta.changes !== 1) {
-    await env.DB.prepare("UPDATE player_equipment SET quantity = quantity + 1 WHERE player_id = ? AND equipment_type = 'bait' AND equipment_id = ?").bind(playerId, bait.id).run();
-    throw conflict("Your lure changed. Check your loadout and try again.");
+    const spareSwap = await env.DB
+      .prepare(
+        "UPDATE player_equipment SET quantity = quantity - 1, durability = ? WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ? AND durability <= 0 AND quantity > 0",
+      )
+      .bind(Math.max(0, lure.maximumDurability - 1), playerId, lure.id)
+      .run();
+    if (spareSwap.meta.changes !== 1) {
+      await env.DB.prepare("UPDATE player_equipment SET quantity = quantity + 1 WHERE player_id = ? AND equipment_type = 'bait' AND equipment_id = ?").bind(playerId, bait.id).run();
+      throw conflict("That lure has no uses remaining. Tie on a fresh one from the shop.");
+    }
   }
   try {
     await env.DB.prepare(
@@ -209,7 +240,11 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
     ).bind(encounterId, playerId, location.id, species.id, specimen.weight_kg, specimen.length_cm, specimen.quality, specimen.sale_value_coins, difficultySeed, rod.id, lure.id, bait.id, startedAt.toISOString(), expiresAt.toISOString()).run();
   } catch (error) {
     await env.DB.prepare("UPDATE player_equipment SET quantity = quantity + 1 WHERE player_id = ? AND equipment_type = 'bait' AND equipment_id = ?").bind(playerId, bait.id).run();
-    await env.DB.prepare("UPDATE player_equipment SET durability = durability + 1 WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ?").bind(playerId, lure.id).run();
+    if (lureUpdate.meta.changes === 1) {
+      await env.DB.prepare("UPDATE player_equipment SET durability = durability + 1 WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ?").bind(playerId, lure.id).run();
+    } else {
+      await env.DB.prepare("UPDATE player_equipment SET quantity = quantity + 1, durability = 0 WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ?").bind(playerId, lure.id).run();
+    }
     throw error;
   }
 
@@ -237,15 +272,41 @@ export async function completeFishing(env: Env, playerId: string, encounterId: s
 
   const species = GAME_CATALOG.fish.find((candidate) => candidate.id === encounter.species_id);
   if (!species) throw new Error("The encounter references missing catalogue data.");
+  const rod = GAME_CATALOG.rods.find((candidate) => candidate.id === encounter.rod_id);
   const threshold = clamp(0.35 + species.difficulty * 0.38, 0.35, 0.75);
   const caught = input.performance >= threshold;
   const completedAt = new Date().toISOString();
   const update = await env.DB.prepare("UPDATE fishing_encounters SET status = ?, completed_at = ? WHERE id = ? AND player_id = ? AND status = 'active'").bind(caught ? "caught" : "lost", completedAt, encounterId, playerId).run();
   if (update.meta.changes !== 1) throw conflict("That fishing encounter has already been resolved.");
 
-  if (!caught) {
-    return { outcome: "lost", message: "The fish got away. Your bait and lure were spent, but your rod is still ready.", catch: null };
+  let rodBroke = false;
+  let replacementRodId: string | null = null;
+  if (rod) {
+    const breakChance = rodBreakChancePercent({
+      weightKg: encounter.weight_kg,
+      rodMaxFishWeightKg: rod.maxFishWeightKg,
+      breakResistance: rod.breakResistance,
+      performance: input.performance,
+    });
+    if (breakChance > 0 && Math.random() * 100 < breakChance) {
+      const brokeUpdate = await env.DB.prepare(
+        "UPDATE player_equipment SET quantity = 0 WHERE player_id = ? AND equipment_type = 'rod' AND equipment_id = ? AND quantity > 0",
+      ).bind(playerId, rod.id).run();
+      if (brokeUpdate.meta.changes === 1) {
+        rodBroke = true;
+        replacementRodId = await reassignRodAfterBreak(env.DB, playerId);
+      }
+    }
   }
+
+  if (!caught) {
+    const message = rodBroke && rod
+      ? `The fish got away and your ${rod.name} snapped during the fight.`
+      : "The fish got away. Your bait and lure were spent, but your rod is still ready.";
+    return { outcome: "lost", message, catch: null, rodBroke, replacementRodId };
+  }
+
+  await recordSpeciesCatch(env.DB, playerId, encounter.species_id, encounter.weight_kg, encounter.length_cm, encounter.sale_value_coins, completedAt);
 
   const catchId = crypto.randomUUID();
   await env.DB.prepare(
@@ -267,7 +328,52 @@ export async function completeFishing(env: Env, playerId: string, encounterId: s
     location_id: encounter.location_id,
     status: "pending",
   };
-  return { outcome: "caught", message: `You landed a ${species.commonName}. Decide whether to keep it or sell it.`, catch: specimenFromRow(catchRow) };
+  let message = `You landed a ${species.commonName}. Decide whether to keep it or sell it.`;
+  if (rodBroke) {
+    const replacement = GAME_CATALOG.rods.find((candidate) => candidate.id === replacementRodId);
+    message += ` Your ${rod?.name ?? "rod"} snapped during the landing${replacement ? `; you equip your ${replacement.name}.` : ". Visit the shop for a new rod."}`;
+  }
+  return { outcome: "caught", message, catch: specimenFromRow(catchRow), rodBroke, replacementRodId };
+}
+
+async function reassignRodAfterBreak(db: D1Database, playerId: string): Promise<string> {
+  const ownedRods = await db
+    .prepare("SELECT equipment_id FROM player_equipment WHERE player_id = ? AND equipment_type = 'rod' AND quantity > 0")
+    .bind(playerId)
+    .all<{ equipment_id: string }>();
+  const ownedIds = new Set(ownedRods.results.map((row) => row.equipment_id));
+  const strongest = GAME_CATALOG.rods.filter((rod) => ownedIds.has(rod.id)).sort((a, b) => b.strength - a.strength)[0];
+  const nextActiveRodId = strongest?.id ?? "starter-fiberglass";
+  await db
+    .prepare("UPDATE player_game_states SET active_rod_id = ?, updated_at = ? WHERE player_id = ?")
+    .bind(nextActiveRodId, new Date().toISOString(), playerId)
+    .run();
+  return nextActiveRodId;
+}
+
+async function recordSpeciesCatch(
+  db: D1Database,
+  playerId: string,
+  speciesId: string,
+  weightKg: number,
+  lengthCm: number,
+  saleValueCoins: number,
+  caughtAt: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO player_species_records
+        (player_id, species_id, times_caught, heaviest_weight_kg, longest_length_cm, best_sale_value_coins, first_caught_at, last_caught_at)
+       VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+       ON CONFLICT(player_id, species_id) DO UPDATE SET
+         times_caught = times_caught + 1,
+         heaviest_weight_kg = MAX(heaviest_weight_kg, excluded.heaviest_weight_kg),
+         longest_length_cm = MAX(longest_length_cm, excluded.longest_length_cm),
+         best_sale_value_coins = MAX(best_sale_value_coins, excluded.best_sale_value_coins),
+         last_caught_at = excluded.last_caught_at`,
+    )
+    .bind(playerId, speciesId, weightKg, lengthCm, saleValueCoins, caughtAt, caughtAt)
+    .run();
 }
 
 export async function decideCatch(env: Env, playerId: string, catchId: string, decision: CatchDecision): Promise<CatchDecisionResponse> {
@@ -284,4 +390,18 @@ export async function decideCatch(env: Env, playerId: string, catchId: string, d
   const state = await env.DB.prepare("SELECT coins FROM player_game_states WHERE player_id = ? LIMIT 1").bind(playerId).first<{ coins: number }>();
   if (!state) throw notFound("The player game state was not found.");
   return { decision, coins: state.coins, catch: specimenFromRow({ ...catchRow, status: decision === "keep" ? "kept" : "sold" }) };
+}
+
+export async function sellCatch(env: Env, playerId: string, catchId: string): Promise<SellCatchResponse> {
+  const catchRow = await env.DB.prepare("SELECT * FROM player_catches WHERE id = ? AND player_id = ? LIMIT 1").bind(catchId, playerId).first<CatchRow>();
+  if (!catchRow) throw notFound("That fish was not found in your collection.");
+  if (catchRow.status === "sold") throw conflict("That fish has already been sold.");
+
+  const update = await env.DB.prepare("UPDATE player_catches SET status = 'sold' WHERE id = ? AND player_id = ? AND status IN ('pending', 'kept')").bind(catchId, playerId).run();
+  if (update.meta.changes !== 1) throw conflict("That fish has already been sold.");
+  await env.DB.prepare("UPDATE player_game_states SET coins = coins + ?, updated_at = ? WHERE player_id = ?").bind(catchRow.sale_value_coins, new Date().toISOString(), playerId).run();
+
+  const state = await env.DB.prepare("SELECT coins FROM player_game_states WHERE player_id = ? LIMIT 1").bind(playerId).first<{ coins: number }>();
+  if (!state) throw notFound("The player game state was not found.");
+  return { coins: state.coins, catch: specimenFromRow({ ...catchRow, status: "sold" }) };
 }
