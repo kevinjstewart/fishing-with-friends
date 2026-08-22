@@ -381,13 +381,13 @@ export class AppShell {
 
     const castBar = createElement("div", "cast-bar");
     castBar.append(selection, riskPreview, startButton);
-    locationsSection.append(locationsGrid, castBar);
+    locationsSection.append(locationsGrid);
 
     screen.append(header, loadout, locationsSection);
     const recoveryBanner = this.buildRecoveryBanner(state);
     if (recoveryBanner) screen.append(recoveryBanner);
 
-    this.content.replaceChildren(screen);
+    this.content.replaceChildren(screen, castBar);
     this.content.scrollTop = 0;
   }
 
