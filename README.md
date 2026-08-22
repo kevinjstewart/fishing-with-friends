@@ -181,6 +181,21 @@ npm run deploy
 
 `npm run deploy` builds the Vite frontend and deploys the Worker with the static assets directory. Update `APP_ORIGIN` in `wrangler.jsonc` if the frontend will be served from a separate origin. The initial deployment does not configure KV or R2.
 
+## CI/CD
+
+GitHub Actions runs typechecking, tests, linting, and both production builds for every pull request targeting `main`. The `Checks` job is required by the `main` branch protection rule.
+
+After a pull request is merged, the same workflow reruns `Checks` for the exact commit on `main`. A successful run applies pending D1 migrations and deploys the Worker and frontend to production. Deployments are serialized so two merges cannot migrate or deploy production concurrently.
+
+The deployment job uses these GitHub Actions repository secrets:
+
+```text
+CLOUDFLARE_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+```
+
+`CLOUDFLARE_TOKEN` must be a narrowly scoped Cloudflare API token with permission to deploy this Worker and edit its D1 database. `CLOUDFLARE_ACCOUNT_ID` identifies the account containing the Worker. The Telegram bot token remains a deployed Worker secret and is not copied into each deployment run.
+
 ## Verification
 
 The regression suite covers Telegram HMAC validation, payload freshness, tampering, local auth gating, session verification, player creation, and `/api/me`. The main checks are:
