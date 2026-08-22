@@ -21,6 +21,10 @@ export function forbidden(message = "This operation is not available."): ApiErro
   return new ApiError(403, "FORBIDDEN", message);
 }
 
+export function conflict(message: string): ApiError {
+  return new ApiError(409, "CONFLICT", message);
+}
+
 export function notFound(message = "The requested resource was not found."): ApiError {
   return new ApiError(404, "NOT_FOUND", message);
 }

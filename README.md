@@ -1,6 +1,6 @@
 # Fishing with Friends
 
-The initial foundation for a 2D browser fishing game delivered as a Telegram Mini App. This repository intentionally contains no gameplay yet.
+The foundation for a 2D browser fishing game delivered as a Telegram Mini App. The current slice establishes the data-driven freshwater catalogue, persistent starter loadout, lake access progression, and a first playable fishing loop with a touch/mouse-friendly skill challenge.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ Telegram Mini App / desktop browser
     Hono routes and middleware
     auth/session verification
     player service
-    D1 repository
+    D1 repositories for player and game state
           │
           ▼
   Cloudflare D1: players
@@ -48,6 +48,8 @@ Future gameplay belongs in these existing boundaries:
 - Authoritative gameplay services in `apps/worker/src/services`.
 - D1 reads/writes in `apps/worker/src/persistence`.
 - New public contracts in `packages/shared/src`.
+
+The initial game state is server-owned. A first authenticated request to `GET /api/game/state` idempotently creates the starter account state: 100 coins, shore fishing access, a Starter Fiberglass rod, a Copper Spinner with 10 durability, and 10 Worms. The browser may select a lake for local setup preview, but it cannot grant itself currency, equipment, or access. Starting a fishing attempt consumes bait and lure durability on the Worker, which also selects and stores the fish specimen before the browser mini-game begins.
 
 The Phaser layer must not become the owner of persistent currency, inventory, progression, rewards, purchases, catches, or other authoritative state. New gameplay APIs should be added only when the corresponding feature is introduced.
 
@@ -145,12 +147,16 @@ The current workers.dev deployment is `https://fishing-with-friends.fishing-with
 | `POST` | `/api/auth/telegram` | Validate Telegram `initData` and establish a session |
 | `POST` | `/api/auth/dev` | Explicitly gated local development authentication |
 | `GET` | `/api/me` | Return the authenticated internal player profile |
+| `GET` | `/api/game/state` | Return the authoritative starter loadout, catalogue, and lake access |
+| `POST` | `/api/game/encounters` | Validate a setup, consume resources, and create a server-owned encounter |
+| `POST` | `/api/game/encounters/:id/complete` | Resolve a bounded mini-game performance into a catch or loss |
+| `POST` | `/api/game/catches/:id/decision` | Keep a pending catch or sell it for its server-calculated value |
 
 Route handlers stay thin. Input validation and centralized error responses live at the Worker boundary; authentication is middleware; D1 access is isolated in the player repository.
 
 ## D1
 
-The initial migration creates only the `players` table and a unique index on `telegram_user_id`. The internal `id` is independent of Telegram's external ID.
+The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. The internal player `id` is independent of Telegram's external ID.
 
 ```bash
 # Only needed when creating this project from scratch.

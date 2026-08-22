@@ -7,6 +7,7 @@ import type { AppVariables, Env } from "./env";
 import { requireAuth } from "./middleware/auth";
 import { ApiError, notFound } from "./lib/errors";
 import { registerAuthRoutes } from "./routes/auth";
+import { registerGameRoutes } from "./routes/game";
 import { findPlayer } from "./services/player-service";
 
 export const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
@@ -30,6 +31,7 @@ app.get("/api/health", (context) => {
 });
 
 registerAuthRoutes(app);
+registerGameRoutes(app);
 
 app.get("/api/me", requireAuth, async (context) => {
   const player = await findPlayer(context.env, context.get("playerId"));

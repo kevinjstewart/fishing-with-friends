@@ -1,4 +1,15 @@
-import type { AuthResponse, ErrorResponse, MeResponse, TelegramAuthRequest } from "@fishing/shared";
+import type {
+  AuthResponse,
+  CatchDecision,
+  CatchDecisionResponse,
+  CompleteFishingResponse,
+  ErrorResponse,
+  FishingEncounterResponse,
+  GameStateResponse,
+  MeResponse,
+  StartFishingRequest,
+  TelegramAuthRequest,
+} from "@fishing/shared";
 
 export class ApiClientError extends Error {
   constructor(
@@ -40,6 +51,34 @@ export class ApiClient {
 
   async getMe(): Promise<MeResponse> {
     return this.request<MeResponse>("/api/me");
+  }
+
+  async getGameState(): Promise<GameStateResponse> {
+    return this.request<GameStateResponse>("/api/game/state");
+  }
+
+  async startFishing(input: StartFishingRequest): Promise<FishingEncounterResponse> {
+    return this.request<FishingEncounterResponse>("/api/game/encounters", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  async completeFishing(encounterId: string, performance: number): Promise<CompleteFishingResponse> {
+    return this.request<CompleteFishingResponse>(`/api/game/encounters/${encodeURIComponent(encounterId)}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ performance }),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  async decideCatch(catchId: string, decision: CatchDecision): Promise<CatchDecisionResponse> {
+    return this.request<CatchDecisionResponse>(`/api/game/catches/${encodeURIComponent(catchId)}/decision`, {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   private async authenticate<TBody>(path: string, body: TBody, extraHeaders: Record<string, string> = {}): Promise<AuthResponse> {

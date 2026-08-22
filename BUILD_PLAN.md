@@ -24,6 +24,14 @@ Do not reduce the scope of a reasonable implementation only to match one checkli
 
 The game should be functionally complete when the main checklist is complete. Deferred tasks can remain for features that are not required for the intended version.
 
+## Current checkpoint — 2026-08-21
+
+* [x] The initial data-driven catalogue now contains three freshwater locations, three boats, three rods, three lures, four baits, and thirteen fish species with biological ranges, movement profiles, and source attribution.
+* [x] Authenticated players now receive an idempotently persisted starter state: 100 coins, Shore Fishing access, a Starter Fiberglass rod, a Copper Spinner with 10 durability, and 10 Worms.
+* [x] The browser now displays the server-owned loadout and lake access states, including lake selection and a touch/mouse/keyboard fishing challenge.
+* [x] The Worker now creates encounters, consumes bait and lure durability, calculates specimen size/value, resolves bounded skill performance, and supports keep/sell decisions with duplicate-resolution guards.
+* [ ] The collection/journal views, shop purchasing, rod break outcomes, richer progression, and full balance pass still need to be built on top of this loop.
+
 ---
 
 # Build Plan
@@ -390,4 +398,3 @@ When you start an item:
 * Do not stop merely because one narrow interpretation of the checkbox has been satisfied.
 
 Prefer a coherent working game over strict adherence to the original boundaries of this checklist.
-

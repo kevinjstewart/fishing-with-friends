@@ -1,3 +1,4 @@
+import type { GameStateResponse } from "@fishing/shared";
 import "./styles.css";
 import { ApiClient, ApiClientError } from "./api/client";
 import { createGame } from "./game/create-game";
@@ -13,9 +14,61 @@ if (!uiRoot || !gameRoot) {
 const shell = new AppShell(uiRoot);
 const telegram = createTelegramIntegration();
 telegram.initialize();
-createGame(gameRoot);
-
+const game = createGame(gameRoot);
 const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
+let currentGameState: GameStateResponse | undefined;
+
+async function returnToLakes(): Promise<void> {
+  try {
+    currentGameState = await api.getGameState();
+    shell.setGameState(currentGameState);
+    game.events.emit("fishing:lobby");
+    shell.setStatus("Ready to cast", "ready");
+  } catch (error) {
+    shell.setStatus(error instanceof Error ? error.message : "Unable to reload your fishing state.", "error");
+  }
+}
+
+shell.setStartFishingHandler((locationId) => {
+  void (async () => {
+    if (!currentGameState) return;
+    shell.setStatus("Preparing your line…");
+    try {
+      const encounter = await api.startFishing({ locationId, ...currentGameState.activeEquipment });
+      shell.showEncounter(encounter);
+      game.events.emit("fishing:start", encounter);
+      shell.setStatus("Encounter ready · hold to reel", "ready");
+    } catch (error) {
+      shell.setStatus(error instanceof Error ? error.message : "Unable to start fishing.", "error");
+    }
+  })();
+});
+
+game.events.on("fishing:complete", (event: { encounterId: string; performance: number }) => {
+  void (async () => {
+    shell.setStatus("Checking the catch…");
+    try {
+      const result = await api.completeFishing(event.encounterId, event.performance);
+      const handleDecision = (decision: "keep" | "sell") => {
+        void (async () => {
+          if (!result.catch) return;
+          shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
+          try {
+            const decisionResult = await api.decideCatch(result.catch.id, decision);
+            shell.showDecisionResult(decisionResult, () => void returnToLakes());
+            shell.setStatus(decision === "sell" ? "Fish sold" : "Fish kept", "ready");
+          } catch (error) {
+            shell.setStatus(error instanceof Error ? error.message : "Unable to record the catch.", "error");
+          }
+        })();
+      };
+      shell.showFishingResult(result, handleDecision, () => void returnToLakes());
+      shell.setStatus(result.outcome === "caught" ? "Catch landed" : "The fish got away", result.outcome === "caught" ? "ready" : "error");
+    } catch (error) {
+      shell.setStatus(error instanceof Error ? error.message : "Unable to resolve the encounter.", "error");
+    }
+  })();
+});
 
 async function bootstrap(): Promise<void> {
   shell.setStatus("Connecting…");
@@ -43,7 +96,9 @@ async function bootstrap(): Promise<void> {
       throw new Error("Open this game from Telegram to sign in.");
     }
 
+    currentGameState = await api.getGameState();
     shell.setPlayer(player);
+    shell.setGameState(currentGameState);
     shell.setStatus(telegram.isAvailable ? "Connected to Telegram" : "Local development mode", "ready");
   } catch (error) {
     shell.setStatus(error instanceof Error ? error.message : "Unable to connect.", "error");
