@@ -8,6 +8,9 @@ declare global {
     setHeaderColor?: (color: string) => void;
     setBackgroundColor?: (color: string) => void;
     disableVerticalSwipes?: () => void;
+    openTelegramLink?: (url: string) => void;
+    openLink?: (url: string) => void;
+    showAlert?: (message: string) => void;
     safeAreaInset?: {
       top: number;
       right: number;

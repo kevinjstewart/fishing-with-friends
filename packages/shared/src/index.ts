@@ -22,6 +22,8 @@ export type {
   GameStateResponse,
   HealthResponse,
   JournalEntry,
+  LeaderboardEntry,
+  LeaderboardResponse,
   LocationAvailability,
   LocationDefinition,
   LureDefinition,

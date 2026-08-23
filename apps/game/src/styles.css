@@ -320,7 +320,7 @@ body.is-fighting .app-frame {
 
 .tabbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   min-height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   border-top: 1px solid var(--line);
@@ -328,6 +328,76 @@ body.is-fighting .app-frame {
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   backdrop-filter: blur(20px) saturate(150%);
   pointer-events: auto;
+}
+
+.friends-screen {
+  gap: 14px;
+}
+
+.invite-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 50px;
+}
+
+.invite-action .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.crew-board {
+  display: grid;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+}
+
+.crew-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 7px 10px;
+}
+
+.crew-row + .crew-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.crew-rank {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink-faint);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.crew-row.is-leader .crew-rank {
+  color: #07131d;
+  background: linear-gradient(135deg, #ffd166, #ffb347);
+}
+
+.crew-name {
+  display: grid;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.crew-name small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .tabbar[data-disabled="true"] {

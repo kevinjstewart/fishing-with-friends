@@ -83,6 +83,12 @@ async function openScreen(screen: ScreenId): Promise<void> {
       shell.renderJournal(journal);
       return;
     }
+    if (screen === "friends") {
+      const leaderboard = await api.getLeaderboard();
+      shell.setActiveScreen("friends");
+      shell.showLeaderboard(leaderboard);
+      return;
+    }
     await returnToLakes();
   } catch (error) {
     shell.setStatus(error instanceof Error ? error.message : "Unable to open that screen.", "error");
@@ -90,6 +96,25 @@ async function openScreen(screen: ScreenId): Promise<void> {
 }
 
 shell.setNavigationHandler((screen) => void openScreen(screen));
+
+shell.setShareHandler(() => {
+  const webApp = window.Telegram?.WebApp;
+  const url = `${window.location.origin}${window.location.pathname}`;
+  const text = "Cast a line with me in Fishing with Friends!";
+  if (webApp?.openTelegramLink) {
+    webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+    return;
+  }
+  const fallback = (): void => {
+    if (webApp?.openLink) webApp.openLink(url);
+    else shell.setStatus("Copy failed. Share the app link.", "error");
+  };
+  if (!navigator.clipboard?.writeText) {
+    fallback();
+    return;
+  }
+  void navigator.clipboard.writeText(`${text} ${url}`).then(() => shell.setStatus("Invite copied", "ready"), fallback);
+});
 
 let startPending = false;
 

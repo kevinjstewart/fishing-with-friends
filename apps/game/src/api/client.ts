@@ -6,6 +6,7 @@ import type {
   CompleteFishingResponse,
   ErrorResponse,
   FishJournalResponse,
+  LeaderboardResponse,
   FishingEncounterResponse,
   GameStateResponse,
   MeResponse,
@@ -99,6 +100,10 @@ export class ApiClient {
 
   async getJournal(): Promise<FishJournalResponse> {
     return this.request<FishJournalResponse>("/api/game/journal");
+  }
+
+  async getLeaderboard(): Promise<LeaderboardResponse> {
+    return this.request<LeaderboardResponse>("/api/game/friends");
   }
 
   async purchase(input: PurchaseRequest): Promise<PurchaseResponse> {

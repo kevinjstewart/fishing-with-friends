@@ -276,6 +276,18 @@ export interface FishJournalResponse {
   entries: JournalEntry[];
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  playerId: string;
+  displayName: string;
+  catchCount: number;
+  heaviestCatchKg: number;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+}
+
 export interface RecoveryResponse {
   wormsGranted: number;
   lureRestored: boolean;

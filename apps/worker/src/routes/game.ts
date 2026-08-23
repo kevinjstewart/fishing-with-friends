@@ -4,6 +4,7 @@ import type {
   CompleteFishingResponse,
   FishingEncounterResponse,
   GameStateResponse,
+  LeaderboardResponse,
   PurchaseRequest,
   SelectEquipmentRequest,
   StartFishingRequest,
@@ -80,6 +81,33 @@ function enforceRateLimit(context: Context<{ Bindings: Env; Variables: AppVariab
 }
 
 export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVariables }>): void {
+  app.get("/api/game/friends", requireAuth, async (context) => {
+    const rows = await context.env.DB.prepare(
+      `SELECT p.id AS player_id, p.display_name,
+              COUNT(c.id) AS catch_count, COALESCE(MAX(c.weight_kg), 0) AS heaviest_catch_kg
+       FROM players p
+       INNER JOIN player_game_states s ON s.player_id = p.id
+       LEFT JOIN player_catches c ON c.player_id = p.id AND c.status = 'kept'
+       GROUP BY p.id, p.display_name
+       ORDER BY catch_count DESC, heaviest_catch_kg DESC, p.display_name ASC
+       LIMIT 20`,
+    ).all<{
+      player_id: string;
+      display_name: string;
+      catch_count: number;
+      heaviest_catch_kg: number;
+    }>();
+
+    const entries = rows.results.map((row, index) => ({
+      rank: index + 1,
+      playerId: row.player_id,
+      displayName: row.display_name,
+      catchCount: row.catch_count,
+      heaviestCatchKg: row.heaviest_catch_kg,
+    }));
+    return context.json<LeaderboardResponse>({ entries });
+  });
+
   app.get("/api/game/state", requireAuth, async (context) => {
     const state = await getGameState(context.env, context.get("playerId"));
     return context.json<GameStateResponse>(state);
