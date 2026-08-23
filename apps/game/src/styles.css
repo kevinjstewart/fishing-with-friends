@@ -1042,6 +1042,53 @@ h2 {
   padding: 14px;
 }
 
+.fish-image {
+  display: grid;
+  gap: 6px;
+  margin: -14px -14px 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: rgba(5, 16, 28, 0.5);
+}
+
+.fish-image-placeholder {
+  display: grid;
+  min-height: 132px;
+  align-content: center;
+  padding: 12px;
+  font-size: 0.78rem;
+}
+
+.fish-image.is-unavailable .fish-image-placeholder {
+  color: var(--ink-faint);
+}
+
+.fish-image img {
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.fish-image.is-loaded img {
+  opacity: 1;
+}
+
+.fish-image figcaption,
+.fishing-status .fish-image figcaption {
+  display: block;
+  position: relative;
+  z-index: 1;
+  margin: -24px 10px 8px;
+  text-align: right;
+  font-size: 0.68rem;
+}
+
+.fish-image a {
+  color: var(--aqua);
+}
+
 .shop-card-top,
 .collection-card-top,
 .journal-card-top {

@@ -7,6 +7,8 @@ import type {
   GameStateResponse,
   LocationAvailability,
 } from "@fishing/shared";
+import { createElement } from "./create-element";
+import { createFishImage } from "./fish-images";
 
 export type ScreenId = "lakes" | "shop" | "collection" | "journal";
 
@@ -14,13 +16,6 @@ export interface EquipmentSelectionRequest {
   rodId?: string;
   lureId?: string;
   baitId?: string;
-}
-
-function createElement<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  if (className) element.className = className;
-  if (text !== undefined) element.textContent = text;
-  return element;
 }
 
 type IconName = "anchor" | "bait" | "book" | "coin" | "lure" | "rod" | "shop" | "trophy" | "waves";
@@ -669,6 +664,7 @@ export class AppShell {
     grid.replaceChildren();
     for (const specimen of sorted) {
       const card = createElement("article", "collection-card");
+      card.append(createFishImage(specimen.species));
       const top = createElement("div", "collection-card-top");
       top.append(createElement("h2", undefined, specimen.species.commonName), createElement("span", `rarity-badge rarity-${specimen.species.rarity}`, capitalize(specimen.species.rarity)));
       card.append(top, this.specimenDetails(specimen));
@@ -775,6 +771,7 @@ export class AppShell {
       panel.append(warning);
     }
     if (result.catch) {
+      panel.append(createFishImage(result.catch.species));
       panel.append(this.specimenDetails(result.catch));
       const actions = createElement("div", "result-actions");
       const keep = createElement("button", "secondary-action", "Keep fish");
