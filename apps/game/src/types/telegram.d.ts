@@ -8,18 +8,25 @@ declare global {
     setHeaderColor?: (color: string) => void;
     setBackgroundColor?: (color: string) => void;
     disableVerticalSwipes?: () => void;
+    safeAreaInset?: {
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    };
     contentSafeAreaInset?: {
       top: number;
       right: number;
       bottom: number;
       left: number;
     };
+    viewportStableHeight?: number;
     onEvent?: (
-      eventType: "viewportChanged",
+      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged",
       handler: (payload?: { isStateStable?: boolean }) => void,
     ) => void;
     offEvent?: (
-      eventType: "viewportChanged",
+      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged",
       handler: (payload?: { isStateStable?: boolean }) => void,
     ) => void;
   }
