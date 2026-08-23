@@ -1309,6 +1309,7 @@ h2 {
   display: grid;
   gap: 9px;
   align-content: start;
+  padding-top: calc(17px + var(--safe-top));
 }
 
 .fishing-status h1 {
