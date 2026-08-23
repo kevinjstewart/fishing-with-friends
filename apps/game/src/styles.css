@@ -1498,6 +1498,87 @@ h2 {
 }
 
 /* ------------------------------------------------------------
+   Interactive equipment cards (loadout switcher)
+   ------------------------------------------------------------ */
+
+.equipment-card.is-interactive {
+  cursor: pointer;
+}
+
+.equipment-card.is-interactive:active {
+  transform: scale(0.98);
+}
+
+.equipment-card.has-switcher .equipment-text strong::after {
+  content: " ›";
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.equipment-options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------
+   Collection batch actions
+   ------------------------------------------------------------ */
+
+.collection-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.collection-actions .secondary-action {
+  width: auto;
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------
+   Locked location preview
+   ------------------------------------------------------------ */
+
+.location-card.is-locked .fish-chip {
+  opacity: 0.5;
+  filter: saturate(0.4);
+}
+
+.location-card.is-locked .fish-chips {
+  margin-top: 2px;
+}
+
+.location-card .lock-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.location-card .lock-hint::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ------------------------------------------------------------
+   Catch result streamline
+   ------------------------------------------------------------ */
+
+.catch-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* ------------------------------------------------------------
    Small phones
    ------------------------------------------------------------ */
 

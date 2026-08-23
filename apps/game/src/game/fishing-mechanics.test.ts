@@ -35,6 +35,17 @@ describe("fishing mechanics", () => {
 
   it("does not let a failed round report a perfect score", () => {
     const state = { ...createFishingState(seededRandom(1)), elapsed: 12, progress: 0.8, insideSeconds: 9, result: "lost" as const };
-    expect(performanceFor(state)).toBeLessThanOrEqual(0.74);
+    expect(performanceFor(state)).toBeLessThanOrEqual(0.34);
+  });
+
+  it("never reports a lost encounter above the minimum server catch threshold", () => {
+    const states = [
+      { ...createFishingState(seededRandom(1)), elapsed: 1, progress: 0.95, insideSeconds: 0.9, result: "lost" as const },
+      { ...createFishingState(seededRandom(2)), elapsed: 8, progress: 0.99, insideSeconds: 7.5, result: "lost" as const },
+      { ...createFishingState(seededRandom(3)), elapsed: 20, progress: 0.5, insideSeconds: 18, result: "lost" as const },
+    ];
+    for (const state of states) {
+      expect(performanceFor(state)).toBeLessThanOrEqual(0.34);
+    }
   });
 });

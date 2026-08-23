@@ -120,5 +120,5 @@ export function stepFishing(
 export function performanceFor(state: FishingState): number {
   if (state.result === "caught") return 1;
   const tracking = state.insideSeconds / Math.max(state.elapsed, 0.1);
-  return clamp(tracking * 0.7 + state.progress * 0.3, 0, 0.74);
+  return clamp(tracking * 0.7 + state.progress * 0.3, 0, 0.34);
 }

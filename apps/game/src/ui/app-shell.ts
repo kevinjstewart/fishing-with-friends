@@ -6,6 +6,8 @@ import type {
   FishSpecimen,
   GameStateResponse,
   LocationAvailability,
+  OwnedEquipment,
+  RodDefinition,
 } from "@fishing/shared";
 import { createElement } from "./create-element";
 import { createFishImage } from "./fish-images";
@@ -102,6 +104,12 @@ function loadoutSlot(icon: IconName, label: string, name: string, detail: string
   return slot;
 }
 
+function equipmentCard(icon: IconName, label: string, name: string, detail: string): HTMLElement {
+  const card = loadoutSlot(icon, label, name, detail);
+  card.classList.add("is-interactive");
+  return card;
+}
+
 type CollectionSortMode = "newest" | "heaviest" | "value" | "species";
 
 const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpecimen) => number> = {
@@ -138,6 +146,7 @@ export class AppShell {
   private navigationHandler?: (screen: ScreenId) => void;
   private purchaseHandler?: (itemId: string, quantity?: number) => void;
   private sellCatchHandler?: (catchId: string) => void;
+  private sellAllHandler?: () => void;
   private selectEquipmentHandler?: (request: EquipmentSelectionRequest) => void;
   private recoveryHandler?: () => void;
   private baitQuantities = new Map<string, number>();
@@ -259,6 +268,10 @@ export class AppShell {
     this.sellCatchHandler = handler;
   }
 
+  setSellAllHandler(handler: () => void): void {
+    this.sellAllHandler = handler;
+  }
+
   setSelectEquipmentHandler(handler: (request: EquipmentSelectionRequest) => void): void {
     this.selectEquipmentHandler = handler;
   }
@@ -301,8 +314,7 @@ export class AppShell {
       loadoutSlot("lure", "Lure", lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "None equipped", lure ? `${lure.durability ?? 0} uses${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "Buy one"),
       loadoutSlot("bait", "Bait", bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "None selected", `${bait?.quantity ?? 0} portions`),
     );
-    loadout.append(loadoutDock);
-    loadout.append(this.buildLoadoutSwitcher(state));
+    loadout.append(loadoutDock, this.buildLoadoutSwitcher(state, rod, lure, bait));
 
     const locationsSection = createElement("section", "dashboard-section");
     const locationHeading = createElement("div", "section-heading");
@@ -361,7 +373,8 @@ export class AppShell {
         card.append(button);
       } else {
         const requiredBoat = state.catalog.boats.find((boat) => boat.id === location.requiredBoatId);
-        card.append(createElement("p", "locked-message", `Locked · Requires ${requiredBoat?.name ?? "a better boat"}`));
+        const lockHint = createElement("p", "lock-hint", `Requires ${requiredBoat?.name ?? "a better boat"}`);
+        card.append(lockHint);
       }
       locationsGrid.append(card);
     }
@@ -393,65 +406,96 @@ export class AppShell {
     this.content.scrollTop = 0;
   }
 
-  private buildLoadoutSwitcher(state: GameStateResponse): HTMLElement {
-    const container = createElement("div", "loadout-switcher");
-    const slots: Array<{ slot: "rod" | "lure" | "bait"; label: string }> = [
-      { slot: "rod", label: "rod" },
-      { slot: "lure", label: "lure" },
-      { slot: "bait", label: "bait" },
+  private buildLoadoutSwitcher(
+    state: GameStateResponse,
+    rod: RodDefinition | undefined,
+    lure: OwnedEquipment | undefined,
+    bait: OwnedEquipment | undefined,
+  ): HTMLElement {
+    const container = createElement("div", "equipment-grid");
+    const slots: Array<{ slot: "rod" | "lure" | "bait"; label: string; icon: IconName; name: string; detail: string }> = [
+      {
+        slot: "rod",
+        label: "Rod",
+        icon: "rod",
+        name: rod?.name ?? state.activeEquipment.rodId,
+        detail: rod ? `Supports up to ${rod.maxFishWeightKg} kg` : "Ready to cast",
+      },
+      {
+        slot: "lure",
+        label: "Lure",
+        icon: "lure",
+        name: lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "No lure equipped",
+        detail: lure ? `${lure.durability ?? 0} uses left${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "No lure equipped",
+      },
+      {
+        slot: "bait",
+        label: "Bait",
+        icon: "bait",
+        name: bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "No bait selected",
+        detail: `${bait?.quantity ?? 0} portions ready`,
+      },
     ];
-    for (const { slot, label } of slots) {
-      const toggle = createElement("button", "change-equipment", `Change ${label}`);
-      toggle.type = "button";
-      const options = createElement("div", "equipment-options");
-      options.hidden = true;
+    const closeAllDropdowns = () => {
+      for (const other of container.querySelectorAll<HTMLElement>(".equipment-options")) {
+        other.hidden = true;
+        other.style.left = "";
+      }
+    };
+    for (const { slot, label, icon, name, detail } of slots) {
+      const card = equipmentCard(icon, label, name, detail);
+      card.classList.add("is-interactive", "has-switcher");
 
       const ownedIds = state.inventory[`${slot}s` as const].filter((item) => item.quantity > 0).map((item) => item.id);
       const catalog = slot === "rod" ? state.catalog.rods : slot === "lure" ? state.catalog.lures : state.catalog.baits;
       const ownedDefinitions = catalog.filter((definition) => ownedIds.includes(definition.id));
 
-      for (const definition of ownedDefinitions) {
-        const ownership = state.inventory[`${slot}s` as const].find((item) => item.id === definition.id);
-        const detail =
-          slot === "bait"
-            ? `${ownership?.quantity ?? 0} portions`
-            : slot === "lure"
-              ? `${ownership?.durability ?? 0}/${(definition as (typeof state.catalog.lures)[number]).maximumDurability} uses`
-              : `up to ${(definition as (typeof state.catalog.rods)[number]).maxFishWeightKg} kg`;
-        const optionButton = createElement("button", "equipment-option", `${definition.name} · ${detail}`);
-        optionButton.type = "button";
-        if (state.activeEquipment[`${slot}Id`] === definition.id) optionButton.classList.add("is-active");
-        optionButton.addEventListener("click", () => {
-          options.hidden = true;
-          options.style.left = "";
-          this.selectEquipmentHandler?.({ [`${slot}Id`]: definition.id });
-        });
-        options.append(optionButton);
-      }
+      if (ownedDefinitions.length > 1) {
+        const options = createElement("div", "equipment-options");
+        options.hidden = true;
 
-      toggle.addEventListener("click", () => {
-        const show = options.hidden;
-        for (const other of container.querySelectorAll<HTMLElement>(".equipment-options")) {
-          other.hidden = true;
-          other.style.left = "";
+        for (const definition of ownedDefinitions) {
+          const ownership = state.inventory[`${slot}s` as const].find((item) => item.id === definition.id);
+          const optionDetail =
+            slot === "bait"
+              ? `${ownership?.quantity ?? 0} portions`
+              : slot === "lure"
+                ? `${ownership?.durability ?? 0}/${(definition as (typeof state.catalog.lures)[number]).maximumDurability} uses`
+                : `up to ${(definition as (typeof state.catalog.rods)[number]).maxFishWeightKg} kg`;
+          const optionButton = createElement("button", "equipment-option", `${definition.name} · ${optionDetail}`);
+          optionButton.type = "button";
+          if (state.activeEquipment[`${slot}Id`] === definition.id) optionButton.classList.add("is-active");
+          optionButton.addEventListener("click", () => {
+            options.hidden = true;
+            options.style.left = "";
+            this.selectEquipmentHandler?.({ [`${slot}Id`]: definition.id });
+          });
+          options.append(optionButton);
         }
-        if (!show) return;
-        options.hidden = false;
-        const margin = 8;
-        const viewportWidth = document.documentElement.clientWidth;
-        const bounds = options.getBoundingClientRect();
-        if (bounds.right <= viewportWidth - margin && bounds.left >= margin) return;
-        const targetLeft = Math.min(
-          Math.max(margin, bounds.left - Math.max(0, bounds.right - (viewportWidth - margin))),
-          viewportWidth - margin - bounds.width,
-        );
-        const slotLeft = (options.offsetParent as HTMLElement | null)?.getBoundingClientRect().left ?? 0;
-        options.style.left = `${Math.round(targetLeft - slotLeft)}px`;
-      });
 
-      const group = createElement("div", "loadout-slot");
-      group.append(toggle, options);
-      container.append(group);
+        card.addEventListener("click", () => {
+          const show = options.hidden;
+          closeAllDropdowns();
+          if (!show) return;
+          options.hidden = false;
+          const margin = 8;
+          const viewportWidth = document.documentElement.clientWidth;
+          const bounds = options.getBoundingClientRect();
+          if (bounds.right <= viewportWidth - margin && bounds.left >= margin) return;
+          const targetLeft = Math.min(
+            Math.max(margin, bounds.left - Math.max(0, bounds.right - (viewportWidth - margin))),
+            viewportWidth - margin - bounds.width,
+          );
+          const slotLeft = (options.offsetParent as HTMLElement | null)?.getBoundingClientRect().left ?? 0;
+          options.style.left = `${Math.round(targetLeft - slotLeft)}px`;
+        });
+
+        const group = createElement("div", "loadout-slot");
+        group.append(card, options);
+        container.append(group);
+      } else {
+        container.append(card);
+      }
     }
     return container;
   }
@@ -523,7 +567,7 @@ export class AppShell {
             description: lure.description,
             priceCoins: lure.priceCoins,
             detail: `${lure.maximumDurability} uses each · catch zone +${Math.round(lure.catchZoneBonus * 100)}%${ownedItem ? ` · own ${ownedItem.quantity} (${ownedItem.durability ?? 0} uses left)` : ""}`,
-            owned: false,
+            owned: Boolean(ownedItem && ownedItem.quantity > 0),
           };
         }),
       },
@@ -536,7 +580,7 @@ export class AppShell {
           description: bait.description,
           priceCoins: bait.priceCoins,
           detail: `Attracts ${bait.fishIds.length} species${state.inventory.baits.some((owned) => owned.id === bait.id) ? ` · own ${state.inventory.baits.find((owned) => owned.id === bait.id)?.quantity ?? 0}` : ""}`,
-          owned: false,
+          owned: state.inventory.baits.some((owned) => owned.id === bait.id && owned.quantity > 0),
         })),
       },
     ];
@@ -559,9 +603,16 @@ export class AppShell {
         card.append(top, createElement("p", "muted", item.description), createElement("p", "shop-detail", item.detail));
 
         const isPermanentItem = section.title === "Boats" || section.title === "Rods";
+        const isLure = section.title === "Lures";
         const isBait = section.title === "Bait";
         if (isPermanentItem && item.owned) {
           card.append(createElement("span", "owned-badge", "Owned"));
+          grid.append(card);
+          continue;
+        }
+        if (isLure && item.owned) {
+          const ownedBadge = createElement("span", "owned-badge", `Owned (${state.inventory.lures.find((o) => o.id === item.id)?.quantity ?? 0})`);
+          card.append(ownedBadge);
           grid.append(card);
           continue;
         }
@@ -633,6 +684,14 @@ export class AppShell {
       this.replaceScreen(panel);
       return;
     }
+
+    const totalValue = specimens.reduce((sum, specimen) => sum + specimen.saleValueCoins, 0);
+    const actionsBar = createElement("div", "collection-actions");
+    const sellAll = createElement("button", "secondary-action", `Sell all for ${formatCoins(totalValue)}`);
+    sellAll.type = "button";
+    sellAll.addEventListener("click", () => this.sellAllHandler?.());
+    actionsBar.append(sellAll);
+    panel.append(actionsBar);
 
     const sortRow = createElement("div", "sort-row");
     sortRow.append(createElement("label", "muted", "Sort"));
