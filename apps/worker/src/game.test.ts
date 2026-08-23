@@ -371,6 +371,20 @@ class FakeD1Statement {
         .sort((a, b) => b.caught_at.localeCompare(a.caught_at));
       return { results: results as T[] };
     }
+    if (sql.includes("FROM players p")) {
+      const rows = stores.gameStates.map((state) => {
+        const player = stores.players.find((candidate) => candidate.id === state.player_id)!;
+        const catches = stores.catches.filter((catchRow) => catchRow.player_id === player.id && catchRow.status === "kept");
+        return {
+          player_id: player.id,
+          display_name: player.display_name,
+          telegram_username: player.telegram_username,
+          catch_count: catches.length,
+          heaviest_catch_kg: Math.max(0, ...catches.map((catchRow) => catchRow.weight_kg)),
+        };
+      }).sort((a, b) => b.catch_count - a.catch_count || b.heaviest_catch_kg - a.heaviest_catch_kg || a.display_name.localeCompare(b.display_name));
+      return { results: rows as T[] };
+    }
     if (sql.includes("FROM player_species_records")) {
       return { results: stores.records.filter((record) => record.player_id === this.values[0]) as T[] };
     }
@@ -604,6 +618,31 @@ describe("collection", () => {
 
       const emptied = (await (await app.request("/api/game/collection", { headers: { Authorization: `Bearer ${token}` } }, env)).json()) as { fish: unknown[] };
       expect(emptied.fish).toHaveLength(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+});
+
+describe("friends", () => {
+  it("ranks players by kept catches and excludes sold fish", async () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const { env, token } = await setup();
+      const headers = jsonHeaders(token);
+
+      for (let index = 0; index < 2; index += 1) {
+        const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+        const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
+        const complete = (await (await completeEncounter({ env, token }, encounter.encounterId, 1)).json()) as CompleteFishingResponse;
+        await app.request(`/api/game/catches/${complete.catch?.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: index === 0 ? "keep" : "sell" }) }, env);
+      }
+
+      const response = await app.request("/api/game/friends", { headers: { Authorization: `Bearer ${token}` } }, env);
+      expect(response.status).toBe(200);
+      const leaderboard = (await response.json()) as { entries: Array<{ displayName: string; catchCount: number; heaviestCatchKg: number }> };
+      expect(leaderboard.entries).toHaveLength(1);
+      expect(leaderboard.entries[0]).toMatchObject({ displayName: "Game tester", catchCount: 1 });
     } finally {
       randomSpy.mockRestore();
     }

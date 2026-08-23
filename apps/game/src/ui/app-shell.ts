@@ -5,6 +5,7 @@ import type {
   FishJournalResponse,
   FishSpecimen,
   GameStateResponse,
+  LeaderboardResponse,
   LocationAvailability,
   OwnedEquipment,
   RodDefinition,
@@ -12,7 +13,7 @@ import type {
 import { createElement } from "./create-element";
 import { createFishImage } from "./fish-images";
 
-export type ScreenId = "lakes" | "shop" | "collection" | "journal";
+export type ScreenId = "lakes" | "friends" | "shop" | "collection" | "journal";
 
 export interface EquipmentSelectionRequest {
   rodId?: string;
@@ -20,7 +21,7 @@ export interface EquipmentSelectionRequest {
   baitId?: string;
 }
 
-type IconName = "anchor" | "bait" | "book" | "coin" | "lure" | "rod" | "shop" | "trophy" | "waves";
+type IconName = "anchor" | "bait" | "book" | "coin" | "friend" | "lure" | "rod" | "shop" | "trophy" | "waves";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -42,6 +43,12 @@ const ICON_PATHS: Record<IconName, string[]> = {
   ],
   book: ["M4 19.5A2.5 2.5 0 0 1 6.5 17H20", "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"],
   coin: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"],
+  friend: [
+    "M10 11a3.25 3.25 0 1 0-3.2-4",
+    "M3.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5",
+    "M16.5 7.5A3 3 0 1 0 16 1.6",
+    "M18.5 12.8c1.85.95 3 2.75 3 4.95",
+  ],
   anchor: ["M12 7.5A2.25 2.25 0 1 0 12 3a2.25 2.25 0 0 0 0 4.5Z", "M12 7.5V21", "M4.5 13.5a7.5 7.5 0 0 0 15 0", "M8.5 10.5h7"],
   rod: [
     "M4 20C10.5 18.5 17.5 12 20 4",
@@ -71,6 +78,7 @@ function createIcon(name: IconName): SVGSVGElement {
 
 const SCREEN_ICONS: Record<ScreenId, IconName> = {
   lakes: "waves",
+  friends: "friend",
   shop: "shop",
   collection: "trophy",
   journal: "book",
@@ -141,6 +149,7 @@ export class AppShell {
   private collectionSort: CollectionSortMode = "newest";
   private latestCollection?: CollectionResponse;
   private latestJournal?: FishJournalResponse;
+  private latestLeaderboard?: LeaderboardResponse;
   private stickyToast?: ToastHandle;
   private startFishingHandler?: (locationId: string) => void;
   private navigationHandler?: (screen: ScreenId) => void;
@@ -149,6 +158,7 @@ export class AppShell {
   private sellAllHandler?: () => void;
   private selectEquipmentHandler?: (request: EquipmentSelectionRequest) => void;
   private recoveryHandler?: () => void;
+  private shareHandler?: () => void;
   private baitQuantities = new Map<string, number>();
 
   constructor(root: HTMLElement) {
@@ -234,6 +244,7 @@ export class AppShell {
   private renderTabs(): void {
     const tabs: Array<{ id: ScreenId; label: string }> = [
       { id: "lakes", label: "Lakes" },
+      { id: "friends", label: "Friends" },
       { id: "shop", label: "Shop" },
       { id: "collection", label: "Collection" },
       { id: "journal", label: "Journal" },
@@ -278,6 +289,53 @@ export class AppShell {
 
   setRecoveryHandler(handler: () => void): void {
     this.recoveryHandler = handler;
+  }
+
+  setShareHandler(handler: () => void): void {
+    this.shareHandler = handler;
+  }
+
+  showLeaderboard(leaderboard?: LeaderboardResponse): void {
+    if (leaderboard) this.latestLeaderboard = leaderboard;
+    if (!this.latestLeaderboard) {
+      this.showLoadingScreen("Casting the net…");
+      return;
+    }
+
+    const panel = createElement("section", "screen friends-screen");
+    const intro = createElement("div", "dashboard-header");
+    const heading = createElement("div");
+    heading.append(createElement("span", "eyebrow", "Fishing crew"), createElement("h1", undefined, "Catch board"));
+    intro.append(heading);
+    panel.append(intro);
+
+    const invite = createElement("button", "primary-action invite-action");
+    invite.type = "button";
+    invite.append(createIcon("friend"), "Invite anglers");
+    invite.addEventListener("click", () => this.shareHandler?.());
+    panel.append(invite);
+
+    if (this.latestLeaderboard.entries.length === 0) {
+      panel.append(createElement("p", "empty-message", "No catches yet. Be first on the board."));
+      this.replaceScreen(panel);
+      return;
+    }
+
+    const list = createElement("ol", "crew-board");
+    for (const entry of this.latestLeaderboard.entries.slice(0, 10)) {
+      const row = createElement("li", `crew-row${entry.rank === 1 ? " is-leader" : ""}`);
+      row.append(
+        createElement("span", "crew-rank", `${entry.rank}`),
+        (() => {
+          const name = createElement("div", "crew-name", entry.displayName);
+          name.append(createElement("small", "muted", `${entry.catchCount} caught · ${entry.heaviestCatchKg.toFixed(1)} kg`));
+          return name;
+        })(),
+      );
+      list.append(row);
+    }
+    panel.append(list);
+    this.replaceScreen(panel);
   }
 
   setGameState(state: GameStateResponse): void {
