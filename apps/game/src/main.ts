@@ -57,7 +57,6 @@ async function returnToLakes(): Promise<void> {
   try {
     await refreshGameState();
     renderLakes();
-    shell.setStatus("Ready to cast", "ready");
   } catch (error) {
     shell.setStatus(error instanceof Error ? error.message : "Unable to reload your fishing state.", "error");
   }
@@ -70,21 +69,18 @@ async function openScreen(screen: ScreenId): Promise<void> {
       await refreshGameState();
       shell.setActiveScreen("shop");
       shell.renderShop();
-      shell.setStatus("Browsing the tackle shop", "ready");
       return;
     }
     if (screen === "collection") {
       const collection = await api.getCollection();
       shell.setActiveScreen("collection");
       shell.showCollection(collection);
-      shell.setStatus(`${collection.fish.length} kept fish`, "ready");
       return;
     }
     if (screen === "journal") {
       const journal = await api.getJournal();
       shell.setActiveScreen("journal");
       shell.renderJournal(journal);
-      shell.setStatus("Fish journal updated", "ready");
       return;
     }
     await returnToLakes();
@@ -138,7 +134,6 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
       })();
     };
     shell.showFishingResult(result, handleDecision, () => void returnToLakes());
-    shell.setStatus(result.outcome === "caught" ? "Catch landed" : "The fish got away", result.outcome === "caught" ? "ready" : "error");
   } catch (error) {
     if (error instanceof ApiClientError && (error.status === 409 || error.status === 404)) {
       await returnToLakes();
@@ -264,7 +259,6 @@ shell.setSelectEquipmentHandler((request: EquipmentSelectionRequest) => {
         currentGameState = { ...currentGameState, activeEquipment: result.activeEquipment, inventory: result.inventory };
         renderLakes();
       }
-      shell.setStatus("Loadout updated", "ready");
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to swap that piece of equipment.", "error");
     } finally {
@@ -324,7 +318,7 @@ async function bootstrap(): Promise<void> {
 
     currentGameState = await api.getGameState();
     renderLakes();
-    shell.setStatus(telegram.isAvailable ? "Connected to Telegram" : "Local development mode", "ready");
+    if (!telegram.isAvailable) shell.setStatus("Local development mode", "ready");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to connect.";
     shell.showRetryPanel("Unable to connect", message, "Try again", () => void bootstrap());
