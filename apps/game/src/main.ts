@@ -12,8 +12,6 @@ if (!uiRoot || !gameRoot) {
 }
 
 const shell = new AppShell(uiRoot);
-const telegram = createTelegramIntegration();
-telegram.initialize();
 const game = createGame(gameRoot);
 const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
 let currentGameState: GameStateResponse | undefined;
@@ -31,6 +29,9 @@ function syncSafeArea(): void {
   });
   game.events.emit("safearea:changed");
 }
+
+const telegram = createTelegramIntegration(syncSafeArea);
+telegram.initialize();
 
 syncSafeArea();
 window.addEventListener("orientationchange", () => window.setTimeout(syncSafeArea, 120));
