@@ -36,10 +36,26 @@
   --shadow-card: 0 14px 34px rgba(1, 10, 18, 0.35);
   --shadow-glow: 0 8px 26px rgba(56, 205, 236, 0.28);
 
-  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
-  --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px));
-  --safe-left: calc(env(safe-area-inset-left, 0px) + var(--tg-content-safe-area-inset-left, 0px));
-  --safe-right: calc(env(safe-area-inset-right, 0px) + var(--tg-content-safe-area-inset-right, 0px));
+  --safe-top: calc(
+    env(safe-area-inset-top, 0px)
+    + var(--tg-safe-area-inset-top, 0px)
+    + var(--tg-content-safe-area-inset-top, 0px)
+  );
+  --safe-bottom: calc(
+    env(safe-area-inset-bottom, 0px)
+    + var(--tg-safe-area-inset-bottom, 0px)
+    + var(--tg-content-safe-area-inset-bottom, 0px)
+  );
+  --safe-left: calc(
+    env(safe-area-inset-left, 0px)
+    + var(--tg-safe-area-inset-left, 0px)
+    + var(--tg-content-safe-area-inset-left, 0px)
+  );
+  --safe-right: calc(
+    env(safe-area-inset-right, 0px)
+    + var(--tg-safe-area-inset-right, 0px)
+    + var(--tg-content-safe-area-inset-right, 0px)
+  );
 
   --topbar-h: 56px;
   --tabbar-h: 62px;
@@ -122,10 +138,10 @@ button {
   visibility: hidden;
   pointer-events: none;
   padding:
-    env(safe-area-inset-top, 0px)
-    env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
+    var(--safe-top)
+    var(--safe-right)
+    var(--safe-bottom)
+    var(--safe-left);
 }
 
 /* ------------------------------------------------------------
