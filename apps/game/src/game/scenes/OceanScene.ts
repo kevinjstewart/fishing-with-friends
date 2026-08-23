@@ -111,7 +111,6 @@ export class OceanScene extends Phaser.Scene {
   private encounter?: FishingEncounterResponse;
   private fishingState?: FishingState;
   private random = Math.random;
-  private inputHeld = false;
   private finished = false;
   private completedEmitted = false;
   private controlLocked = true;
@@ -231,6 +230,7 @@ export class OceanScene extends Phaser.Scene {
 
   private destroyFightObjects(): void {
     this.tweens.killAll();
+    this.time.removeAllEvents();
     for (const object of this.fightObjects) object.destroy();
     this.fightObjects.length = 0;
     this.floaters.length = 0;
@@ -285,13 +285,13 @@ export class OceanScene extends Phaser.Scene {
     this.fishingState = createFishingState(this.random);
     this.mode = "fight";
 
-    this.dimmer = this.add.rectangle(0, 0, 1, 1, COLORS.abyss, 0.34).setOrigin(0).setDepth(5);
-    this.lane = this.add.graphics().setDepth(6);
-    this.fishShadowArt = this.add.graphics().setDepth(7);
-    this.net = this.add.graphics().setDepth(8);
-    this.fishTailArt = this.add.graphics().setDepth(9);
-    this.fishBodyArt = this.add.graphics().setDepth(10);
-    this.fishContainer = this.add.container(0, 0, [this.fishTailArt, this.fishBodyArt]).setDepth(9);
+    this.dimmer = this.track(this.add.rectangle(0, 0, 1, 1, COLORS.abyss, 0.34).setOrigin(0).setDepth(5));
+    this.lane = this.track(this.add.graphics().setDepth(6));
+    this.fishShadowArt = this.track(this.add.graphics().setDepth(7));
+    this.net = this.track(this.add.graphics().setDepth(8));
+    this.fishTailArt = this.track(this.add.graphics().setDepth(9));
+    this.fishBodyArt = this.track(this.add.graphics().setDepth(10));
+    this.fishContainer = this.track(this.add.container(0, 0, [this.fishTailArt, this.fishBodyArt]).setDepth(9));
 
     this.buildHud();
     this.handleResize();
@@ -491,7 +491,7 @@ export class OceanScene extends Phaser.Scene {
       this.add
         .text(0, 0, "HOLD ANYWHERE TO LIFT · RELEASE TO DROP", { fontFamily: BODY_FONT, fontSize: "10px", fontStyle: "bold", color: hex(COLORS.foam), letterSpacing: 1.5 })
         .setOrigin(0.5)
-        .setAlpha(0.8)
+        .setAlpha(0)
         .setDepth(13),
     );
 
@@ -626,11 +626,8 @@ export class OceanScene extends Phaser.Scene {
     if (this.fishTailArt) this.fishTailArt.setRotation(tailWag * (state.fishVelocity < 0 ? -1 : 1));
     this.fishShadowArt.setPosition(this.box.trackX - this.netWidth() * 0.12 + 6, fishY + 12);
     this.fishShadowArt.setScale(state.fishVelocity < 0 ? -1 : 1, 1);
-    if (!this.fishShadowArt.getData("initialized")) {
-      this.fishShadowArt.clear();
-      this.fishShadowArt.fillStyle(0x01080e, 0.3).fillEllipse(0, 0, this.netWidth() * 0.34, 9);
-      this.fishShadowArt.setData("initialized", true);
-    }
+    this.fishShadowArt.clear();
+    this.fishShadowArt.fillStyle(0x01080e, 0.3).fillEllipse(0, 0, this.netWidth() * 0.34, 9);
     this.renderTimer();
     this.renderMeter();
   }
@@ -734,9 +731,17 @@ export class OceanScene extends Phaser.Scene {
     this.burstSparkles(centerX, centerY, COLORS.foam);
     this.tweens.add({ targets: this.banner, alpha: 1, scale: 1, duration: 300, ease: "Back.easeOut" });
     this.tweens.add({ targets: this.bannerSub, alpha: 1, duration: 260, delay: 260 });
+    this.holdHint?.setAlpha(0.5);
     this.time.delayedCall(1050, () => {
       if (this.mode !== "fight") return;
       this.tweens.add({ targets: [this.banner, this.bannerSub], alpha: 0, y: "-=18", duration: 280, ease: "Cubic.easeIn" });
+    });
+    this.time.delayedCall(1200, () => {
+      if (this.mode !== "fight") return;
+      this.banner?.setText("GO!").setColor(hex(COLORS.netActive)).setAlpha(0).setScale(0.8);
+      this.tweens.add({ targets: this.banner, alpha: 1, scale: 1.1, duration: 180, ease: "Back.easeOut" });
+      this.tweens.add({ targets: this.banner, alpha: 0, duration: 200, delay: 180, ease: "Cubic.easeIn" });
+      navigator.vibrate?.(20);
     });
     this.time.delayedCall(1380, () => {
       if (this.mode !== "fight") return;

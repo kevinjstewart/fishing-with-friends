@@ -128,9 +128,9 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
         if (!result.catch) return;
         shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
         try {
-          const decisionResult = await api.decideCatch(result.catch.id, decision);
-          shell.showDecisionResult(decisionResult, () => void returnToLakes());
+          await api.decideCatch(result.catch.id, decision);
           shell.setStatus(decision === "sell" ? "Fish sold" : "Fish kept", "ready");
+          await returnToLakes();
         } catch (error) {
           shell.setStatus(error instanceof Error ? error.message : "Unable to record the catch.", "error");
         }
@@ -184,6 +184,42 @@ shell.setPurchaseHandler((itemId, quantity) => {
 });
 
 let sellPending = false;
+
+shell.setSellAllHandler(() => {
+  if (sellPending) return;
+  sellPending = true;
+  void (async () => {
+    try {
+      if (!currentGameState) return;
+      shell.setStatus("Selling all fish…");
+      if (currentGameState) {
+        const collection = await api.getCollection();
+        for (const specimen of collection.fish) {
+          await api.sellCatch(specimen.id);
+        }
+      }
+      const refreshed = await api.getCollection();
+      shell.showCollection(refreshed);
+      const totalSold = refreshed.fish.length === 0 ? 0 : 1;
+      shell.setStatus(totalSold > 0 ? "All fish sold" : "No fish to sell", "ready");
+      await refreshGameState();
+      shell.updateWallet(currentGameState?.coins ?? 0);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 409) {
+        try {
+          shell.showCollection(await api.getCollection());
+        } catch {
+          // Keep the cached list.
+        }
+        shell.setStatus("Some fish were already sold.", "ready");
+        return;
+      }
+      shell.setStatus(error instanceof Error ? error.message : "Unable to sell all fish.", "error");
+    } finally {
+      sellPending = false;
+    }
+  })();
+});
 
 shell.setSellCatchHandler((catchId) => {
   if (sellPending) return;
