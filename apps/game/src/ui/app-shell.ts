@@ -75,7 +75,7 @@ const SCREEN_ICONS: Record<ScreenId, IconName> = {
 };
 
 function formatCoins(coins: number): string {
-  return `${coins.toLocaleString()} coins`;
+  return `${coins.toLocaleString()}`;
 }
 
 function capitalize(value: string): string {
@@ -83,17 +83,23 @@ function capitalize(value: string): string {
 }
 
 function riskLabel(location: LocationAvailability): string {
-  return `${capitalize(location.riskBand)} risk`;
+  return capitalize(location.riskBand);
 }
 
-function equipmentCard(icon: IconName, label: string, name: string, detail: string): HTMLElement {
-  const card = createElement("article", "equipment-card");
+function statChip(value: string | number, unit: string): HTMLElement {
+  const chip = createElement("span", "stat-chip");
+  chip.append(createElement("b", undefined, String(value)), createElement("small", undefined, unit));
+  return chip;
+}
+
+function loadoutSlot(icon: IconName, label: string, name: string, detail: string): HTMLElement {
+  const slot = createElement("article", "loadout-item");
   const chip = createElement("span", "equipment-icon");
   chip.append(createIcon(icon));
   const text = createElement("div", "equipment-text");
   text.append(createElement("span", "eyebrow", label), createElement("strong", undefined, name), createElement("span", "muted", detail));
-  card.append(chip, text);
-  return card;
+  slot.append(chip, text);
+  return slot;
 }
 
 type CollectionSortMode = "newest" | "heaviest" | "value" | "species";
@@ -279,23 +285,23 @@ export class AppShell {
     const screen = createElement("div", "screen");
     const header = createElement("div", "dashboard-header");
     const heading = createElement("div");
-    heading.append(createElement("span", "eyebrow", "Where to next"), createElement("h1", undefined, "Choose your water"), createElement("p", "muted", "Pick a lake, check your tackle, and spend the next cast."));
+    heading.append(createElement("span", "eyebrow", "Where to next"), createElement("h1", undefined, "Choose your water"));
     header.append(heading);
 
-    const loadout = createElement("section", "dashboard-section");
-    loadout.append(createElement("div", "section-heading", "Current loadout"));
-    const equipmentGrid = createElement("div", "equipment-grid");
     const lure = state.inventory.lures.find((item) => item.id === state.activeEquipment.lureId);
     const bait = state.inventory.baits.find((item) => item.id === state.activeEquipment.baitId);
     const rod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
     const boat = state.catalog.boats.find((item) => item.id === state.activeEquipment.boatId);
-    equipmentGrid.append(
-      equipmentCard("anchor", "Boat", boat?.name ?? state.activeEquipment.boatId, boat ? `Tier ${boat.tier} access gear` : "Permanent access gear"),
-      equipmentCard("rod", "Rod", rod?.name ?? state.activeEquipment.rodId, rod ? `Supports up to ${rod.maxFishWeightKg} kg` : "Ready to cast"),
-      equipmentCard("lure", "Lure", lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "No lure equipped", lure ? `${lure.durability ?? 0} uses left${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "No lure equipped"),
-      equipmentCard("bait", "Bait", bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "No bait selected", `${bait?.quantity ?? 0} portions ready`),
+    const loadout = createElement("section", "dashboard-section");
+    loadout.append(createElement("div", "section-heading", "Current loadout"));
+    const loadoutDock = createElement("div", "loadout-dock");
+    loadoutDock.append(
+      loadoutSlot("anchor", "Boat", boat?.name ?? state.activeEquipment.boatId, boat ? `Tier ${boat.tier}` : "Permanent"),
+      loadoutSlot("rod", "Rod", rod?.name ?? state.activeEquipment.rodId, rod ? `${rod.maxFishWeightKg}kg max` : "Ready"),
+      loadoutSlot("lure", "Lure", lure ? state.catalog.lures.find((item) => item.id === lure.id)?.name ?? lure.id : "None equipped", lure ? `${lure.durability ?? 0} uses${lure.quantity > 1 ? ` · ${lure.quantity - 1} spare` : ""}` : "Buy one"),
+      loadoutSlot("bait", "Bait", bait ? state.catalog.baits.find((item) => item.id === bait.id)?.name ?? bait.id : "None selected", `${bait?.quantity ?? 0} portions`),
     );
-    loadout.append(equipmentGrid);
+    loadout.append(loadoutDock);
     loadout.append(this.buildLoadoutSwitcher(state));
 
     const locationsSection = createElement("section", "dashboard-section");
@@ -313,11 +319,10 @@ export class AppShell {
       const weights = location.fishIds.map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.maximumWeightKg ?? 0);
       const heaviest = Math.max(0, ...weights);
       const mismatch = heaviest > rod.maxFishWeightKg;
-      const valueRange = `Typical catch value: ${formatCoins(location.expectedValueMinCoins)}–${formatCoins(location.expectedValueMaxCoins)}.`;
       riskPreview.className = mismatch ? "risk-preview is-warning" : "risk-preview";
       riskPreview.textContent = mismatch
-        ? `Warning: fish here can reach ${heaviest} kg but your ${rod.name} supports up to ${rod.maxFishWeightKg} kg. A big fish could snap it. ${valueRange}`
-        : `Your ${rod.name} can handle every fish here (up to ${heaviest} kg). ${valueRange}`;
+        ? `Fish reach ${heaviest}kg · rod limit ${rod.maxFishWeightKg}kg`
+        : `Safe up to ${heaviest}kg`;
     };
     describeRisk();
 
@@ -327,10 +332,12 @@ export class AppShell {
       cardTop.append(createElement("h2", undefined, location.name), createElement("span", `risk-badge risk-${location.riskBand}`, riskLabel(location)));
       const fishNames = location.fishIds
         .map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.commonName ?? fishId)
-        .slice(0, 4);
+        .slice(0, 3);
       const fishChips = createElement("div", "fish-chips");
       for (const fishName of fishNames) fishChips.append(createElement("span", "fish-chip", fishName));
-      card.append(cardTop, createElement("p", "muted", location.description), fishChips);
+      const locationValue = createElement("p", "location-value muted");
+      locationValue.append(createIcon("coin"), document.createTextNode(`${location.expectedValueMinCoins.toLocaleString()}–${location.expectedValueMaxCoins.toLocaleString()}`));
+      card.append(cardTop, fishChips, locationValue);
 
       if (location.unlocked) {
         const button = createElement("button", "select-location", location.id === selectedLocation.id ? "Selected" : "Select lake");
@@ -368,7 +375,7 @@ export class AppShell {
         location.unlocked && tackleMissing
           ? baitAvailable
             ? "Lure worn out — buy a new one"
-            : "No bait — visit the shop or dig for worms"
+            : "No bait — visit shop"
           : `Start fishing at ${location.name}`;
     };
     applyStartButtonState(selectedLocation);
@@ -477,7 +484,6 @@ export class AppShell {
     shopHeading.append(
       createElement("span", "eyebrow", "Tackle shop"),
       createElement("h1", undefined, "Gear up for deeper water"),
-      createElement("p", "muted", "Better tackle opens harder water and bigger fish. Boats and rods are one-time buys."),
     );
     intro.append(shopHeading);
 
@@ -618,7 +624,6 @@ export class AppShell {
     heading.append(
       createElement("span", "eyebrow", "Your collection"),
       createElement("h1", undefined, `Kept fish${specimens.length ? ` (${specimens.length})` : ""}`),
-      createElement("p", "muted", "Kept fish are individual trophies you can inspect now and sell later."),
     );
     intro.append(heading);
     panel.append(intro);
@@ -667,11 +672,11 @@ export class AppShell {
       card.append(createFishImage(specimen.species));
       const top = createElement("div", "collection-card-top");
       top.append(createElement("h2", undefined, specimen.species.commonName), createElement("span", `rarity-badge rarity-${specimen.species.rarity}`, capitalize(specimen.species.rarity)));
-      card.append(top, this.specimenDetails(specimen));
-      const sell = createElement("button", "secondary-action", `Sell for ${formatCoins(specimen.saleValueCoins)}`);
+      const sell = createElement("button", "secondary-action sell-action");
+      sell.append(createIcon("coin"), `Sell ${formatCoins(specimen.saleValueCoins)}`);
       sell.type = "button";
       sell.addEventListener("click", () => this.sellCatchHandler?.(specimen.id));
-      card.append(sell);
+      card.append(top, sell, this.specimenDetails(specimen));
       grid.append(card);
     }
   }
@@ -691,7 +696,6 @@ export class AppShell {
     heading.append(
       createElement("span", "eyebrow", "Fish journal"),
       createElement("h1", undefined, `${discovered.length} of ${this.latestJournal.entries.length} species discovered`),
-      createElement("p", "muted", "Every species you land unlocks its page with your personal records."),
     );
     intro.append(heading);
     panel.append(intro);
@@ -708,6 +712,7 @@ export class AppShell {
       );
       card.append(top);
       if (entry.discovered) {
+        card.append(createFishImage(species));
         card.append(createElement("em", "muted", species.scientificName));
         const stats = createElement("ul", "journal-stats");
         const statLine = (label: string, value: string): HTMLElement => {
@@ -716,12 +721,12 @@ export class AppShell {
           return li;
         };
         stats.append(
-          statLine("Caught", `${entry.timesCaught.toLocaleString()} time${entry.timesCaught === 1 ? "" : "s"}`),
-          statLine("Heaviest", entry.heaviestWeightKg !== null ? `${entry.heaviestWeightKg.toFixed(2)} kg` : "—"),
-          statLine("Longest", entry.longestLengthCm !== null ? `${entry.longestLengthCm} cm` : "—"),
-          statLine("Best sale", entry.bestSaleValueCoins !== null ? formatCoins(entry.bestSaleValueCoins) : "—"),
+          statLine("Caught", entry.timesCaught.toLocaleString()),
+          statLine("Max kg", entry.heaviestWeightKg !== null ? entry.heaviestWeightKg.toFixed(2) : "—"),
+          statLine("Max cm", entry.longestLengthCm !== null ? `${entry.longestLengthCm}` : "—"),
+          statLine("Best", entry.bestSaleValueCoins !== null ? formatCoins(entry.bestSaleValueCoins) : "—"),
         );
-        card.append(stats, createElement("p", "journal-bio", species.description), createElement("p", "journal-habitat muted", `Habitat: ${species.habitat}`));
+        card.append(stats);
       } else {
         card.append(createElement("p", "empty-message", `A ${species.rarity} fish of these waters. Catch one to reveal its page.`));
       }
@@ -759,8 +764,8 @@ export class AppShell {
     const panel = createElement("section", "fishing-status");
     panel.append(
       createElement("span", "eyebrow", result.outcome === "caught" ? "Fish landed" : "The line went slack"),
-      createElement("h1", undefined, result.outcome === "caught" && result.catch ? result.catch.species.commonName : "The fish got away"),
-      createElement("p", "muted", result.message),
+      createElement("h1", undefined, result.outcome === "caught" && result.catch ? result.catch.species.commonName : "It got away"),
+      ...(result.outcome !== "caught" || !result.catch ? [createElement("p", "muted", result.message)] : []),
     );
     if (result.rodBroke) {
       const warning = createElement("aside", "rod-break-warning");
@@ -774,7 +779,8 @@ export class AppShell {
       panel.append(createFishImage(result.catch.species));
       panel.append(this.specimenDetails(result.catch));
       const actions = createElement("div", "result-actions");
-      const keep = createElement("button", "secondary-action", "Keep fish");
+      const keep = createElement("button", "secondary-action keep-action");
+      keep.append(createIcon("trophy"), "Keep");
       const sell = createElement("button", "primary-action", `Sell for ${formatCoins(result.catch.saleValueCoins)}`);
       keep.type = "button";
       sell.type = "button";
@@ -814,10 +820,10 @@ export class AppShell {
   private specimenDetails(specimen: FishSpecimen): HTMLElement {
     const details = createElement("div", "specimen-details");
     details.append(
-      createElement("strong", undefined, `${capitalize(specimen.quality)} specimen`),
-      createElement("span", "muted", `${specimen.weightKg.toFixed(2)} kg · ${specimen.lengthCm} cm`),
-      createElement("em", "muted", specimen.species.scientificName),
-      createElement("span", "muted", `${specimen.locationName} · ${new Date(specimen.caughtAt).toLocaleDateString()}`),
+      createElement("strong", undefined, capitalize(specimen.quality)),
+      statChip(specimen.weightKg.toFixed(1), "KG"),
+      statChip(`${specimen.lengthCm}`, "CM"),
+      statChip(specimen.saleValueCoins.toLocaleString(), "COINS"),
     );
     return details;
   }
