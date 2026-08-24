@@ -205,6 +205,7 @@ export class AppShell {
 
   private makeToast(message: string, state: "loading" | "ready" | "error", lifetimeMs: number): ToastHandle {
     while (this.toastLayer.children.length >= 3) this.toastLayer.firstElementChild?.remove();
+    this.frame.dataset.toastVisible = "true";
     const toast = createElement("div", "toast");
     toast.dataset.state = state;
     toast.setAttribute("role", "status");
@@ -218,6 +219,10 @@ export class AppShell {
 
   private dismissToast(handle: ToastHandle): void {
     if (handle.dismissTimer) window.clearTimeout(handle.dismissTimer);
+    if (this.stickyToast === handle) {
+      this.stickyToast = undefined;
+      this.frame.dataset.toastVisible = "false";
+    }
     handle.root.classList.remove("is-shown");
     handle.root.classList.add("is-leaving");
     window.setTimeout(() => handle.root.remove(), 260);

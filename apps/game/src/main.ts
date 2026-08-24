@@ -22,6 +22,7 @@ const game = createGame(gameRoot);
 const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
 let currentGameState: GameStateResponse | undefined;
 let fishingActive = false;
+let fishingSceneSettled = true;
 
 const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
 
@@ -40,7 +41,7 @@ function syncSafeArea(): void {
       content: webApp?.contentSafeAreaInset,
     });
   }
-  game.registry.set("safeArea", readSafeArea(document.body));
+  game.registry.set("safeArea", readSafeArea(safeAreaProbe));
   game.events.emit("safearea:changed");
 }
 
@@ -68,6 +69,27 @@ function renderLakes(): void {
   game.events.emit("fishing:lobby");
 }
 
+async function waitForFishingSceneToSettle(): Promise<void> {
+  if (!document.body.classList.contains("is-fighting") || fishingSceneSettled) return;
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const timeout = { id: 0 };
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout.id);
+      resolve();
+    };
+    game.events.once("fishing:ambient", finish);
+    timeout.id = window.setTimeout(finish, 2500);
+  });
+}
+
+function revealAppShell(): void {
+  document.body.classList.remove("is-fighting");
+}
+
 async function returnToLakes(): Promise<void> {
   fishingActive = false;
   document.body.classList.remove("is-fighting");
@@ -78,6 +100,10 @@ async function returnToLakes(): Promise<void> {
     shell.setStatus(error instanceof Error ? error.message : "Unable to reload your fishing state.", "error");
   }
 }
+
+game.events.on("fishing:ambient", () => {
+  fishingSceneSettled = true;
+});
 
 async function openScreen(screen: ScreenId): Promise<void> {
   if (fishingActive) return;
@@ -145,6 +171,7 @@ shell.setStartFishingHandler((locationId) => {
       shell.setStatus("Preparing your line…");
       const encounter = await api.startFishing({ locationId, ...currentGameState.activeEquipment });
       fishingActive = true;
+      fishingSceneSettled = false;
       shell.setNavEnabled(false);
       game.events.emit("fight:start", encounter);
       document.body.classList.add("is-fighting");
@@ -159,10 +186,11 @@ shell.setStartFishingHandler((locationId) => {
 async function resolveCompletion(event: { encounterId: string; performance: number }): Promise<void> {
   fishingActive = false;
   shell.setNavEnabled(true);
-  document.body.classList.remove("is-fighting");
   shell.setStatus("Checking the catch…");
   try {
     const result = await api.completeFishing(event.encounterId, event.performance);
+    await waitForFishingSceneToSettle();
+    revealAppShell();
     const handleDecision = (decision: "keep" | "sell") => {
       void (async () => {
         if (!result.catch) return;
@@ -178,6 +206,8 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
     };
     shell.showFishingResult(result, handleDecision, () => void returnToLakes());
   } catch (error) {
+    await waitForFishingSceneToSettle();
+    revealAppShell();
     if (error instanceof ApiClientError && (error.status === 409 || error.status === 404)) {
       await returnToLakes();
       shell.setStatus("That fishing attempt was already resolved.", "ready");
