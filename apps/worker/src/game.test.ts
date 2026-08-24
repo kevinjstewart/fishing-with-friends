@@ -377,7 +377,7 @@ class FakeD1Statement {
     const { sql, stores } = this;
     if (sql.includes("FROM player_catches")) {
       const results = stores.catches
-        .filter((row) => row.player_id === this.values[0] && (row.status === "pending" || row.status === "kept"))
+        .filter((row) => row.player_id === this.values[0] && (sql.includes("status = 'kept'") ? row.status === "kept" : row.status === "pending" || row.status === "kept"))
         .sort((a, b) => b.caught_at.localeCompare(a.caught_at));
       return { results: results as T[] };
     }
@@ -391,6 +391,8 @@ class FakeD1Statement {
           telegram_username: player.telegram_username,
           catch_count: catches.length,
           heaviest_catch_kg: Math.max(0, ...catches.map((catchRow) => catchRow.weight_kg)),
+          kept_fish_count: catches.length,
+          heaviest_kept_fish_kg: Math.max(0, ...catches.map((catchRow) => catchRow.weight_kg)),
         };
       }).sort((a, b) => b.catch_count - a.catch_count || b.heaviest_catch_kg - a.heaviest_catch_kg || a.display_name.localeCompare(b.display_name));
       return { results: rows as T[] };
@@ -567,7 +569,17 @@ describe("fishing loop", () => {
       const journal = (await journalResponse.json()) as { entries: Array<{ speciesId: string; discovered: boolean; timesCaught: number; heaviestWeightKg: number | null }> };
       expect(journal.entries).toHaveLength(17);
       const entry = journal.entries.find((candidate) => candidate.speciesId === encounter.species.id);
-      expect(entry).toMatchObject({ discovered: true, timesCaught: 1 });
+      expect(entry).toMatchObject({
+        discovered: true,
+        timesCaught: 1,
+        species: expect.objectContaining({
+          commonName: encounter.species.commonName,
+          description: expect.any(String),
+          habitat: expect.any(String),
+          nativeRange: expect.any(String),
+          source: expect.objectContaining({ name: expect.any(String), url: expect.any(String) }),
+        }),
+      });
       expect(entry?.heaviestWeightKg).toBeCloseTo(complete.catch?.weightKg ?? 0, 2);
 
       const sale = await app.request(`/api/game/catches/${complete.catch?.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: "sell" }) }, env);
@@ -647,6 +659,9 @@ describe("collection", () => {
       const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
       const complete = (await (await completeEncounter({ env, token }, encounter.encounterId, 1)).json()) as CompleteFishingResponse;
 
+      const pendingCollection = (await (await app.request("/api/game/collection", { headers: { Authorization: `Bearer ${token}` } }, env)).json()) as { fish: unknown[] };
+      expect(pendingCollection.fish).toHaveLength(0);
+
       const keep = await app.request(`/api/game/catches/${complete.catch?.id}/decision`, { method: "POST", headers, body: JSON.stringify({ decision: "keep" }) }, env);
       expect(keep.status).toBe(200);
 
@@ -678,6 +693,11 @@ describe("friends", () => {
       const { env, token } = await setup();
       const headers = jsonHeaders(token);
 
+      const emptyResponse = await app.request("/api/game/friends", { headers: { Authorization: `Bearer ${token}` } }, env);
+      const emptyLeaderboard = (await emptyResponse.json()) as { entries: unknown[]; viewer: { rank: number | null; keptFishCount: number } };
+      expect(emptyLeaderboard.entries).toHaveLength(0);
+      expect(emptyLeaderboard.viewer).toMatchObject({ rank: null, keptFishCount: 0 });
+
       for (let index = 0; index < 2; index += 1) {
         const encounterResponse = await app.request("/api/game/encounters", { method: "POST", headers, body: JSON.stringify(WILLOW_POND_SETUP) }, env);
         const encounter = (await encounterResponse.json()) as FishingEncounterResponse;
@@ -687,9 +707,17 @@ describe("friends", () => {
 
       const response = await app.request("/api/game/friends", { headers: { Authorization: `Bearer ${token}` } }, env);
       expect(response.status).toBe(200);
-      const leaderboard = (await response.json()) as { entries: Array<{ displayName: string; catchCount: number; heaviestCatchKg: number }> };
+      const leaderboard = (await response.json()) as {
+        metric: string;
+        metricDescription: string;
+        viewer: { rank: number | null; keptFishCount: number; heaviestKeptFishKg: number };
+        entries: Array<{ displayName: string; keptFishCount: number; catchCount: number; heaviestKeptFishKg: number; heaviestCatchKg: number }>;
+      };
+      expect(leaderboard.metric).toBe("kept");
+      expect(leaderboard.metricDescription).toMatch(/kept fish/i);
       expect(leaderboard.entries).toHaveLength(1);
-      expect(leaderboard.entries[0]).toMatchObject({ displayName: "Game tester", catchCount: 1 });
+      expect(leaderboard.entries[0]).toMatchObject({ displayName: "Game tester", keptFishCount: 1, catchCount: 1 });
+      expect(leaderboard.viewer).toMatchObject({ rank: 1, keptFishCount: 1 });
     } finally {
       randomSpy.mockRestore();
     }

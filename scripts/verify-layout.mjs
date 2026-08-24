@@ -266,9 +266,82 @@ await page.locator(".collection-actions .secondary-action").first().tap();
 const confirmButtonText = await page.locator(".collection-actions .is-confirming").textContent();
 check("Sell All requires confirmation", /Confirm: sell 2 fish for 123 coins/.test(confirmButtonText ?? ""), `button "${confirmButtonText?.trim()}"`);
 check("Sell All confirmation offers cancel", (await page.locator(".collection-actions .collection-cancel").count()) === 1, "cancel action rendered");
+check("collection shows catch location", (await page.locator(".specimen-location").count()) === 2, "location shown for each specimen");
+check("collection shows caught date", (await page.locator(".specimen-caught-date").count()) === 2, "date shown for each specimen");
+check("collection exposes species notes", (await page.locator(".collection-species-info").count()) === 2, "species notes available for each specimen");
 await page.locator(".collection-actions .collection-cancel").tap();
 check("Sell All confirmation can be cancelled", (await page.locator(".collection-actions .is-confirming").count()) === 0, "confirmation cleared");
 await page.unroute("**/api/game/collection");
+
+// ---------- Chunk 5 journal, empty collection, and social surfaces ----------
+await page.route("**/api/game/journal", async (route) => {
+  const response = await route.fetch();
+  const journal = await response.json();
+  // Keep the browser check deterministic even when the persisted local player
+  // has not made a catch yet.
+  if (journal.entries.length > 0) {
+    const first = journal.entries[0];
+    journal.entries[0] = {
+      ...first,
+      discovered: true,
+      timesCaught: Math.max(1, first.timesCaught),
+      heaviestWeightKg: first.heaviestWeightKg ?? first.species.typicalWeightKg,
+      longestLengthCm: first.longestLengthCm ?? first.species.typicalLengthCm,
+      bestSaleValueCoins: first.bestSaleValueCoins ?? first.species.baseValueCoins,
+      firstCaughtAt: first.firstCaughtAt ?? new Date().toISOString(),
+      lastCaughtAt: first.lastCaughtAt ?? new Date().toISOString(),
+    };
+  }
+  await route.fulfill({ status: response.status(), headers: { "content-type": "application/json" }, body: JSON.stringify(journal) });
+});
+await page.getByRole("button", { name: "Journal", exact: true }).tap();
+await page.waitForSelector(".journal-screen", { timeout: 10000 });
+const journalCards = await page.locator(".journal-card").count();
+check("journal renders species entries", journalCards > 0, `${journalCards} cards`);
+check("journal replaces repeated placeholders", !(await page.locator(".journal-card").allTextContents()).some((text) => text.includes("A uncommon fish")), "no generic rarity placeholder");
+check("undiscovered entries have discovery hints", (await page.locator(".journal-card.is-undiscovered .journal-hint").count()) > 0, "hint rendered");
+check("discovered entries show field notes", (await page.locator(".journal-card:not(.is-undiscovered) .journal-bio").count()) > 0, "description rendered");
+check("discovered entries show habitat and range", (await page.locator(".journal-card:not(.is-undiscovered) .journal-facts").count()) > 0, "habitat/range rendered");
+check("discovered entries show source and dates", (await page.locator(".journal-card:not(.is-undiscovered) .journal-source").count()) > 0 && (await page.locator(".journal-record-dates").count()) > 0, "source and discovery dates rendered");
+
+await page.locator("#journal-filter").selectOption("undiscovered");
+await page.waitForTimeout(150);
+const undiscoveredCards = await page.locator(".journal-card").count();
+check("journal filter shows undiscovered entries", undiscoveredCards > 0 && (await page.locator(".journal-card.is-undiscovered").count()) === undiscoveredCards, `${undiscoveredCards} undiscovered cards`);
+await page.locator("#journal-filter").selectOption("all");
+await page.waitForTimeout(150);
+await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
+await page.waitForTimeout(250);
+const journalTabbar = await rectOf(page, ".tabbar");
+const lastJournalCard = await rectOf(page, ".journal-grid .journal-card >> nth=-1");
+check("journal cards clear bottom tabbar", lastJournalCard.bottom <= journalTabbar.top + 2, `card bottom ${lastJournalCard.bottom.toFixed(1)} vs tabbar top ${journalTabbar.top.toFixed(1)}`);
+await page.unroute("**/api/game/journal");
+
+await page.route("**/api/game/collection", async (route) => {
+  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fish: [] }) });
+});
+await page.getByRole("button", { name: "Collection", exact: true }).tap();
+await page.waitForSelector(".collection-screen", { timeout: 10000 });
+check("empty collection offers Go fishing", (await page.getByRole("button", { name: "Go fishing", exact: true }).count()) === 1, "CTA rendered");
+await page.getByRole("button", { name: "Go fishing", exact: true }).tap();
+await page.waitForSelector(".locations-list .location-card", { timeout: 10000 });
+await page.unroute("**/api/game/collection");
+
+await page.getByRole("button", { name: "Friends", exact: true }).tap();
+await page.waitForSelector(".friends-screen", { timeout: 10000 });
+const friendsText = await page.locator(".friends-screen").textContent();
+check("friends board explains kept-fish scoring", /kept fish/i.test(friendsText ?? "") && /sold fish/i.test(friendsText ?? ""), friendsText?.trim() ?? "no board copy");
+check("friends board shows self standing", (await page.locator(".crew-self").count()) === 1, "self-ranking panel rendered");
+if ((await page.locator(".crew-row").count()) > 0) {
+  check("friends rows use kept-fish labels", (await page.locator(".crew-row small").allTextContents()).every((text) => /kept/.test(text)), "rows identify kept fish");
+} else {
+  check("empty friends board offers next action", (await page.getByRole("button", { name: "Go fishing", exact: true }).count()) === 1, "empty-board CTA rendered");
+}
+await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
+await page.waitForTimeout(250);
+const friendsTabbar = await rectOf(page, ".tabbar");
+const friendsPanel = await rectOf(page, ".friends-screen");
+check("friends screen clears bottom tabbar", friendsPanel.bottom <= friendsTabbar.top + 2, `panel bottom ${friendsPanel.bottom.toFixed(1)} vs tabbar top ${friendsTabbar.top.toFixed(1)}`);
 
 // ---------- Console health ----------
 check("no layout console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");

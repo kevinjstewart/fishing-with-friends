@@ -429,6 +429,10 @@ body.is-fighting .app-frame {
   gap: 14px;
 }
 
+.friends-definition {
+  max-width: 58ch;
+}
+
 .invite-action {
   display: flex;
   align-items: center;
@@ -450,8 +454,45 @@ body.is-fighting .app-frame {
   list-style: none;
   border-radius: 18px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--glass);
   box-shadow: var(--shadow-card);
+}
+
+.crew-self {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 14px;
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.crew-self-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.crew-self-copy .eyebrow {
+  margin-bottom: 1px;
+}
+
+.crew-self-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crew-self-rank {
+  color: var(--aqua);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.crew-self > .muted {
+  grid-column: 1 / -1;
+  font-size: 0.74rem;
 }
 
 .crew-row {
@@ -483,6 +524,12 @@ body.is-fighting .app-frame {
   background: linear-gradient(135deg, #ffd166, #ffb347);
 }
 
+.crew-row.is-self {
+  border-radius: 10px;
+  background: rgba(94, 234, 212, 0.08);
+  box-shadow: inset 3px 0 0 var(--aqua);
+}
+
 .crew-name {
   display: grid;
   min-width: 0;
@@ -493,6 +540,19 @@ body.is-fighting .app-frame {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.crew-you {
+  width: fit-content;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #092333;
+  background: var(--aqua);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .tabbar[data-disabled="true"] {
@@ -1003,6 +1063,21 @@ button.gear-tile:active {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
+}
+
+.specimen-caught-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 2px 1px 0;
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+}
+
+.specimen-caught-meta span {
+  overflow-wrap: anywhere;
 }
 
 .stat-chip {
@@ -2110,13 +2185,158 @@ button.gear-tile:active {
   text-align: center;
 }
 
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.empty-state .empty-message {
+  width: 100%;
+}
+
+.empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: min(100%, 220px);
+}
+
+.empty-state-action .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.journal-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(13, 34, 52, 0.42);
+  font-size: 0.78rem;
+}
+
+.journal-controls label {
+  flex: 0 0 auto;
+}
+
+.journal-controls .sort-select {
+  min-width: 150px;
+  min-height: 38px;
+}
+
+.journal-controls > .muted {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .journal-card.is-undiscovered {
-  opacity: 0.62;
+  gap: 7px;
+  opacity: 0.78;
   border-style: dashed;
 }
 
 .journal-card.is-undiscovered h2 {
   color: var(--ink-dim);
+}
+
+.journal-unknown-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(151, 201, 227, 0.28);
+  border-radius: 13px;
+  color: var(--aqua);
+  background: rgba(13, 34, 52, 0.75);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.journal-discovery-state,
+.journal-source {
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.journal-discovery-state {
+  color: var(--aqua);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.journal-hint {
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.journal-facts,
+.journal-record-dates,
+.collection-species-notes {
+  display: grid;
+  gap: 7px;
+}
+
+.journal-record-dates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 2px;
+}
+
+.species-fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.species-fact > span {
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.species-fact > p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.journal-source {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.journal-source a {
+  color: var(--aqua);
+}
+
+.collection-species-info {
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.collection-species-info summary {
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 0.72rem;
+  list-style-position: inside;
+}
+
+.collection-species-notes {
+  padding-top: 8px;
+}
+
+.collection-description {
+  color: var(--ink-dim);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .journal-stats {

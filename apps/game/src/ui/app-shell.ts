@@ -100,6 +100,53 @@ function capitalize(value: string): string {
   return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
+function formatDate(value: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+function formatWeight(weightKg: number): string {
+  return weightKg > 0 ? `${weightKg.toFixed(1)} kg` : "—";
+}
+
+function createExternalLink(label: string, url: string, className = "external-link"): HTMLAnchorElement {
+  const link = document.createElement("a");
+  link.className = className;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = label;
+  return link;
+}
+
+function speciesFact(label: string, value: string): HTMLElement {
+  const fact = createElement("div", "species-fact");
+  fact.append(createElement("span", "muted", label), createElement("p", undefined, value));
+  return fact;
+}
+
+function journalDiscoveryHint(state: GameStateResponse, species: FishSpecimen["species"]): string {
+  const locationCandidates = species.availableLocationIds
+    .map((id) => state.locations.find((candidate) => candidate.id === id))
+    .filter((candidate): candidate is LocationAvailability => candidate !== undefined);
+  const location = locationCandidates.find((candidate) => candidate.unlocked);
+  const locationDefinition = location ?? locationCandidates[0] ?? state.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
+  const boat = locationDefinition ? state.catalog.boats.find((candidate) => candidate.id === locationDefinition.requiredBoatId) : undefined;
+  const locationHint = location
+    ? `Try ${location.name}`
+    : locationDefinition
+      ? `Unlock ${locationDefinition.name}${boat ? ` with a ${boat.name}` : ""}`
+      : "Explore the lakes";
+  const baitNames = species.acceptedBaitIds
+    .map((id) => state.catalog.baits.find((candidate) => candidate.id === id)?.name)
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 2);
+  const baitHint = baitNames.length > 0 ? ` using ${baitNames.join(" or ")}` : " with a patient cast";
+  return `${locationHint}${baitHint}.`;
+}
+
 function statChip(value: string | number, unit: string): HTMLElement {
   const chip = createElement("span", "stat-chip");
   chip.append(createElement("b", undefined, String(value)), createElement("small", undefined, unit));
@@ -121,6 +168,7 @@ function riskDots(location: LocationAvailability): HTMLElement {
 }
 
 type CollectionSortMode = "newest" | "heaviest" | "value" | "species";
+type JournalFilterMode = "all" | "discovered" | "undiscovered";
 
 type ShopCategory = "boats" | "rods" | "lures" | "bait";
 
@@ -231,6 +279,7 @@ export class AppShell {
   private actionPending = false;
   private selectedLocationId?: string;
   private collectionSort: CollectionSortMode = "newest";
+  private journalFilter: JournalFilterMode = "all";
   private shopCategory: ShopCategory = "bait";
   private renderedShopCategory?: ShopCategory;
   private latestCollection?: CollectionResponse;
@@ -436,6 +485,14 @@ export class AppShell {
     this.navigationHandler?.("shop");
   }
 
+  private createGoFishingAction(): HTMLButtonElement {
+    const action = createElement("button", "primary-action empty-state-action");
+    action.type = "button";
+    action.append(createIcon("waves"), "Go fishing");
+    action.addEventListener("click", () => this.navigationHandler?.("lakes"));
+    return action;
+  }
+
   showLeaderboard(leaderboard?: LeaderboardResponse): void {
     if (leaderboard) this.latestLeaderboard = leaderboard;
     if (!this.latestLeaderboard) {
@@ -443,11 +500,12 @@ export class AppShell {
       return;
     }
 
+    const board = this.latestLeaderboard;
     const panel = createElement("section", "screen friends-screen");
     const intro = createElement("div", "dashboard-header");
     const heading = createElement("div");
     heading.append(createElement("span", "eyebrow", "Fishing crew"), createElement("h1", undefined, "Catch board"));
-    intro.append(heading);
+    intro.append(heading, createElement("p", "friends-definition", board.metricDescription || "Ranked by kept fish. Sold fish do not count."));
     panel.append(intro);
 
     const invite = createElement("button", "primary-action invite-action");
@@ -456,20 +514,43 @@ export class AppShell {
     invite.addEventListener("click", () => this.shareHandler?.());
     panel.append(invite);
 
-    if (this.latestLeaderboard.entries.length === 0) {
-      panel.append(createElement("p", "empty-message", "No catches yet. Be first on the board."));
+    const viewer = board.viewer;
+    if (viewer) {
+      const standing = createElement("aside", "crew-self");
+      const standingCopy = createElement("div", "crew-self-copy");
+      standingCopy.append(
+        createElement("span", "eyebrow", "Your standing"),
+        createElement("strong", "crew-self-name", viewer.displayName === "You" ? "You" : `${viewer.displayName} · You`),
+      );
+      const rank = createElement("strong", "crew-self-rank", viewer.rank === null ? "Unranked" : `#${viewer.rank}`);
+      const standingNote = viewer.rank === null
+        ? "Keep a fish to join the board. Sold fish do not count."
+        : `${viewer.keptFishCount} kept fish · ${formatWeight(viewer.heaviestKeptFishKg)} heaviest kept`;
+      standing.append(standingCopy, rank, createElement("span", "muted", standingNote));
+      panel.append(standing);
+    }
+
+    if (board.entries.length === 0) {
+      const empty = createElement("div", "empty-state");
+      empty.append(
+        createElement("p", "empty-message", "No kept fish on the board yet. Keep your next catch to claim the first spot."),
+        this.createGoFishingAction(),
+      );
+      panel.append(empty);
       this.replaceScreen(panel);
       return;
     }
 
     const list = createElement("ol", "crew-board");
-    for (const entry of this.latestLeaderboard.entries.slice(0, 10)) {
-      const row = createElement("li", `crew-row${entry.rank === 1 ? " is-leader" : ""}`);
+    for (const entry of board.entries.slice(0, 10)) {
+      const isViewer = Boolean(viewer && entry.playerId === viewer.playerId);
+      const row = createElement("li", `crew-row${entry.rank === 1 ? " is-leader" : ""}${isViewer ? " is-self" : ""}`);
       row.append(
         createElement("span", "crew-rank", `${entry.rank}`),
         (() => {
           const name = createElement("div", "crew-name", entry.displayName);
-          name.append(createElement("small", "muted", `${entry.catchCount} caught · ${entry.heaviestCatchKg.toFixed(1)} kg`));
+          if (isViewer) name.append(createElement("span", "crew-you", "You"));
+          name.append(createElement("small", "muted", `${entry.keptFishCount} kept · ${formatWeight(entry.heaviestKeptFishKg)} heaviest`));
           return name;
         })(),
       );
@@ -1138,12 +1219,18 @@ export class AppShell {
     heading.append(
       createElement("span", "eyebrow", "Your collection"),
       createElement("h1", undefined, `Kept fish${specimens.length ? ` (${specimens.length})` : ""}`),
+      createElement("p", undefined, specimens.length ? "Individual fish you chose to keep. Sell them later when you need the coins." : "Keep a catch to give it a permanent place in your collection."),
     );
     intro.append(heading);
     panel.append(intro);
 
     if (specimens.length === 0) {
-      panel.append(createElement("p", "empty-message", "No kept fish yet. Land a catch and choose “Keep fish” to start your collection."));
+      const empty = createElement("div", "empty-state");
+      empty.append(
+        createElement("p", "empty-message", "No kept fish yet. Land a catch and choose “Keep fish” to start your collection."),
+        this.createGoFishingAction(),
+      );
+      panel.append(empty);
       this.replaceScreen(panel);
       return;
     }
@@ -1182,8 +1269,10 @@ export class AppShell {
     panel.append(actionsBar);
 
     const sortRow = createElement("div", "sort-row");
-    sortRow.append(createElement("label", "muted", "Sort"));
+    const sortLabel = createElement("label", "muted", "Sort collection");
     const sortSelect = document.createElement("select");
+    sortLabel.htmlFor = "collection-sort";
+    sortSelect.id = "collection-sort";
     sortSelect.className = "sort-select";
     for (const [mode, label] of [
       ["newest", "Newest"],
@@ -1201,7 +1290,7 @@ export class AppShell {
       this.collectionSort = sortSelect.value as CollectionSortMode;
       this.rerenderCollectionGrid(grid, specimens);
     });
-    sortRow.append(sortSelect);
+    sortRow.append(sortLabel, sortSelect);
     panel.append(sortRow);
 
     const grid = createElement("div", "collection-grid");
@@ -1216,14 +1305,28 @@ export class AppShell {
     grid.replaceChildren();
     for (const specimen of sorted) {
       const card = createElement("article", "collection-card");
+      card.dataset.speciesId = specimen.speciesId;
       card.append(createFishImage(specimen.species));
       const top = createElement("div", "collection-card-top");
       top.append(createElement("h2", undefined, specimen.species.commonName), createElement("span", `rarity-badge rarity-${specimen.species.rarity}`, capitalize(specimen.species.rarity)));
+      const speciesNotes = document.createElement("details");
+      speciesNotes.className = "collection-species-info";
+      speciesNotes.append(createElement("summary", undefined, specimen.species.scientificName));
+      const notes = createElement("div", "collection-species-notes");
+      notes.append(
+        createElement("p", "collection-description", specimen.species.description),
+        speciesFact("Habitat", specimen.species.habitat),
+        speciesFact("Native range", specimen.species.nativeRange),
+      );
+      const source = createElement("p", "journal-source");
+      source.append("Source: ", createExternalLink(specimen.species.source.name, specimen.species.source.url));
+      notes.append(source);
+      speciesNotes.append(notes);
       const sell = createElement("button", "secondary-action sell-action");
       sell.append(createIcon("coin"), `Sell ${formatCoins(specimen.saleValueCoins)}`);
       sell.type = "button";
       sell.addEventListener("click", () => this.sellCatchHandler?.(specimen.id));
-      card.append(top, sell, this.specimenDetails(specimen));
+      card.append(top, speciesNotes, sell, this.specimenDetails(specimen));
       grid.append(card);
     }
   }
@@ -1235,32 +1338,80 @@ export class AppShell {
       return;
     }
     const state = this.gameState;
-    const discovered = this.latestJournal.entries.filter((entry) => entry.discovered);
+    const entries = this.latestJournal.entries;
+    const discovered = entries.filter((entry) => entry.discovered);
+    const visibleEntries = entries.filter((entry) => {
+      if (this.journalFilter === "discovered") return entry.discovered;
+      if (this.journalFilter === "undiscovered") return !entry.discovered;
+      return true;
+    });
 
     const panel = createElement("section", "screen journal-screen");
     const intro = createElement("div", "dashboard-header");
     const heading = createElement("div");
     heading.append(
       createElement("span", "eyebrow", "Fish journal"),
-      createElement("h1", undefined, `${discovered.length} of ${this.latestJournal.entries.length} species discovered`),
+      createElement("h1", undefined, `${discovered.length} of ${entries.length} species discovered`),
+      createElement("p", undefined, "Discover a species to reveal its field notes, habitat, native range, and your personal records."),
     );
     intro.append(heading);
     panel.append(intro);
 
+    const controls = createElement("div", "journal-controls");
+    const filterLabel = createElement("label", "muted", "Show");
+    const filter = document.createElement("select");
+    filter.id = "journal-filter";
+    filter.className = "sort-select";
+    filterLabel.htmlFor = filter.id;
+    const filterOptions: Array<[JournalFilterMode, string, number]> = [
+      ["all", "All species", entries.length],
+      ["discovered", "Discovered", discovered.length],
+      ["undiscovered", "Undiscovered", entries.length - discovered.length],
+    ];
+    for (const [value, label, count] of filterOptions) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = `${label} (${count})`;
+      option.selected = value === this.journalFilter;
+      filter.append(option);
+    }
+    filter.addEventListener("change", () => {
+      this.journalFilter = filter.value as JournalFilterMode;
+      this.renderJournal();
+    });
+    controls.append(filterLabel, filter, createElement("span", "muted", `${visibleEntries.length} shown`));
+    panel.append(controls);
+
+    if (visibleEntries.length === 0) {
+      const empty = createElement("div", "empty-state");
+      empty.append(
+        createElement("p", "empty-message", this.journalFilter === "discovered" ? "No species discovered yet. Start with the beginner water and make your first cast." : "Every species is already recorded in your journal."),
+        this.journalFilter === "discovered" ? this.createGoFishingAction() : createElement("span", "muted", "Use the filter above to review every entry."),
+      );
+      panel.append(empty);
+      this.replaceScreen(panel);
+      return;
+    }
+
     const grid = createElement("div", "journal-grid");
-    for (const entry of this.latestJournal.entries) {
-      const species = state.catalog.fish.find((candidate) => candidate.id === entry.speciesId);
+    for (const entry of visibleEntries) {
+      const species = entry.species ?? state.catalog.fish.find((candidate) => candidate.id === entry.speciesId);
       if (!species) continue;
       const card = createElement("article", `journal-card${entry.discovered ? "" : " is-undiscovered"}`);
+      card.dataset.speciesId = species.id;
       const top = createElement("div", "journal-card-top");
       top.append(
-        createElement("h2", undefined, entry.discovered ? species.commonName : "Not yet discovered"),
+        createElement("h2", undefined, entry.discovered ? species.commonName : "Undiscovered species"),
         createElement("span", `rarity-badge rarity-${species.rarity}`, capitalize(species.rarity)),
       );
       card.append(top);
       if (entry.discovered) {
         card.append(createFishImage(species));
         card.append(createElement("em", "muted", species.scientificName));
+        card.append(createElement("p", "journal-bio", species.description));
+        const facts = createElement("div", "journal-facts");
+        facts.append(speciesFact("Habitat", species.habitat), speciesFact("Native range", species.nativeRange));
+        card.append(facts);
         const stats = createElement("ul", "journal-stats");
         const statLine = (label: string, value: string): HTMLElement => {
           const li = createElement("li");
@@ -1269,13 +1420,25 @@ export class AppShell {
         };
         stats.append(
           statLine("Caught", entry.timesCaught.toLocaleString()),
-          statLine("Max kg", entry.heaviestWeightKg !== null ? entry.heaviestWeightKg.toFixed(2) : "—"),
-          statLine("Max cm", entry.longestLengthCm !== null ? `${entry.longestLengthCm}` : "—"),
-          statLine("Best", entry.bestSaleValueCoins !== null ? formatCoins(entry.bestSaleValueCoins) : "—"),
+          statLine("Largest", entry.heaviestWeightKg !== null ? `${entry.heaviestWeightKg.toFixed(2)} kg` : "—"),
+          statLine("Longest", entry.longestLengthCm !== null ? `${entry.longestLengthCm} cm` : "—"),
+          statLine("Best sale", entry.bestSaleValueCoins !== null ? formatCoins(entry.bestSaleValueCoins) : "—"),
         );
         card.append(stats);
+        const dates = createElement("div", "journal-record-dates");
+        dates.append(
+          speciesFact("Discovered", formatDate(entry.firstCaughtAt)),
+          speciesFact("Last caught", formatDate(entry.lastCaughtAt)),
+        );
+        card.append(dates);
+        const source = createElement("p", "journal-source");
+        source.append("Source: ", createExternalLink(species.source.name, species.source.url));
+        card.append(source);
       } else {
-        card.append(createElement("p", "empty-message", `A ${species.rarity} fish of these waters. Catch one to reveal its page.`));
+        card.append(createElement("span", "journal-unknown-mark", "?"));
+        card.append(createElement("span", "journal-discovery-state", "Field notes locked"));
+        card.append(createElement("p", "journal-hint", journalDiscoveryHint(state, species)));
+        card.append(createElement("p", "muted", "Land one catch to reveal this species."));
       }
       grid.append(card);
     }
@@ -1451,6 +1614,14 @@ export class AppShell {
       statChip(specimen.weightKg.toFixed(1), "KG"),
       statChip(`${specimen.lengthCm}`, "CM"),
       statChip(specimen.saleValueCoins.toLocaleString(), "COINS"),
+      (() => {
+        const caughtMeta = createElement("div", "specimen-caught-meta");
+        caughtMeta.append(
+          createElement("span", "specimen-location", `Caught at ${specimen.locationName}`),
+          createElement("span", "specimen-caught-date", `Caught ${formatDate(specimen.caughtAt)}`),
+        );
+        return caughtMeta;
+      })(),
       size,
     );
     return details;
