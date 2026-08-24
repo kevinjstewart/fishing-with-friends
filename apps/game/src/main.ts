@@ -99,6 +99,26 @@ async function refreshGameState(signal?: AbortSignal): Promise<void> {
   currentGameState = await withSessionRecovery(() => api.getGameState(signal));
 }
 
+async function reconcileCollectionAndWallet(): Promise<{
+  collection?: Awaited<ReturnType<typeof api.getCollection>>;
+  walletRefreshed: boolean;
+}> {
+  const [stateResult, collectionResult] = await Promise.allSettled([
+    withSessionRecovery(() => api.getGameState()),
+    withSessionRecovery(() => api.getCollection()),
+  ]);
+
+  if (stateResult.status === "fulfilled") {
+    currentGameState = stateResult.value;
+    shell.updateWallet(stateResult.value.coins);
+  }
+  if (collectionResult.status === "fulfilled") {
+    if (shell.getActiveScreen() === "collection") shell.showCollection(collectionResult.value);
+    return { collection: collectionResult.value, walletRefreshed: stateResult.status === "fulfilled" };
+  }
+  return { walletRefreshed: stateResult.status === "fulfilled" };
+}
+
 function renderLakes(): void {
   if (!currentGameState) return;
   shell.setNavEnabled(true);
@@ -311,7 +331,9 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
       void (async () => {
         shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
         try {
-          await withSessionRecovery(() => api.decideCatch(result.catch!.id, decision));
+          const decisionResult = await withSessionRecovery(() => api.decideCatch(result.catch!.id, decision));
+          if (currentGameState) currentGameState = { ...currentGameState, coins: decisionResult.coins };
+          shell.updateWallet(decisionResult.coins);
           const loaded = await returnToLakes();
           if (loaded) shell.setStatus(decision === "sell" ? "Fish sold" : "Fish kept", "ready");
         } catch (error) {
@@ -394,32 +416,48 @@ shell.setSellAllHandler(() => {
   if (sellPending) return;
   sellPending = true;
   shell.setActionPending(true);
+  shell.resetSellAllConfirmation();
   void (async () => {
+    let before: Awaited<ReturnType<typeof api.getCollection>> | undefined;
+    let reconciliation: Awaited<ReturnType<typeof reconcileCollectionAndWallet>> | undefined;
+    let operationError: unknown;
     try {
       if (!currentGameState) throw new Error("Your collection is still loading. Try again in a moment.");
       shell.setStatus("Selling all fish…");
-      const collection = await withSessionRecovery(() => api.getCollection());
-      const totalToSell = collection.fish.length;
-      for (const specimen of collection.fish) {
-        await withSessionRecovery(() => api.sellCatch(specimen.id));
-      }
-      const refreshed = await withSessionRecovery(() => api.getCollection());
-      if (shell.getActiveScreen() === "collection") shell.showCollection(refreshed);
-      shell.setStatus(totalToSell > 0 ? `Sold ${totalToSell} fish` : "No fish to sell", "ready");
-      await refreshGameState();
-      shell.updateWallet(currentGameState?.coins ?? 0);
-    } catch (error) {
-      if (error instanceof ApiClientError && error.status === 409) {
+      before = await withSessionRecovery(() => api.getCollection());
+      for (const specimen of before.fish) {
         try {
-          const reconciled = await withSessionRecovery(() => api.getCollection());
-          if (shell.getActiveScreen() === "collection") shell.showCollection(reconciled);
-        } catch {
-          // Keep the cached list.
+          await withSessionRecovery(() => api.sellCatch(specimen.id));
+        } catch (error) {
+          operationError = error;
+          break;
         }
-        shell.setStatus("Some fish were already sold.", "ready");
-        return;
       }
-      shell.setStatus(error instanceof Error ? error.message : "Unable to sell all fish.", "error");
+      reconciliation = await reconcileCollectionAndWallet();
+    } catch (error) {
+      operationError = error;
+      reconciliation = await reconcileCollectionAndWallet();
+    }
+
+    try {
+      const refreshed = reconciliation?.collection;
+      if (before && refreshed) {
+        const remainingIds = new Set(refreshed.fish.map((specimen) => specimen.id));
+        const sold = before.fish.filter((specimen) => !remainingIds.has(specimen.id));
+        const soldValue = sold.reduce((sum, specimen) => sum + specimen.saleValueCoins, 0);
+        const complete = sold.length === before.fish.length;
+        const walletNote = reconciliation.walletRefreshed ? " Wallet and collection are up to date." : " Collection is up to date; wallet refresh failed, so retry shortly.";
+        if (complete) {
+          shell.setStatus(sold.length > 0 ? `Sold ${sold.length} fish for ${soldValue.toLocaleString()} coins.${walletNote}` : "No fish to sell.", "ready");
+        } else {
+          const errorMessage = operationError instanceof Error ? ` ${operationError.message}` : "";
+          shell.setStatus(`Sold ${sold.length} of ${before.fish.length} fish for ${soldValue.toLocaleString()} coins.${errorMessage}${walletNote}`, "ready");
+        }
+      } else if (operationError) {
+        shell.setStatus(operationError instanceof Error ? operationError.message : "Unable to sell all fish. Collection and wallet could not be fully refreshed.", "error");
+      } else {
+        shell.setStatus("Unable to confirm the sale. Retry when your connection is stable.", "error");
+      }
     } finally {
       sellPending = false;
       shell.setActionPending(false);
@@ -432,23 +470,24 @@ shell.setSellCatchHandler((catchId) => {
   sellPending = true;
   shell.setActionPending(true);
   void (async () => {
+    let before: Awaited<ReturnType<typeof api.getCollection>> | undefined;
     try {
       shell.setStatus("Selling the fish…");
+      before = await withSessionRecovery(() => api.getCollection());
       const result = await withSessionRecovery(() => api.sellCatch(catchId));
-      if (currentGameState) currentGameState.coins = result.coins;
-      shell.updateWallet(result.coins);
-      const remaining = (await withSessionRecovery(() => api.getCollection())).fish;
-      if (shell.getActiveScreen() === "collection") shell.showCollection({ fish: remaining });
-      shell.setStatus(`Sold ${result.catch.species.commonName} for ${result.catch.saleValueCoins.toLocaleString()} coins`, "ready");
+      const reconciliation = await reconcileCollectionAndWallet();
+      const walletNote = reconciliation.walletRefreshed ? " Wallet and collection are up to date." : " Wallet updated; collection refresh failed, so retry shortly.";
+      shell.setStatus(`Sold ${result.catch.species.commonName} for ${result.catch.saleValueCoins.toLocaleString()} coins.${walletNote}`, "ready");
     } catch (error) {
-      if (error instanceof ApiClientError && error.status === 409) {
-        try {
-          const reconciled = await withSessionRecovery(() => api.getCollection());
-          if (shell.getActiveScreen() === "collection") shell.showCollection(reconciled);
-        } catch {
-          // Keep the cached list; the wallet is already reconciled.
-        }
-        shell.setStatus("That fish was already sold.", "ready");
+      const reconciliation = await reconcileCollectionAndWallet();
+      const stillListed = reconciliation.collection?.fish.some((specimen) => specimen.id === catchId) ?? true;
+      if (!stillListed) {
+        const soldSpecimen = before?.fish.find((specimen) => specimen.id === catchId);
+        const walletNote = reconciliation.walletRefreshed ? " Wallet and collection are up to date." : " Collection updated; wallet refresh failed, so retry shortly.";
+        shell.setStatus(
+          `Sale confirmed${soldSpecimen ? ` for ${soldSpecimen.saleValueCoins.toLocaleString()} coins` : ""}.${walletNote}`,
+          "ready",
+        );
         return;
       }
       shell.setStatus(error instanceof Error ? error.message : "Unable to sell that fish.", "error");

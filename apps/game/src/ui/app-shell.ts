@@ -11,7 +11,9 @@ import type {
   LocationAvailability,
   LureDefinition,
   RodDefinition,
+  RiskBand,
 } from "@fishing/shared";
+import { rodRiskBandForWeight } from "@fishing/shared";
 import { createElement } from "./create-element";
 import { createFishImage } from "./fish-images";
 import { getSpeciesSizeComparison } from "./specimen-size";
@@ -114,6 +116,7 @@ function riskDots(location: LocationAvailability): HTMLElement {
   for (let index = 0; index < 3; index += 1) {
     dots.append(createElement("i", index < level ? "on" : undefined));
   }
+  dots.append(createElement("span", "risk-dot-label", `${capitalize(location.riskBand)} risk`));
   return dots;
 }
 
@@ -129,6 +132,35 @@ const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpe
 };
 
 const BAIT_QUANTITY_CHOICES = [1, 5, 10, 25];
+
+const RISK_PRESENTATION: Record<RiskBand, { label: string; consequence: string }> = {
+  low: {
+    label: "Low rod risk",
+    consequence: "A suitable rod should handle the fish here without a break roll.",
+  },
+  moderate: {
+    label: "Moderate rod risk",
+    consequence: "A poor fight against a heavy fish can damage or break your rod.",
+  },
+  high: {
+    label: "High rod risk",
+    consequence: "A heavy fish can snap this rod; if it breaks, it leaves your loadout.",
+  },
+};
+
+function riskLabel(band: RiskBand): string {
+  return RISK_PRESENTATION[band].label;
+}
+
+function eligibleFishForSetup(state: GameStateResponse, location: LocationAvailability, baitId?: string): FishSpecimen["species"][] {
+  if (!baitId) return [];
+  return state.catalog.fish.filter(
+    (species) =>
+      location.fishIds.includes(species.id) &&
+      species.availableLocationIds.includes(location.id) &&
+      species.acceptedBaitIds.includes(baitId),
+  );
+}
 
 interface ToastHandle {
   root: HTMLElement;
@@ -166,6 +198,7 @@ export class AppShell {
   private recoveryHandler?: () => void;
   private shareHandler?: () => void;
   private baitQuantities = new Map<string, number>();
+  private sellAllConfirming = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -322,6 +355,10 @@ export class AppShell {
     this.sellAllHandler = handler;
   }
 
+  resetSellAllConfirmation(): void {
+    this.sellAllConfirming = false;
+  }
+
   setSelectEquipmentHandler(handler: (request: EquipmentSelectionRequest) => void): void {
     this.selectEquipmentHandler = handler;
   }
@@ -399,7 +436,10 @@ export class AppShell {
 
     const lure = state.inventory.lures.find((item) => item.id === state.activeEquipment.lureId);
     const bait = state.inventory.baits.find((item) => item.id === state.activeEquipment.baitId);
-    const rod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
+    const equippedRod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
+    const rod = equippedRod && state.inventory.rods.find((item) => item.id === equippedRod.id)?.quantity ? equippedRod : undefined;
+    const lureDefinition = lure ? state.catalog.lures.find((item) => item.id === lure.id) : undefined;
+    const baitDefinition = bait ? state.catalog.baits.find((item) => item.id === bait.id) : undefined;
 
     const screen = createElement("div", "screen");
 
@@ -422,6 +462,15 @@ export class AppShell {
     locationsList.setAttribute("role", "radiogroup");
     locationsList.setAttribute("aria-label", "Fishing locations");
 
+    const castDetails = createElement("div", "cast-details");
+    const castDetailsCopy = createElement("div", "cast-details-copy");
+    const castDetailsTitle = createElement("span", "cast-details-title", "Cost to cast");
+    const castDetailsCost = createElement("strong");
+    const castDetailsAfter = createElement("span", "cast-details-after");
+    castDetailsCopy.append(castDetailsTitle, castDetailsCost, castDetailsAfter);
+    const castRisk = createElement("div", "cast-risk");
+    castDetails.append(castDetailsCopy, castRisk);
+
     const castChips = createElement("div", "cast-readiness");
     const castButton = createElement("button", "primary-action cast-cta");
     castButton.type = "button";
@@ -436,23 +485,55 @@ export class AppShell {
     };
 
     const updateCastBar = (location: LocationAvailability): void => {
-      const weights = location.fishIds.map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.maximumWeightKg ?? 0);
-      const heaviest = Math.max(0, ...weights);
+      const eligibleFish = eligibleFishForSetup(state, location, bait?.id);
+      const heaviest = Math.max(0, ...eligibleFish.map((species) => species.maximumWeightKg));
       const baitQuantity = bait?.quantity ?? 0;
       const lureUsesLeft = lure?.durability ?? 0;
-      const lureUsable = Boolean(lure && lure.quantity > 0 && lureUsesLeft >= 1);
-      const rodReady = !rod || heaviest <= rod.maxFishWeightKg;
+      const lureUsable = Boolean(lure && lure.quantity > 0 && (lureUsesLeft >= 1 || lure.quantity > 1));
+      const castRiskBand: RiskBand = rod ? rodRiskBandForWeight(heaviest, rod.maxFishWeightKg) : "high";
+      const lureName = lureDefinition?.name ?? "your lure";
+      const baitName = baitDefinition?.name ?? "your bait";
+      const lureWillUseSpare = Boolean(lure && lureUsesLeft < 1 && lure.quantity > 1);
+      const lureAfter = lureDefinition
+        ? lureWillUseSpare
+          ? `${lureName} becomes ${Math.max(0, lureDefinition.maximumDurability - 1)}/${lureDefinition.maximumDurability}`
+          : `${lureName} ${Math.max(0, lureUsesLeft - 1)}/${lureDefinition.maximumDurability}`
+        : "lure unavailable";
+
+      castDetailsCost.textContent = `1 ${baitName} + 1 lure use`;
+      castDetailsAfter.textContent = lureWillUseSpare
+        ? `After casting: ${baitName} ×${Math.max(0, baitQuantity - 1)} · ${lureAfter} (spare used)`
+        : `After casting: ${baitName} ×${Math.max(0, baitQuantity - 1)} · ${lureAfter}`;
+      castRisk.className = `cast-risk risk-${castRiskBand}`;
+      castRisk.replaceChildren(
+        createElement("span", "cast-risk-label", riskLabel(castRiskBand)),
+        createElement("strong", undefined, rod ? `${heaviest.toFixed(1)} kg max / ${rod.maxFishWeightKg.toFixed(1)} kg rod` : "No rod equipped"),
+        createElement("span", "cast-risk-reason", location.riskReason),
+      );
+      castRisk.setAttribute(
+        "aria-label",
+        `${riskLabel(castRiskBand)}. ${location.riskReason} ${RISK_PRESENTATION[castRiskBand].consequence}`,
+      );
 
       castChips.replaceChildren(
         readinessChip(
           "rod",
-          `${heaviest}kg`,
-          rodReady ? "ok" : "warn",
-          rodReady
-            ? `Biggest fish here weighs ${heaviest}kg — your rod can handle it`
-            : `Fish here reach ${heaviest}kg but your rod tops out at ${rod?.maxFishWeightKg ?? 0}kg`,
+          `${heaviest.toFixed(1)}kg`,
+          castRiskBand === "low" ? "ok" : castRiskBand === "moderate" ? "warn" : "bad",
+          rod
+            ? `${riskLabel(castRiskBand)}. Fish attracted by ${baitName} reach ${heaviest.toFixed(1)} kilograms; your rod is rated for ${rod.maxFishWeightKg.toFixed(1)} kilograms. ${RISK_PRESENTATION[castRiskBand].consequence}`
+            : "No rod is equipped.",
         ),
-        readinessChip("lure", `${Math.max(0, lureUsesLeft)}`, lureUsable ? "ok" : "bad", lureUsable ? `${lureUsesLeft} lure uses left` : "Your lure is worn out"),
+        readinessChip(
+          "lure",
+          lureWillUseSpare ? "1 spare" : `${Math.max(0, lureUsesLeft)}`,
+          lureUsable ? "ok" : "bad",
+          lureUsable
+            ? lureWillUseSpare
+              ? `${lureName} will consume one spare lure`
+              : `${lureUsesLeft} uses left on ${lureName}`
+            : "Your lure has no usable copy left",
+        ),
         readinessChip("bait", `×${baitQuantity}`, baitQuantity > 0 ? "ok" : "bad", baitQuantity > 0 ? `${baitQuantity} bait portions left` : "You are out of bait"),
       );
 
@@ -466,6 +547,13 @@ export class AppShell {
         castButton.onclick = () => this.openShop("bait");
         return;
       }
+      if (!rod) {
+        castButton.disabled = false;
+        castButton.classList.add("is-restock");
+        castButton.append(createIcon("rod"), "Claim a rod");
+        castButton.onclick = () => this.openShop("rods");
+        return;
+      }
       if (!lureUsable) {
         castButton.disabled = false;
         castButton.classList.add("is-restock");
@@ -473,7 +561,7 @@ export class AppShell {
         castButton.onclick = () => this.openShop("lures");
         return;
       }
-      castButton.disabled = !location.unlocked || !this.startFishingHandler;
+      castButton.disabled = !location.unlocked || !this.startFishingHandler || eligibleFish.length === 0 || !rod;
       castButton.append(createIcon("waves"), `Cast at ${location.name}`);
       castButton.onclick = () => this.startFishingHandler?.(selectedLocationId);
     };
@@ -484,6 +572,10 @@ export class AppShell {
 
       const top = createElement("div", "location-top");
       top.append(createElement("h2", undefined, location.name), riskDots(location));
+
+      const description = createElement("p", "location-description", location.description);
+      const riskReason = createElement("p", "location-risk-reason");
+      riskReason.append(createIcon("alert"), document.createTextNode(location.riskReason));
 
       const fishNames = location.fishIds.map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.commonName ?? fishId);
       const fishChips = createElement("div", "fish-chips");
@@ -542,7 +634,7 @@ export class AppShell {
         });
       }
 
-      card.append(top, fishChips, foot);
+      card.append(top, description, riskReason, fishChips, foot);
       locationsList.append(card);
     }
 
@@ -551,7 +643,7 @@ export class AppShell {
     if (recoveryBanner) screen.append(recoveryBanner);
 
     const castBar = createElement("div", "cast-bar");
-    castBar.append(castChips, castButton);
+    castBar.append(castDetails, castChips, castButton);
     updateCastBar(selectedLocation);
 
     this.content.replaceChildren(screen, castBar);
@@ -597,7 +689,8 @@ export class AppShell {
     dock.setAttribute("aria-label", "Current tackle");
 
     const boat = state.catalog.boats.find((item) => item.id === state.activeEquipment.boatId);
-    const rod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
+    const equippedRod = state.catalog.rods.find((item) => item.id === state.activeEquipment.rodId);
+    const rod = equippedRod && state.inventory.rods.find((item) => item.id === equippedRod.id)?.quantity ? equippedRod : undefined;
     const lure = state.inventory.lures.find((item) => item.id === state.activeEquipment.lureId);
     const bait = state.inventory.baits.find((item) => item.id === state.activeEquipment.baitId);
     const lureDefinition = lure ? state.catalog.lures.find((item) => item.id === lure.id) : undefined;
@@ -896,7 +989,10 @@ export class AppShell {
   }
 
   showCollection(collection?: CollectionResponse): void {
-    if (collection) this.latestCollection = collection;
+    if (collection) {
+      this.latestCollection = collection;
+      this.sellAllConfirming = false;
+    }
     if (!this.latestCollection) {
       this.showLoadingScreen("Opening your collection…");
       return;
@@ -921,10 +1017,35 @@ export class AppShell {
 
     const totalValue = specimens.reduce((sum, specimen) => sum + specimen.saleValueCoins, 0);
     const actionsBar = createElement("div", "collection-actions");
-    const sellAll = createElement("button", "secondary-action", `Sell all for ${formatCoins(totalValue)}`);
+    const sellAllLabel = this.sellAllConfirming
+      ? `Confirm: sell ${specimens.length} fish for ${formatCoins(totalValue)} coins`
+      : `Sell all · ${formatCoins(totalValue)} coins`;
+    const sellAll = createElement("button", `secondary-action${this.sellAllConfirming ? " is-confirming" : ""}`, sellAllLabel);
     sellAll.type = "button";
-    sellAll.addEventListener("click", () => this.sellAllHandler?.());
+    sellAll.setAttribute(
+      "aria-label",
+      this.sellAllConfirming
+        ? `Confirm selling all ${specimens.length} fish for ${formatCoins(totalValue)} coins`
+        : `Sell all ${specimens.length} fish for ${formatCoins(totalValue)} coins`,
+    );
+    sellAll.addEventListener("click", () => {
+      if (!this.sellAllConfirming) {
+        this.sellAllConfirming = true;
+        this.showCollection();
+        return;
+      }
+      this.sellAllHandler?.();
+    });
     actionsBar.append(sellAll);
+    if (this.sellAllConfirming) {
+      const cancel = createElement("button", "secondary-action collection-cancel", "Cancel");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => {
+        this.sellAllConfirming = false;
+        this.showCollection();
+      });
+      actionsBar.append(cancel);
+    }
     panel.append(actionsBar);
 
     const sortRow = createElement("div", "sort-row");
@@ -1059,16 +1180,44 @@ export class AppShell {
   showFishingResult(result: CompleteFishingResponse, onDecision: (decision: "keep" | "sell") => void, onBack: () => void): void {
     this.clearStatus();
     const panel = createElement("section", "fishing-status");
-    panel.append(
-      createElement("span", "eyebrow", result.outcome === "caught" ? "Fish landed" : "The line went slack"),
-      createElement("h1", undefined, result.outcome === "caught" && result.catch ? result.catch.species.commonName : "It got away"),
-      ...(result.outcome !== "caught" || !result.catch ? [createElement("p", "muted", result.message)] : []),
+    const species = result.species ?? result.catch?.species;
+    const outcome = createElement("div", `outcome-banner outcome-${result.outcome}`);
+    outcome.append(
+      createElement("span", "outcome-kicker", result.outcome === "caught" ? "CATCH CONFIRMED" : "CATCH LOST"),
+      createElement("strong", undefined, result.outcome === "caught" ? "The fish is yours to decide" : "The fish got away"),
     );
+    panel.append(
+      outcome,
+      createElement("span", "eyebrow", result.outcome === "caught" ? "Fish landed" : "The line went slack"),
+      createElement("h1", undefined, result.outcome === "caught" && result.catch ? result.catch.species.commonName : species?.commonName ?? "Unknown fish"),
+      createElement("p", "result-message", result.message),
+    );
+
+    const risk = createElement("aside", `result-risk risk-${result.rodRiskBand}`);
+    const rod = this.gameState?.catalog.rods.find((candidate) => candidate.id === result.rodId);
+    const riskHeading = createElement("div", "result-risk-heading");
+    riskHeading.append(createElement("strong", undefined, riskLabel(result.rodRiskBand)));
+    risk.append(
+      riskHeading,
+      createElement("p", undefined, `${rod?.name ?? "Your rod"} had a ${result.rodBreakChancePercent.toFixed(2)}% break chance for this fish.`),
+      createElement("span", "result-risk-consequence", result.rodBroke ? "The rod broke and is no longer usable." : RISK_PRESENTATION[result.rodRiskBand].consequence),
+    );
+    panel.append(risk);
+
     if (result.rodBroke) {
       const warning = createElement("aside", "rod-break-warning");
+      const replacementName = result.replacementRodId
+        ? this.gameState?.catalog.rods.find((candidate) => candidate.id === result.replacementRodId)?.name ?? "your strongest remaining rod"
+        : undefined;
       warning.append(
-        createElement("strong", undefined, "Your rod snapped!"),
-        createElement("p", "muted", result.replacementRodId ? "You equipped your strongest remaining rod. Visit the shop to replace what you lost." : "You have no rods left. Visit the shop to claim a replacement."),
+        createElement("strong", undefined, `${rod?.name ?? "Your rod"} snapped.`),
+        createElement(
+          "p",
+          "muted",
+          replacementName
+            ? `${replacementName} is equipped now. Replace the broken rod in the shop before taking another high-risk cast.`
+            : "No usable rod remains. Open Shop → Rods to claim the free Starter Fiberglass replacement before casting again.",
+        ),
       );
       panel.append(warning);
     }
@@ -1077,8 +1226,8 @@ export class AppShell {
       panel.append(this.specimenDetails(result.catch));
       const actions = createElement("div", "result-actions");
       const keep = createElement("button", "secondary-action keep-action");
-      keep.append(createIcon("trophy"), "Keep");
-      const sell = createElement("button", "primary-action", `Sell for ${formatCoins(result.catch.saleValueCoins)}`);
+      keep.append(createIcon("trophy"), "Keep fish");
+      const sell = createElement("button", "primary-action", `Sell fish · ${formatCoins(result.catch.saleValueCoins)} coins`);
       keep.type = "button";
       sell.type = "button";
       keep.addEventListener("click", () => onDecision("keep"));

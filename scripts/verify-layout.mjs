@@ -76,6 +76,10 @@ const chipCount = await page.locator(".cast-readiness .readiness-chip").count();
 check("3 readiness chips", chipCount === 3, `${chipCount} chips`);
 const cta = await rectOf(page, ".cast-cta");
 check("CTA inside cast bar", cta.top >= castBar.top && cta.bottom <= castBar.bottom + 1, `cta ${cta.top.toFixed(1)}–${cta.bottom.toFixed(1)} vs bar ${castBar.top.toFixed(1)}–${castBar.bottom.toFixed(1)}`);
+const castDetailsText = await page.locator(".cast-details").textContent();
+check("cast cost is explicit", /1 .* \+ 1 lure use/.test(castDetailsText ?? ""), `details "${castDetailsText?.trim()}"`);
+check("cast projects resource consumption", /After casting:/.test(castDetailsText ?? ""), `details "${castDetailsText?.trim()}"`);
+check("locations explain rod risk", (await page.locator(".location-risk-reason").count()) === cardCount, `${await page.locator(".location-risk-reason").count()} explanations for ${cardCount} cards`);
 
 // Scroll content to the bottom: last location card must clear the cast bar.
 await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -164,6 +168,43 @@ check("bait ×10 chip updates buy total", /\d+/.test(buyText ?? ""), `buy button
 const activeChip = await firstBait.locator(".qty-chip.is-active").textContent();
 check("active quantity chip is ×10", activeChip?.trim() === "×10", `active chip "${activeChip?.trim()}"`);
 await page.screenshot({ path: "/tmp/layout-shop-bait-qty.png" });
+
+// ---------- Chunk 3 economy confirmation ----------
+const stateForCollection = await page.evaluate(async () => {
+  const token = sessionStorage.getItem("fishing-with-friends.session");
+  const response = await fetch("/api/game/state", { headers: { Authorization: `Bearer ${token}` } });
+  return response.json();
+});
+const species = stateForCollection.catalog.fish[0];
+const location = stateForCollection.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
+const specimen = (id, value, weight) => ({
+  id,
+  speciesId: species.id,
+  species,
+  weightKg: weight,
+  lengthCm: species.typicalLengthCm,
+  quality: "good",
+  saleValueCoins: value,
+  caughtAt: new Date().toISOString(),
+  locationId: location.id,
+  locationName: location.name,
+});
+await page.route("**/api/game/collection", async (route) => {
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ fish: [specimen("fixture-catch-1", 42, 0.4), specimen("fixture-catch-2", 81, 0.7)] }),
+  });
+});
+await page.getByRole("button", { name: "Collection", exact: true }).tap();
+await page.waitForSelector(".collection-screen", { timeout: 10000 });
+await page.locator(".collection-actions .secondary-action").first().tap();
+const confirmButtonText = await page.locator(".collection-actions .is-confirming").textContent();
+check("Sell All requires confirmation", /Confirm: sell 2 fish for 123 coins/.test(confirmButtonText ?? ""), `button "${confirmButtonText?.trim()}"`);
+check("Sell All confirmation offers cancel", (await page.locator(".collection-actions .collection-cancel").count()) === 1, "cancel action rendered");
+await page.locator(".collection-actions .collection-cancel").tap();
+check("Sell All confirmation can be cancelled", (await page.locator(".collection-actions .is-confirming").count()) === 0, "confirmation cleared");
+await page.unroute("**/api/game/collection");
 
 // ---------- Console health ----------
 check("no layout console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");

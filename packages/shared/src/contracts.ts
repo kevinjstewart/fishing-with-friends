@@ -77,6 +77,7 @@ export interface LocationDefinition {
   id: string;
   name: string;
   description: string;
+  riskReason: string;
   riskBand: RiskBand;
   requiredBoatId: string;
   expectedValueMinCoins: number;
@@ -216,6 +217,10 @@ export interface FishSpecimen {
 export interface CompleteFishingResponse {
   outcome: "caught" | "lost";
   message: string;
+  species: FishSpecies;
+  rodId: string;
+  rodRiskBand: RiskBand;
+  rodBreakChancePercent: number;
   catch: FishSpecimen | null;
   rodBroke: boolean;
   replacementRodId: string | null;

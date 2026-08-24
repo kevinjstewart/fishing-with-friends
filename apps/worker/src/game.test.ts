@@ -551,6 +551,10 @@ describe("fishing loop", () => {
       const complete = (await completeResponse.json()) as CompleteFishingResponse;
       expect(complete.outcome).toBe("caught");
       expect(complete.rodBroke).toBe(false);
+      expect(complete.species.id).toBe(encounter.species.id);
+      expect(complete.rodId).toBe("starter-fiberglass");
+      expect(["low", "moderate", "high"]).toContain(complete.rodRiskBand);
+      expect(complete.rodBreakChancePercent).toBeGreaterThanOrEqual(0);
       expect(complete.catch?.speciesId).toBe(encounter.species.id);
       expect(complete.catch?.weightKg).toBeGreaterThanOrEqual(encounter.species.minimumWeightKg);
       expect(complete.catch?.weightKg).toBeLessThanOrEqual(encounter.species.maximumWeightKg);
@@ -598,6 +602,9 @@ describe("fishing loop", () => {
       const complete = (await completeResponse.json()) as CompleteFishingResponse;
       expect(complete.outcome).toBe("lost");
       expect(complete.rodBroke).toBe(true);
+      expect(complete.species.id).toBe(encounter.species.id);
+      expect(complete.rodRiskBand).toBe("high");
+      expect(complete.rodBreakChancePercent).toBeGreaterThan(0);
       expect(complete.message).toContain("snapped");
 
       const state = (await (await app.request("/api/game/state", { headers }, env)).json()) as GameStateResponse;

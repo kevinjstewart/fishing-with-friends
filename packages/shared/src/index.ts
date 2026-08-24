@@ -48,3 +48,4 @@ export type {
   TelegramAuthRequest,
 } from "./contracts";
 export { GAME_CATALOG } from "./catalog";
+export { rodRiskBandForWeight } from "./risk";
