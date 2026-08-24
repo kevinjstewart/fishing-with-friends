@@ -85,7 +85,6 @@ async function openScreen(screen: ScreenId): Promise<void> {
     if (screen === "shop") {
       await refreshGameState();
       shell.setActiveScreen("shop");
-      if (currentGameState) shell.setGameState(currentGameState);
       shell.renderShop();
       return;
     }
@@ -211,8 +210,8 @@ shell.setPurchaseHandler((itemId, quantity) => {
       currentGameState = currentGameState
         ? { ...currentGameState, coins: result.coins, inventory: result.inventory, activeEquipment: result.activeEquipment }
         : await api.getGameState();
-      if (currentGameState) shell.setGameState(currentGameState);
       shell.renderShop();
+      shell.updateWallet(result.coins);
       shell.setStatus(`Purchased ${itemId.replace(/-/g, " ")}`, "ready");
     } catch (error) {
       shell.setStatus(error instanceof ApiClientError ? error.message : "Unable to complete that purchase.", "error");
