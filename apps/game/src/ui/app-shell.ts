@@ -26,7 +26,7 @@ export interface EquipmentSelectionRequest {
   baitId?: string;
 }
 
-type IconName = "alert" | "anchor" | "bait" | "book" | "check" | "coin" | "friend" | "lock" | "lure" | "rod" | "shop" | "trophy" | "waves";
+type IconName = "alert" | "anchor" | "bait" | "book" | "check" | "coin" | "fish" | "friend" | "lock" | "lure" | "map" | "rod" | "shop" | "spark" | "trophy" | "waves" | "weight";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -69,6 +69,10 @@ const ICON_PATHS: Record<IconName, string[]> = {
   check: ["M5 12.5l4.5 4.5L19 7.5"],
   lock: ["M8 10.5V7.8a4 4 0 0 1 8 0v2.7", "M6.2 10.5h11.6a1.2 1.2 0 0 1 1.2 1.2v7.1a1.2 1.2 0 0 1-1.2 1.2H6.2a1.2 1.2 0 0 1-1.2-1.2v-7.1a1.2 1.2 0 0 1 1.2-1.2Z"],
   alert: ["M12 3.5 2.8 19.5h18.4L12 3.5Z", "M12 9.5v4.2", "M12 16.6v.01"],
+  fish: ["M4 12c3.5-4.2 8.4-5.6 13.2-2.2L21 7.5v9l-3.8-2.3C12.4 17.6 7.5 16.2 4 12Z", "M8.2 11.8h.01"],
+  map: ["M3.5 6.2 9 3l6 3 5.5-3.2v15L15 21l-6-3-5.5 3.2v-15Z", "M9 3v15", "M15 6v15"],
+  spark: ["M12 2.8 13.8 9l6.2 1.8-6.2 1.8L12 19l-1.8-6.4L4 10.8 10.2 9 12 2.8Z"],
+  weight: ["M8 8.5a4 4 0 1 1 8 0", "M6.2 8.5h11.6l2 12H4.2l2-12Z", "M12 8.5l2-2"],
 };
 
 function createIcon(name: IconName): SVGSVGElement {
@@ -238,23 +242,19 @@ function shopSpeciesList(label: string, names: string[]): HTMLElement {
 function locationFishList(state: GameStateResponse, location: LocationAvailability): HTMLElement {
   const names = speciesNamesForIds(state, location.fishIds);
   const section = createElement("div", "location-fish");
-  section.append(createElement("span", "location-detail-label", "Fish you can catch"));
-
   const visible = createElement("div", "fish-chips");
-  for (const name of names.slice(0, 3)) visible.append(createElement("span", "fish-chip", name));
-  section.append(visible);
-
-  if (names.length > 3) {
-    const details = document.createElement("details");
-    details.className = "fish-list-details";
-    const summary = document.createElement("summary");
-    summary.className = "fish-list-summary";
-    summary.textContent = `View all ${names.length} species`;
-    const remaining = createElement("div", "fish-chips fish-chips-expanded");
-    for (const name of names.slice(3)) remaining.append(createElement("span", "fish-chip", name));
-    details.append(summary, remaining);
-    section.append(details);
+  const fishCue = createElement("span", "fish-cue");
+  fishCue.append(createIcon("fish"));
+  fishCue.setAttribute("aria-hidden", "true");
+  visible.append(fishCue);
+  for (const name of names.slice(0, 2)) visible.append(createElement("span", "fish-chip", name));
+  if (names.length > 2) {
+    const more = createElement("span", "fish-chip fish-chip-more", `+${names.length - 2}`);
+    more.title = names.slice(2).join(", ");
+    more.setAttribute("aria-label", `${names.length - 2} more species: ${names.slice(2).join(", ")}`);
+    visible.append(more);
   }
+  section.append(visible);
   return section;
 }
 
@@ -310,7 +310,8 @@ export class AppShell {
     const brand = createElement("div", "app-brand");
     const mark = createElement("span", "brand-mark");
     mark.append(createIcon("rod"));
-    brand.append(mark, createElement("span", undefined, "Fishing with Friends"));
+    brand.setAttribute("aria-label", "Fishing with Friends");
+    brand.append(mark, createElement("span", undefined, "FISH ON!"));
 
     this.walletChip = createElement("button", "wallet-chip");
     this.walletChip.type = "button";
@@ -516,13 +517,14 @@ export class AppShell {
     const panel = createElement("section", "screen friends-screen");
     const intro = createElement("div", "dashboard-header");
     const heading = createElement("div");
-    heading.append(createElement("span", "eyebrow", "Fishing crew"), createElement("h1", undefined, "Catch board"));
-    intro.append(heading, createElement("p", "friends-definition", board.metricDescription || "Ranked by kept fish. Sold fish do not count."));
+    heading.append(createElement("span", "eyebrow", "Your crew"), createElement("h1", undefined, "Catch board"));
+    intro.title = board.metricDescription || "Ranked by kept fish. Sold fish do not count.";
+    intro.append(heading, createElement("p", "sr-only", "Ranked by kept fish. Sold fish do not count."));
     panel.append(intro);
 
     const invite = createElement("button", "primary-action invite-action");
     invite.type = "button";
-    invite.append(createIcon("friend"), "Invite anglers");
+    invite.append(createIcon("friend"), "Invite crew");
     invite.addEventListener("click", () => this.shareHandler?.());
     panel.append(invite);
 
@@ -536,8 +538,8 @@ export class AppShell {
       );
       const rank = createElement("strong", "crew-self-rank", viewer.rank === null ? "Unranked" : `#${viewer.rank}`);
       const standingNote = viewer.rank === null
-        ? "Keep a fish to join the board. Sold fish do not count."
-        : `${viewer.keptFishCount} kept fish · ${formatWeight(viewer.heaviestKeptFishKg)} heaviest kept`;
+        ? "Keep one to rank"
+        : `${viewer.keptFishCount} kept · ${formatWeight(viewer.heaviestKeptFishKg)} best`;
       standing.append(standingCopy, rank, createElement("span", "muted", standingNote));
       panel.append(standing);
     }
@@ -600,7 +602,7 @@ export class AppShell {
     const hero = createElement("header", "screen-hero");
     const heroText = createElement("div", "screen-hero-text");
     const heroName = createElement("h1", undefined, selectedLocation.name);
-    heroText.append(createElement("span", "eyebrow", "Chosen water"), heroName);
+    heroText.append(createElement("span", "eyebrow", "Choose your water"), heroName);
     const heroValue = createElement("span", "hero-value");
     const heroValueText = createElement("span");
     heroValue.append(createIcon("coin"), heroValueText);
@@ -617,10 +619,15 @@ export class AppShell {
 
     const castDetails = createElement("div", "cast-details");
     const castDetailsCopy = createElement("div", "cast-details-copy");
-    const castDetailsTitle = createElement("span", "cast-details-title", "Cost to cast");
+    const castDetailsTitle = createElement("span", "cast-details-title", "Next cast");
     const castDetailsCost = createElement("strong");
     const castDetailsAfter = createElement("span", "cast-details-after");
-    castDetailsCopy.append(castDetailsTitle, castDetailsCost, castDetailsAfter);
+    castDetailsCopy.append(
+      castDetailsTitle,
+      castDetailsCost,
+      castDetailsAfter,
+      createElement("span", "sr-only", "1 bait + 1 lure use"),
+    );
     const castRisk = createElement("div", "cast-risk");
     castDetails.append(castDetailsCopy, castRisk);
 
@@ -653,15 +660,14 @@ export class AppShell {
           : `${lureName} ${Math.max(0, lureUsesLeft - 1)}/${lureDefinition.maximumDurability}`
         : "lure unavailable";
 
-      castDetailsCost.textContent = `1 ${baitName} + 1 lure use`;
+      castDetailsCost.textContent = `${baitName} ×1 · ${lureName} ×1`;
       castDetailsAfter.textContent = lureWillUseSpare
         ? `After casting: ${baitName} ×${Math.max(0, baitQuantity - 1)} · ${lureAfter} (spare used)`
         : `After casting: ${baitName} ×${Math.max(0, baitQuantity - 1)} · ${lureAfter}`;
       castRisk.className = `cast-risk risk-${castRiskBand}`;
       castRisk.replaceChildren(
-        createElement("span", "cast-risk-label", riskLabel(castRiskBand)),
-        createElement("strong", undefined, rod ? `${heaviest.toFixed(1)} kg max / ${rod.maxFishWeightKg.toFixed(1)} kg rod` : "No rod equipped"),
-        createElement("span", "cast-risk-reason", location.riskReason),
+        createElement("span", "cast-risk-label", capitalize(castRiskBand)),
+        createElement("strong", undefined, rod ? `${heaviest.toFixed(1)} / ${rod.maxFishWeightKg.toFixed(1)} kg` : "No rod"),
       );
       castRisk.setAttribute(
         "aria-label",
@@ -726,11 +732,11 @@ export class AppShell {
       const top = createElement("div", "location-top");
       top.append(createElement("h2", undefined, location.name), riskDots(location));
 
-      const description = createElement("p", "location-description", location.description);
-      const riskReason = createElement("p", "location-risk-reason");
-      riskReason.append(createIcon("alert"), document.createTextNode(location.riskReason));
+      card.dataset.location = location.id;
+      card.title = `${location.description} ${location.riskReason}`;
 
       const fishList = locationFishList(state, location);
+      const riskReason = createElement("p", "location-risk-reason sr-only", location.riskReason);
 
       const foot = createElement("div", "location-foot");
       const value = createElement("span", "value-tag");
@@ -772,14 +778,8 @@ export class AppShell {
         const lockCopy = createElement("span", "lock-copy");
         const requiredBoatName = requiredBoat?.name ?? "a better boat";
         lockCopy.append(
-          createElement("strong", undefined, `Locked · Requires ${requiredBoatName}`),
-          createElement(
-            "small",
-            undefined,
-            requiredBoat
-              ? `Buy ${requiredBoatName} for ${formatCoins(requiredBoat.priceCoins)} coins to unlock this water.`
-              : "Upgrade your boat to unlock this water.",
-          ),
+          createElement("strong", undefined, `Requires ${requiredBoatName}`),
+          createElement("small", undefined, requiredBoat ? `${formatCoins(requiredBoat.priceCoins)} coins` : "Upgrade boat"),
         );
         lock.append(createIcon("lock"), lockCopy);
         foot.append(lock);
@@ -796,7 +796,7 @@ export class AppShell {
         });
       }
 
-      card.append(top, description, riskReason, fishList, foot);
+      card.append(top, riskReason, fishList, foot);
       locationsList.append(card);
     }
 
@@ -1018,7 +1018,7 @@ export class AppShell {
 
     const hero = createElement("header", "screen-hero");
     const heroText = createElement("div", "screen-hero-text");
-    heroText.append(createElement("span", "eyebrow", "Tackle shop"), createElement("h1", undefined, "Gear up"));
+    heroText.append(createElement("span", "eyebrow", "Tackle shop"), createElement("h1", undefined, "Loadout lab"));
     const walletNote = createElement("span", "hero-value");
     walletNote.setAttribute("aria-label", `Coins available: ${formatCoins(state.coins)}`);
     walletNote.append(createIcon("coin"), createElement("span", undefined, formatCoins(state.coins)));
@@ -1231,7 +1231,6 @@ export class AppShell {
     heading.append(
       createElement("span", "eyebrow", "Your collection"),
       createElement("h1", undefined, `Kept fish${specimens.length ? ` (${specimens.length})` : ""}`),
-      createElement("p", undefined, specimens.length ? "Individual fish you chose to keep. Sell them later when you need the coins." : "Keep a catch to give it a permanent place in your collection."),
     );
     intro.append(heading);
     panel.append(intro);
@@ -1364,7 +1363,6 @@ export class AppShell {
     heading.append(
       createElement("span", "eyebrow", "Fish journal"),
       createElement("h1", undefined, `${discovered.length} of ${entries.length} species discovered`),
-      createElement("p", undefined, "Discover a species to reveal its field notes, habitat, native range, and your personal records."),
     );
     intro.append(heading);
     panel.append(intro);
@@ -1419,11 +1417,6 @@ export class AppShell {
       card.append(top);
       if (entry.discovered) {
         card.append(createFishImage(species));
-        card.append(createElement("em", "muted", species.scientificName));
-        card.append(createElement("p", "journal-bio", species.description));
-        const facts = createElement("div", "journal-facts");
-        facts.append(speciesFact("Habitat", species.habitat), speciesFact("Native range", species.nativeRange));
-        card.append(facts);
         const stats = createElement("ul", "journal-stats");
         const statLine = (label: string, value: string): HTMLElement => {
           const li = createElement("li");
@@ -1437,15 +1430,29 @@ export class AppShell {
           statLine("Best sale", entry.bestSaleValueCoins !== null ? formatCoins(entry.bestSaleValueCoins) : "—"),
         );
         card.append(stats);
+        const fieldNotes = document.createElement("details");
+        fieldNotes.className = "journal-field-notes";
+        const fieldNotesSummary = document.createElement("summary");
+        fieldNotesSummary.append(createIcon("book"), document.createTextNode("Field notes"));
+        const fieldNotesBody = createElement("div", "journal-field-notes-body");
+        fieldNotesBody.append(
+          createElement("em", "muted", species.scientificName),
+          createElement("p", "journal-bio", species.description),
+        );
+        const facts = createElement("div", "journal-facts");
+        facts.append(speciesFact("Habitat", species.habitat), speciesFact("Native range", species.nativeRange));
+        fieldNotesBody.append(facts);
         const dates = createElement("div", "journal-record-dates");
         dates.append(
           speciesFact("Discovered", formatDate(entry.firstCaughtAt)),
           speciesFact("Last caught", formatDate(entry.lastCaughtAt)),
         );
-        card.append(dates);
+        fieldNotesBody.append(dates);
         const source = createElement("p", "journal-source");
         source.append("Source: ", createExternalLink(species.source.name, species.source.url));
-        card.append(source);
+        fieldNotesBody.append(source);
+        fieldNotes.append(fieldNotesSummary, fieldNotesBody);
+        card.append(fieldNotes);
       } else {
         card.append(createElement("span", "journal-unknown-mark", "?"));
         card.append(createElement("span", "journal-discovery-state", "Field notes locked"));
