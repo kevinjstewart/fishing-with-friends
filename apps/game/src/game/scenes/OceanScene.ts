@@ -268,6 +268,7 @@ export class OceanScene extends Phaser.Scene {
     this.controlLocked = true;
     this.heldPointers.clear();
     this.keyboardHeld = false;
+    this.game.events.emit("fishing:ambient");
   }
 
   private enterFightMode(encounter: FishingEncounterResponse): void {

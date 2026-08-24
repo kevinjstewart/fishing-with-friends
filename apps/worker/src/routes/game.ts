@@ -2,6 +2,7 @@ import type {
   CatchDecisionRequest,
   CompleteFishingRequest,
   CompleteFishingResponse,
+  ActiveFishingEncounterResponse,
   FishingEncounterResponse,
   GameStateResponse,
   LeaderboardResponse,
@@ -15,7 +16,7 @@ import type { AppVariables, Env } from "../env";
 import { badRequest, tooManyRequests } from "../lib/errors";
 import { actionRateLimit, castRateLimit, checkRateLimit } from "../lib/rate-limit";
 import { requireAuth } from "../middleware/auth";
-import { completeFishing, decideCatch, sellCatch, startFishing } from "../services/fishing-service";
+import { completeFishing, decideCatch, getActiveFishingEncounter, sellCatch, startFishing } from "../services/fishing-service";
 import { getGameState } from "../services/game-service";
 import { digForWorms, getCollection, getFishJournal, purchaseItem, selectEquipment } from "../services/shop-service";
 
@@ -84,33 +85,64 @@ export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVari
   app.get("/api/game/friends", requireAuth, async (context) => {
     const rows = await context.env.DB.prepare(
       `SELECT p.id AS player_id, p.display_name,
-              COUNT(c.id) AS catch_count, COALESCE(MAX(c.weight_kg), 0) AS heaviest_catch_kg
+              COUNT(c.id) AS kept_fish_count, COALESCE(MAX(c.weight_kg), 0) AS heaviest_kept_fish_kg
        FROM players p
        INNER JOIN player_game_states s ON s.player_id = p.id
        LEFT JOIN player_catches c ON c.player_id = p.id AND c.status = 'kept'
        GROUP BY p.id, p.display_name
-       ORDER BY catch_count DESC, heaviest_catch_kg DESC, p.display_name ASC
-       LIMIT 20`,
+       ORDER BY kept_fish_count DESC, heaviest_kept_fish_kg DESC, p.display_name ASC`,
     ).all<{
       player_id: string;
       display_name: string;
-      catch_count: number;
-      heaviest_catch_kg: number;
+      kept_fish_count: number;
+      heaviest_kept_fish_kg: number;
     }>();
 
-    const entries = rows.results.map((row, index) => ({
-      rank: index + 1,
-      playerId: row.player_id,
-      displayName: row.display_name,
-      catchCount: row.catch_count,
-      heaviestCatchKg: row.heaviest_catch_kg,
-    }));
-    return context.json<LeaderboardResponse>({ entries });
+    const ranked = rows.results.map((row, index) => ({ ...row, rank: index + 1 }));
+    const toCounts = (row: (typeof ranked)[number]) => ({
+      keptFishCount: row.kept_fish_count,
+      heaviestKeptFishKg: row.heaviest_kept_fish_kg,
+      // Keep the old response names for already-open clients while the UI uses
+      // the explicit kept-fish names above.
+      catchCount: row.kept_fish_count,
+      heaviestCatchKg: row.heaviest_kept_fish_kg,
+    });
+    const entries = ranked
+      .filter((row) => row.kept_fish_count > 0)
+      .slice(0, 20)
+      .map((row) => ({
+        rank: row.rank,
+        playerId: row.player_id,
+        displayName: row.display_name,
+        ...toCounts(row),
+      }));
+    const playerId = context.get("playerId");
+    const viewerRow = ranked.find((row) => row.player_id === playerId);
+    const viewerCounts = viewerRow
+      ? { keptFishCount: viewerRow.kept_fish_count, heaviestKeptFishKg: viewerRow.heaviest_kept_fish_kg }
+      : { keptFishCount: 0, heaviestKeptFishKg: 0 };
+    return context.json<LeaderboardResponse>({
+      metric: "kept",
+      metricDescription: "Ranked by kept fish. Sold fish do not count; the heaviest kept fish breaks ties.",
+      viewer: {
+        playerId,
+        displayName: viewerRow?.display_name ?? "You",
+        rank: viewerRow && viewerRow.kept_fish_count > 0 ? viewerRow.rank : null,
+        keptFishCount: viewerCounts.keptFishCount,
+        heaviestKeptFishKg: viewerCounts.heaviestKeptFishKg,
+      },
+      entries,
+    });
   });
 
   app.get("/api/game/state", requireAuth, async (context) => {
     const state = await getGameState(context.env, context.get("playerId"));
     return context.json<GameStateResponse>(state);
+  });
+
+  app.get("/api/game/encounters/active", requireAuth, async (context) => {
+    const active = await getActiveFishingEncounter(context.env, context.get("playerId"));
+    return context.json<ActiveFishingEncounterResponse>(active);
   });
 
   app.post("/api/game/encounters", requireAuth, async (context) => {

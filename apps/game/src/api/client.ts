@@ -1,4 +1,5 @@
 import type {
+  ActiveFishingEncounterResponse,
   AuthResponse,
   CatchDecision,
   CatchDecisionResponse,
@@ -58,12 +59,16 @@ export class ApiClient {
     return this.authenticate("/api/auth/dev", {}, { "X-Dev-Auth": "true" });
   }
 
-  async getMe(): Promise<MeResponse> {
-    return this.request<MeResponse>("/api/me");
+  async getMe(signal?: AbortSignal): Promise<MeResponse> {
+    return this.request<MeResponse>("/api/me", { signal });
   }
 
-  async getGameState(): Promise<GameStateResponse> {
-    return this.request<GameStateResponse>("/api/game/state");
+  async getGameState(signal?: AbortSignal): Promise<GameStateResponse> {
+    return this.request<GameStateResponse>("/api/game/state", { signal });
+  }
+
+  async getActiveEncounter(signal?: AbortSignal): Promise<ActiveFishingEncounterResponse> {
+    return this.request<ActiveFishingEncounterResponse>("/api/game/encounters/active", { signal });
   }
 
   async startFishing(input: StartFishingRequest): Promise<FishingEncounterResponse> {
@@ -94,16 +99,16 @@ export class ApiClient {
     return this.request<SellCatchResponse>(`/api/game/catches/${encodeURIComponent(catchId)}/sell`, { method: "POST" });
   }
 
-  async getCollection(): Promise<CollectionResponse> {
-    return this.request<CollectionResponse>("/api/game/collection");
+  async getCollection(signal?: AbortSignal): Promise<CollectionResponse> {
+    return this.request<CollectionResponse>("/api/game/collection", { signal });
   }
 
-  async getJournal(): Promise<FishJournalResponse> {
-    return this.request<FishJournalResponse>("/api/game/journal");
+  async getJournal(signal?: AbortSignal): Promise<FishJournalResponse> {
+    return this.request<FishJournalResponse>("/api/game/journal", { signal });
   }
 
-  async getLeaderboard(): Promise<LeaderboardResponse> {
-    return this.request<LeaderboardResponse>("/api/game/friends");
+  async getLeaderboard(signal?: AbortSignal): Promise<LeaderboardResponse> {
+    return this.request<LeaderboardResponse>("/api/game/friends", { signal });
   }
 
   async purchase(input: PurchaseRequest): Promise<PurchaseResponse> {

@@ -218,7 +218,7 @@ export async function selectEquipment(env: Env, playerId: string, input: SelectE
 export async function getCollection(env: Env, playerId: string): Promise<CollectionResponse> {
   await new GameRepository(env.DB).ensurePlayerState(playerId);
   const rows = await env.DB
-    .prepare("SELECT * FROM player_catches WHERE player_id = ? AND status IN ('pending', 'kept') ORDER BY caught_at DESC")
+    .prepare("SELECT * FROM player_catches WHERE player_id = ? AND status = 'kept' ORDER BY caught_at DESC")
     .bind(playerId)
     .all<CatchRow>();
   return { fish: rows.results.map((row) => specimenFromRow(row)) };
@@ -239,6 +239,7 @@ export async function getFishJournal(env: Env, playerId: string): Promise<FishJo
     if (!record) {
       return {
         speciesId: species.id,
+        species,
         discovered: false,
         timesCaught: 0,
         heaviestWeightKg: null,
@@ -250,6 +251,7 @@ export async function getFishJournal(env: Env, playerId: string): Promise<FishJo
     }
     return {
       speciesId: species.id,
+      species,
       discovered: true,
       timesCaught: record.times_caught,
       heaviestWeightKg: record.heaviest_weight_kg,

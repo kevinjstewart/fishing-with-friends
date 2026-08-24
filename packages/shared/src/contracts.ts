@@ -77,6 +77,7 @@ export interface LocationDefinition {
   id: string;
   name: string;
   description: string;
+  riskReason: string;
   riskBand: RiskBand;
   requiredBoatId: string;
   expectedValueMinCoins: number;
@@ -191,6 +192,11 @@ export interface FishingEncounterResponse {
   expiresAt: string;
 }
 
+export interface ActiveFishingEncounterResponse {
+  encounter: FishingEncounterResponse | null;
+  expired: boolean;
+}
+
 export interface CompleteFishingRequest {
   performance: number;
 }
@@ -211,6 +217,10 @@ export interface FishSpecimen {
 export interface CompleteFishingResponse {
   outcome: "caught" | "lost";
   message: string;
+  species: FishSpecies;
+  rodId: string;
+  rodRiskBand: RiskBand;
+  rodBreakChancePercent: number;
   catch: FishSpecimen | null;
   rodBroke: boolean;
   replacementRodId: string | null;
@@ -263,6 +273,7 @@ export interface SellCatchResponse {
 
 export interface JournalEntry {
   speciesId: string;
+  species: FishSpecies;
   discovered: boolean;
   timesCaught: number;
   heaviestWeightKg: number | null;
@@ -276,15 +287,29 @@ export interface FishJournalResponse {
   entries: JournalEntry[];
 }
 
+export interface LeaderboardViewer {
+  playerId: string;
+  displayName: string;
+  rank: number | null;
+  keptFishCount: number;
+  heaviestKeptFishKg: number;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   playerId: string;
   displayName: string;
+  keptFishCount: number;
+  heaviestKeptFishKg: number;
+  /** Compatibility aliases for clients that still use the old generic labels. */
   catchCount: number;
   heaviestCatchKg: number;
 }
 
 export interface LeaderboardResponse {
+  metric: "kept";
+  metricDescription: string;
+  viewer: LeaderboardViewer;
   entries: LeaderboardEntry[];
 }
 
