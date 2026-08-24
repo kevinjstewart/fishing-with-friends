@@ -51,6 +51,8 @@ Future gameplay belongs in these existing boundaries:
 
 The initial game state is server-owned. A first authenticated request to `GET /api/game/state` idempotently creates the starter account state: 100 coins, shore fishing access, a Starter Fiberglass rod, a Copper Spinner with 10 durability, and 10 Worms. The browser may select a lake for local setup preview, but it cannot grant itself currency, equipment, or access. Starting a fishing attempt consumes bait and lure durability on the Worker, which also selects and stores the fish specimen before the browser mini-game begins.
 
+Fishing encounters are server-owned and survive a browser reload. On startup the browser checks `GET /api/game/encounters/active`: a live encounter resumes, while an expired encounter is reported explicitly and its consumed bait and lure are not restored. The Worker enforces at most one active encounter per player, so a duplicate cast cannot create a second authoritative attempt.
+
 The Phaser layer must not become the owner of persistent currency, inventory, progression, rewards, purchases, catches, or other authoritative state. New gameplay APIs should be added only when the corresponding feature is introduced.
 
 ## Prerequisites
@@ -126,6 +128,14 @@ npm run dev:game
 npm run dev:worker
 ```
 
+In managed environments where Wrangler cannot write its default preferences or logs, provide writable task-local paths before starting the stack or applying local migrations:
+
+```bash
+WRANGLER_LOG_PATH=/private/tmp/fishing-with-friends-wrangler.log \
+WRANGLER_REGISTRY_PATH=/private/tmp/fishing-with-friends-wrangler-home/registry \
+npm run dev
+```
+
 The Phaser shell currently proves initialization, responsive canvas sizing, scene lifecycle, and future asset-loading placement. It deliberately contains no fishing mechanics or game state.
 
 ## Telegram authentication flow
@@ -152,6 +162,7 @@ The current workers.dev deployment is `https://fishing-with-friends.fishing-with
 | `POST` | `/api/auth/dev` | Explicitly gated local development authentication |
 | `GET` | `/api/me` | Return the authenticated internal player profile |
 | `GET` | `/api/game/state` | Return the authoritative loadout, catalogue, and lake access |
+| `GET` | `/api/game/encounters/active` | Resume the player's live encounter or report an expired one |
 | `POST` | `/api/game/encounters` | Validate a setup, consume resources, and create a server-owned encounter |
 | `POST` | `/api/game/encounters/:id/complete` | Resolve a bounded mini-game performance into a catch or loss, including rod break rolls |
 | `POST` | `/api/game/catches/:id/decision` | Keep a pending catch or sell it for its server-calculated value |
@@ -168,7 +179,7 @@ Mutating game routes are rate limited per player (casts and general actions use 
 
 ## D1
 
-The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. Migration `0004_create_fish_journal.sql` adds per-species discovery and personal records. The internal player `id` is independent of Telegram's external ID.
+The first migration creates the `players` table and a unique index on `telegram_user_id`. Migration `0002_create_game_state.sql` adds the server-owned player game state and normalized equipment inventory. Migration `0003_create_fishing_encounters.sql` adds server-created encounters and individual pending/kept/sold catches. Migration `0004_create_fish_journal.sql` adds per-species discovery and personal records. Migration `0005_one_active_encounter_per_player.sql` expires older duplicate active rows and adds a partial unique index so each player has at most one active encounter. The internal player `id` is independent of Telegram's external ID.
 
 ## Game systems
 
@@ -256,3 +267,14 @@ npm run build:worker
 ```
 
 `build:worker` uses Wrangler's non-destructive `--dry-run`; it verifies the Worker bundle, D1 binding, and static asset upload without deploying.
+
+The mobile browser verifier requires the local game and Worker stack to be running:
+
+```bash
+npx playwright install chromium
+npm run dev
+# In a second terminal:
+npm run verify:layout
+```
+
+`verify:layout` uses an iPhone-class viewport and checks fixed-chrome geometry, complete scrolling, loading/retry states, stale navigation cancellation, duplicate-submit protection, pending control semantics, one-time session recovery, and active/expired encounter startup behavior. The checked-in verifier currently covers iPhone portrait; Android portrait, landscape, and short-height viewport coverage remains part of the verification backlog.

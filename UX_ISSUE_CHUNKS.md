@@ -13,6 +13,8 @@ Supporting work before UI fixes:
 
 Primary file: `scripts/verify-layout.mjs`.
 
+Progress: the repository now includes a Playwright-backed verifier with slow-request, failed-request, out-of-order navigation, duplicate-submit, expired-session, and active-encounter fixtures. Android portrait, landscape, and short-height viewport coverage remains open.
+
 ## Chunk 1 — Viewport, safe areas, and fixed chrome
 
 - Correct safe-area measurement in `apps/game/src/main.ts`.

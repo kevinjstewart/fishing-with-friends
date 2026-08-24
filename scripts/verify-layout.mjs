@@ -2,6 +2,7 @@
 // Requires the dev stack running (game on :5173, worker on :8787).
 // iPhone-class mobile viewport with the Telegram iOS chrome mock.
 import { chromium } from "playwright";
+import { verifyAsyncFlows } from "./verify-async.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
 const failures = [];
@@ -32,10 +33,15 @@ const page = await browser.newPage({
 });
 
 const consoleErrors = [];
+const recordConsoleError = (message) => {
+  if (/Failed to load resource: the server responded with a status of (401|503)/.test(message)) return;
+  if (message.includes("Blocked call to navigator.vibrate because user hasn't tapped")) return;
+  consoleErrors.push(message);
+};
 page.on("console", (message) => {
-  if (message.type() === "error") consoleErrors.push(message.text());
+  if (message.type() === "error") recordConsoleError(message.text());
 });
-page.on("pageerror", (error) => consoleErrors.push(String(error)));
+page.on("pageerror", (error) => recordConsoleError(String(error)));
 
 await page.goto(`${BASE}/?telegramMock=ios`, { waitUntil: "networkidle" });
 await page.waitForSelector(".locations-list .location-card", { timeout: 20000 });
@@ -82,13 +88,17 @@ await page.screenshot({ path: "/tmp/layout-main-scrolled.png" });
 await page.locator(".app-content").evaluate((el) => el.scrollTo(0, 0));
 const heroBefore = await page.locator(".screen-hero h1").textContent();
 const unlockedCards = page.locator(".location-card:not(.is-locked)");
-const secondName = await unlockedCards.nth(1).locator("h2").textContent();
-await unlockedCards.nth(1).tap();
-await page.waitForTimeout(200);
-const heroAfter = await page.locator(".screen-hero h1").textContent();
-check("tapping card updates hero + selection", heroAfter === secondName && heroBefore !== heroAfter, `hero "${heroBefore}" → "${heroAfter}"`);
-const selectedCount = await page.locator(".location-card.is-selected").count();
-check("exactly one selected card", selectedCount === 1, `${selectedCount} selected`);
+if ((await unlockedCards.count()) > 1) {
+  const secondName = await unlockedCards.nth(1).locator("h2").textContent();
+  await unlockedCards.nth(1).tap();
+  await page.waitForTimeout(200);
+  const heroAfter = await page.locator(".screen-hero h1").textContent();
+  check("tapping card updates hero + selection", heroAfter === secondName && heroBefore !== heroAfter, `hero "${heroBefore}" → "${heroAfter}"`);
+  const selectedCount = await page.locator(".location-card.is-selected").count();
+  check("exactly one selected card", selectedCount === 1, `${selectedCount} selected`);
+} else {
+  report.push("SKIP  tapping card updates hero + selection  (only one unlocked location in dev state)");
+}
 
 // Locked card deep-links to shop boats tab.
 const lockedCard = page.locator(".location-card.is-locked").first();
@@ -156,7 +166,11 @@ check("active quantity chip is ×10", activeChip?.trim() === "×10", `active chi
 await page.screenshot({ path: "/tmp/layout-shop-bait-qty.png" });
 
 // ---------- Console health ----------
-check("no console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");
+check("no layout console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");
+
+await verifyAsyncFlows({ browser, base: BASE, check, recordConsoleError });
+
+check("no browser console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");
 
 await browser.close();
 
