@@ -279,7 +279,22 @@ Risk is high.
 
 Equipment costs are high.
 
-The MVP can start with three locations.
+## 9.4 Cedar Marsh
+
+Side-water reached by Rowboat.
+
+Possible fish:
+
+* Black Crappie.
+* Common Carp.
+* Bowfin.
+* Freshwater Drum.
+
+Risk is moderate.
+
+The marsh adds a cover-fishing route between the starter pond and deeper lakes.
+
+The MVP now includes four locations.
 
 ---
 
@@ -1285,4 +1300,3 @@ Equipment should determine which opportunities the player can pursue safely.
 The collection should give value to fish that is separate from their sale price.
 
 This combination is the central design of the game.
-
