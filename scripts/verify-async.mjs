@@ -191,6 +191,19 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
   if (expired) {
     await page.waitForFunction(() => document.querySelector(".toast[data-state=ready]")?.textContent?.includes("interrupted fishing attempt expired"), null, { timeout: 20_000 });
     check("expired encounter is explained", (await page.locator('.toast[data-state="ready"]').textContent()).includes("interrupted fishing attempt expired"), "expired encounter message shown");
+    const toastBounds = await page.locator(".toast").boundingBox();
+    const topbarBounds = await page.locator(".app-topbar").boundingBox();
+    const tabbarBounds = await page.locator(".tabbar").boundingBox();
+    check(
+      "status toast sits below the topbar",
+      Boolean(toastBounds && topbarBounds && toastBounds.y >= topbarBounds.y + topbarBounds.height),
+      `toast top ${toastBounds?.y?.toFixed(1)} vs topbar bottom ${topbarBounds ? (topbarBounds.y + topbarBounds.height).toFixed(1) : "missing"}`,
+    );
+    check(
+      "status toast clears the bottom chrome",
+      Boolean(toastBounds && tabbarBounds && toastBounds.y + toastBounds.height <= tabbarBounds.y),
+      `toast bottom ${toastBounds ? (toastBounds.y + toastBounds.height).toFixed(1) : "missing"} vs tabbar top ${tabbarBounds?.y?.toFixed(1)}`,
+    );
   } else {
     await page.waitForFunction(() => document.body.classList.contains("is-fighting"), null, { timeout: 20_000 });
     check("active encounter resumes after reload", await page.locator("body.is-fighting").count() === 1, "fight mode restored");

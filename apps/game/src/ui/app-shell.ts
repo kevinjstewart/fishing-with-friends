@@ -304,6 +304,8 @@ export class AppShell {
     this.tabbar = createElement("nav", "tabbar");
     this.tabbar.setAttribute("aria-label", "Game screens");
     this.toastLayer = createElement("div", "toast-layer");
+    this.toastLayer.setAttribute("aria-live", "polite");
+    this.toastLayer.setAttribute("aria-atomic", "true");
 
     const brand = createElement("div", "app-brand");
     const mark = createElement("span", "brand-mark");
@@ -339,7 +341,11 @@ export class AppShell {
   setStatus(message: string, state: "loading" | "ready" | "error" = "loading"): void {
     if (state === "loading") {
       if (this.stickyToast && this.stickyToast.root.isConnected) {
-        this.stickyToast.root.querySelector("span")!.textContent = message;
+        const toast = this.stickyToast;
+        toast.root.querySelector("span")!.textContent = message;
+        toast.root.dataset.state = state;
+        if (toast.dismissTimer) window.clearTimeout(toast.dismissTimer);
+        toast.dismissTimer = window.setTimeout(() => this.dismissToast(toast), 15000);
         return;
       }
     } else {
@@ -350,19 +356,24 @@ export class AppShell {
 
   clearStatus(): void {
     const toast = this.stickyToast;
-    if (!toast) return;
-    if (toast.dismissTimer) window.clearTimeout(toast.dismissTimer);
+    if (toast?.dismissTimer) window.clearTimeout(toast.dismissTimer);
     this.stickyToast = undefined;
     this.frame.dataset.toastVisible = "false";
-    toast.root.remove();
+    this.toastLayer.replaceChildren();
   }
 
   private makeToast(message: string, state: "loading" | "ready" | "error", lifetimeMs: number): ToastHandle {
-    while (this.toastLayer.children.length >= 3) this.toastLayer.firstElementChild?.remove();
+    if (this.stickyToast?.dismissTimer) window.clearTimeout(this.stickyToast.dismissTimer);
+    this.stickyToast = undefined;
+    // Keep one authoritative status surface. Stacking old success/error
+    // messages above the content makes a later action look stale and can hide
+    // the screen the player is trying to read.
+    this.toastLayer.replaceChildren();
     this.frame.dataset.toastVisible = "true";
     const toast = createElement("div", "toast");
     toast.dataset.state = state;
     toast.setAttribute("role", "status");
+    toast.setAttribute("aria-atomic", "true");
     toast.append(createElement("span", undefined, message));
     this.toastLayer.append(toast);
     requestAnimationFrame(() => toast.classList.add("is-shown"));
@@ -377,6 +388,7 @@ export class AppShell {
       this.stickyToast = undefined;
       this.frame.dataset.toastVisible = "false";
     }
+    if (!handle.root.isConnected) return;
     handle.root.classList.remove("is-shown");
     handle.root.classList.add("is-leaving");
     window.setTimeout(() => handle.root.remove(), 260);

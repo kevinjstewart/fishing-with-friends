@@ -1,12 +1,21 @@
 // Layout verification for the redesigned main screen + shop.
 // Requires the dev stack running (game on :5173, worker on :8787).
-// iPhone-class mobile viewport with the Telegram iOS chrome mock.
+// Covers iPhone portrait, Android portrait, landscape, and short-height mobile
+// viewports with deterministic external-image and accessibility fixtures.
 import { chromium } from "playwright";
+import { readFile } from "node:fs/promises";
 import { verifyAsyncFlows } from "./verify-async.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
 const failures = [];
 const report = [];
+const stylesSource = await readFile(new URL("../apps/game/src/styles.css", import.meta.url), "utf8");
+const viewportScenarios = [
+  { name: "iPhone portrait", mock: "ios", viewport: { width: 393, height: 852 }, expectedGap: 10 },
+  { name: "Android portrait", mock: "android", viewport: { width: 412, height: 915 }, expectedGap: 10 },
+  { name: "iPhone landscape", mock: "landscape", viewport: { width: 852, height: 393 }, expectedGap: 2 },
+  { name: "short-height portrait", mock: "ios", viewport: { width: 393, height: 640 }, expectedGap: 10 },
+];
 
 function check(label, condition, detail) {
   report.push(`${condition ? "PASS" : "FAIL"}  ${label}  ${detail}`);
@@ -22,6 +31,159 @@ async function rectOf(page, selector) {
     const r = el.getBoundingClientRect();
     return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
   });
+}
+
+function attachConsoleListeners(page, recordConsoleError) {
+  page.on("console", (message) => {
+    if (message.type() === "error") recordConsoleError(message.text());
+  });
+  page.on("pageerror", (error) => recordConsoleError(String(error)));
+}
+
+async function verifyViewportChrome({ browser, base, check, recordConsoleError }) {
+  for (const scenario of viewportScenarios) {
+    const page = await browser.newPage({
+      viewport: scenario.viewport,
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+    });
+    attachConsoleListeners(page, recordConsoleError);
+    await page.goto(`${base}/?telegramMock=${scenario.mock}`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+
+    const viewport = page.viewportSize();
+    const tabbar = await rectOf(page, ".tabbar");
+    const castBar = await rectOf(page, ".cast-bar");
+    check(
+      `${scenario.name}: tabbar stays inside viewport`,
+      Boolean(viewport && tabbar.bottom <= viewport.height + 1),
+      `tabbar bottom ${tabbar.bottom.toFixed(1)} vs viewport ${viewport?.height ?? 0}`,
+    );
+    check(
+      `${scenario.name}: cast bar clears tabbar`,
+      Math.abs(tabbar.top - castBar.bottom - scenario.expectedGap) < 3,
+      `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected ${scenario.expectedGap})`,
+    );
+    check(
+      `${scenario.name}: cast bar stays within safe horizontal bounds`,
+      Boolean(viewport && castBar.left >= 0 && castBar.right <= viewport.width),
+      `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)} of ${viewport?.width ?? 0}`,
+    );
+
+    await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await page.waitForTimeout(180);
+    const lastCard = await rectOf(page, ".locations-list .location-card >> nth=-1");
+    check(
+      `${scenario.name}: scrolled content clears cast bar`,
+      lastCard.bottom <= castBar.top + 2,
+      `last card bottom ${lastCard.bottom.toFixed(1)} vs cast bar top ${castBar.top.toFixed(1)}`,
+    );
+    await page.close();
+  }
+}
+
+async function verifyFishImageResilience({ browser, base, check }) {
+  const page = await browser.newPage({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  let gameState;
+  let apiAttempts = 0;
+  let imageAttempts = 0;
+
+  await page.route("**/api/game/state", async (route) => {
+    const response = await route.fetch();
+    gameState = await response.json();
+    await route.fulfill({ status: response.status(), headers: { "content-type": "application/json" }, body: JSON.stringify(gameState) });
+  });
+  await page.route("**/api/game/collection", async (route) => {
+    const species = gameState.catalog.fish[0];
+    const location = gameState.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        fish: [{
+          id: "image-resilience-fixture",
+          speciesId: species.id,
+          species,
+          weightKg: species.typicalWeightKg,
+          lengthCm: species.typicalLengthCm,
+          quality: "good",
+          saleValueCoins: species.baseValueCoins,
+          caughtAt: new Date().toISOString(),
+          locationId: location.id,
+          locationName: location.name,
+        }],
+      }),
+    });
+  });
+  await page.route("https://en.wikipedia.org/w/api.php**", async (route) => {
+    apiAttempts += 1;
+    if (apiAttempts === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "temporary outage" }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ query: { pages: [{ thumbnail: { source: "https://upload.wikimedia.org/wikipedia/commons/fixture-fish.jpg" } }] } }),
+    });
+  });
+  await page.route("https://upload.wikimedia.org/**", async (route) => {
+    imageAttempts += 1;
+    await route.abort("failed");
+  });
+
+  await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Collection", exact: true }).tap();
+  await page.waitForSelector(".collection-screen .fish-image", { timeout: 10_000 });
+  await page.waitForFunction(() => document.querySelector('.fish-image[data-image-state="unavailable"]') !== null, null, { timeout: 15_000 });
+
+  check("fish image API retries a transient failure", apiAttempts === 2, `${apiAttempts} API attempts`);
+  check("fish image load retries a failed external image", imageAttempts >= 2, `${imageAttempts} image attempts`);
+  check(
+    "failed fish images settle on an explicit fallback",
+    (await page.locator('.fish-image[data-image-state="unavailable"] .fish-image-placeholder').textContent()) === "Photo unavailable",
+    "placeholder remains readable",
+  );
+  await page.close();
+}
+
+async function verifyAccessibilityModes({ browser, base, check, recordConsoleError }) {
+  const page = await browser.newPage({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  attachConsoleListeners(page, recordConsoleError);
+  try {
+    await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
+  } catch (error) {
+    report.push(`SKIP  accessibility media emulation  (${String(error)})`);
+    await page.close();
+    return;
+  }
+  await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+  const styles = await page.evaluate(() => {
+    const screen = document.querySelector(".screen");
+    const castBar = document.querySelector(".cast-bar");
+    const media = window.matchMedia("(forced-colors: active)");
+    return {
+      forcedColors: media.matches,
+      animationName: screen ? getComputedStyle(screen).animationName : "missing",
+      castShadow: castBar ? getComputedStyle(castBar).boxShadow : "missing",
+    };
+  });
+  check("reduced-motion disables screen transitions", styles.animationName === "none", `animation-name ${styles.animationName}`);
+  check("forced-colors mode is active", styles.forcedColors, "forced-colors media query matched");
+  check("forced-colors removes decorative cast shadow", styles.castShadow === "none", `cast bar shadow ${styles.castShadow}`);
+  await page.close();
 }
 
 async function verifyGearSelector({ browser, base, check, recordConsoleError }) {
@@ -60,6 +222,10 @@ async function verifyGearSelector({ browser, base, check, recordConsoleError }) 
     (await page.locator(".equipment-options:not([hidden]) .equipment-option-name").allTextContents()).includes("Sweet Corn"),
     "full option name rendered",
   );
+  const optionClipping = await page.locator(".equipment-options:not([hidden]) .equipment-option-name").evaluateAll((elements) =>
+    elements.filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1).length,
+  );
+  check("gear selector does not clip equipment names", optionClipping === 0, `${optionClipping} clipped names`);
 
   await page.locator(".screen-hero").tap();
   check("gear selector dismisses outside tap", (await page.locator(".equipment-options:not([hidden])").count()) === 0, "menu closed");
@@ -91,6 +257,16 @@ page.on("pageerror", (error) => recordConsoleError(String(error)));
 await page.goto(`${BASE}/?telegramMock=ios`, { waitUntil: "networkidle" });
 await page.waitForSelector(".locations-list .location-card", { timeout: 20000 });
 
+const declaredCssVariables = new Set([...stylesSource.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
+const referencedCssVariables = [...stylesSource.matchAll(/var\((--[\w-]+)/g)].map((match) => match[1]);
+const undefinedCssVariables = [...new Set(referencedCssVariables)].filter((name) => !declaredCssVariables.has(name) && !name.startsWith("--tg-"));
+check("all internal CSS variables are defined", undefinedCssVariables.length === 0, undefinedCssVariables.join(", ") || "no undefined variables");
+check("panel surface token is defined", declaredCssVariables.has("--panel"), "--panel has a concrete fallback");
+
+await verifyViewportChrome({ browser, base: BASE, check, recordConsoleError });
+await verifyFishImageResilience({ browser, base: BASE, check });
+await verifyAccessibilityModes({ browser, base: BASE, check, recordConsoleError });
+
 // ---------- Main screen ----------
 const topbar = await rectOf(page, ".app-topbar");
 const hero = await rectOf(page, ".screen-hero");
@@ -103,6 +279,16 @@ check("hero above gear dock", hero.bottom <= gearDock.top + 1, `hero bottom ${he
 check("cast bar clears tabbar with CTA gap", Math.abs(tabbar.top - castBar.bottom - 10) < 2, `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected 10)`);
 check("tabbar reaches viewport bottom", Math.abs(tabbar.bottom - 852) < 1, `tabbar bottom ${tabbar.bottom.toFixed(1)} vs 852`);
 check("cast bar within viewport", castBar.left >= 0 && castBar.right <= 393, `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)}`);
+const startupToast = page.locator(".toast").first();
+if (await startupToast.count()) {
+  const toast = await rectOf(page, ".toast");
+  check("toast sits below topbar", toast.top >= topbar.bottom, `toast top ${toast.top.toFixed(1)} vs topbar bottom ${topbar.bottom.toFixed(1)}`);
+  check("toast stays above bottom chrome", toast.bottom <= tabbar.top, `toast bottom ${toast.bottom.toFixed(1)} vs tabbar top ${tabbar.top.toFixed(1)}`);
+} else {
+  report.push("SKIP  startup toast placement  (no startup toast visible)");
+}
+const screenAnimationName = await page.locator(".screen").evaluate((element) => getComputedStyle(element).animationName);
+check("screen transitions have an entry animation", screenAnimationName !== "none", `animation-name ${screenAnimationName}`);
 
 const cardCount = await page.locator(".locations-list .location-card").count();
 check("location cards rendered", cardCount >= 2, `${cardCount} cards`);
@@ -115,6 +301,10 @@ for (const tile of tiles) tileRects.push(await tile.evaluate((el) => el.getBound
 const widths = tileRects.map((r) => Math.round(r.width));
 check("gear tiles uniform width", new Set(widths).size === 1, `widths ${widths.join(",")}`);
 check("gear dock no horizontal overflow", tileRects[3].right <= 393 - 12 + 1, `right edge ${tileRects[3].right.toFixed(1)}`);
+const clippedGearNames = await page.locator(".gear-name").evaluateAll((elements) =>
+  elements.filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1).length,
+);
+check("gear tiles show complete equipment names", clippedGearNames === 0, `${clippedGearNames} clipped names`);
 
 // Readiness chips + CTA visible inside cast bar.
 const chipCount = await page.locator(".cast-readiness .readiness-chip").count();
