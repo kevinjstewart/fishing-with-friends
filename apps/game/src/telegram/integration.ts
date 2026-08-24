@@ -8,9 +8,13 @@ export interface TelegramIntegration {
 export function createTelegramIntegration(onInsetsChanged?: () => void): TelegramIntegration {
   const webApp = window.Telegram?.WebApp;
 
+  const publishInsets = (): void => {
+    onInsetsChanged?.();
+  };
+
   const applyStableInsets = (payload?: { isStateStable?: boolean }): void => {
     if (payload?.isStateStable === false) return;
-    onInsetsChanged?.();
+    publishInsets();
   };
 
   return {
@@ -25,6 +29,7 @@ export function createTelegramIntegration(onInsetsChanged?: () => void): Telegra
       webApp?.onEvent?.("viewportChanged", applyStableInsets);
       webApp?.onEvent?.("safeAreaChanged", applyStableInsets);
       webApp?.onEvent?.("contentSafeAreaChanged", applyStableInsets);
+      webApp?.onEvent?.("fullscreenChanged", applyStableInsets);
       this.syncViewportInsets();
     },
     syncViewportInsets: applyStableInsets,
