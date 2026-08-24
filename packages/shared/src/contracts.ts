@@ -191,6 +191,11 @@ export interface FishingEncounterResponse {
   expiresAt: string;
 }
 
+export interface ActiveFishingEncounterResponse {
+  encounter: FishingEncounterResponse | null;
+  expired: boolean;
+}
+
 export interface CompleteFishingRequest {
   performance: number;
 }

@@ -501,6 +501,35 @@ describe("game state route", () => {
 });
 
 describe("fishing loop", () => {
+  it("restores an active encounter after reload and marks an interrupted encounter expired", async () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const { env, stores, token } = await setup();
+      const headers = authHeaders(token);
+      const start = await app.request("/api/game/encounters", { method: "POST", headers: jsonHeaders(token), body: JSON.stringify(WILLOW_POND_SETUP) }, env);
+      expect(start.status).toBe(201);
+      const encounter = (await start.json()) as FishingEncounterResponse;
+
+      const active = await app.request("/api/game/encounters/active", { headers }, env);
+      expect(active.status).toBe(200);
+      expect(await active.json()).toEqual({ encounter: expect.objectContaining({ encounterId: encounter.encounterId }), expired: false });
+
+      const stored = stores.encounters.find((candidate) => candidate.id === encounter.encounterId);
+      if (!stored) throw new Error("The active encounter was not stored.");
+      stored.expires_at = new Date(Date.now() - 1_000).toISOString();
+
+      const expired = await app.request("/api/game/encounters/active", { headers }, env);
+      expect(expired.status).toBe(200);
+      expect(await expired.json()).toEqual({ encounter: null, expired: true });
+      expect(stored.status).toBe("expired");
+
+      const noActiveEncounter = await app.request("/api/game/encounters/active", { headers }, env);
+      expect(await noActiveEncounter.json()).toEqual({ encounter: null, expired: false });
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it("creates an encounter, consumes resources, resolves a catch exactly once, and updates the journal", async () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
     try {

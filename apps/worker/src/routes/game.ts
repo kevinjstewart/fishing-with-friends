@@ -2,6 +2,7 @@ import type {
   CatchDecisionRequest,
   CompleteFishingRequest,
   CompleteFishingResponse,
+  ActiveFishingEncounterResponse,
   FishingEncounterResponse,
   GameStateResponse,
   LeaderboardResponse,
@@ -15,7 +16,7 @@ import type { AppVariables, Env } from "../env";
 import { badRequest, tooManyRequests } from "../lib/errors";
 import { actionRateLimit, castRateLimit, checkRateLimit } from "../lib/rate-limit";
 import { requireAuth } from "../middleware/auth";
-import { completeFishing, decideCatch, sellCatch, startFishing } from "../services/fishing-service";
+import { completeFishing, decideCatch, getActiveFishingEncounter, sellCatch, startFishing } from "../services/fishing-service";
 import { getGameState } from "../services/game-service";
 import { digForWorms, getCollection, getFishJournal, purchaseItem, selectEquipment } from "../services/shop-service";
 
@@ -111,6 +112,11 @@ export function registerGameRoutes(app: Hono<{ Bindings: Env; Variables: AppVari
   app.get("/api/game/state", requireAuth, async (context) => {
     const state = await getGameState(context.env, context.get("playerId"));
     return context.json<GameStateResponse>(state);
+  });
+
+  app.get("/api/game/encounters/active", requireAuth, async (context) => {
+    const active = await getActiveFishingEncounter(context.env, context.get("playerId"));
+    return context.json<ActiveFishingEncounterResponse>(active);
   });
 
   app.post("/api/game/encounters", requireAuth, async (context) => {

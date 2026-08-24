@@ -1,4 +1,5 @@
 export type {
+  ActiveFishingEncounterResponse,
   AuthResponse,
   ActiveEquipment,
   BaitDefinition,

@@ -146,6 +146,9 @@ export class AppShell {
   private readonly toastLayer: HTMLElement;
   private gameState?: GameStateResponse;
   private activeScreen: ScreenId = "lakes";
+  private navEnabled = true;
+  private pendingNavigation?: ScreenId;
+  private actionPending = false;
   private selectedLocationId?: string;
   private collectionSort: CollectionSortMode = "newest";
   private shopCategory: ShopCategory = "bait";
@@ -198,9 +201,18 @@ export class AppShell {
         return;
       }
     } else {
-      if (this.stickyToast) this.dismissToast(this.stickyToast);
+      this.clearStatus();
     }
     this.stickyToast = this.makeToast(message, state, state === "loading" ? 15000 : 3200);
+  }
+
+  clearStatus(): void {
+    const toast = this.stickyToast;
+    if (!toast) return;
+    if (toast.dismissTimer) window.clearTimeout(toast.dismissTimer);
+    this.stickyToast = undefined;
+    this.frame.dataset.toastVisible = "false";
+    toast.root.remove();
   }
 
   private makeToast(message: string, state: "loading" | "ready" | "error", lifetimeMs: number): ToastHandle {
@@ -241,7 +253,20 @@ export class AppShell {
   }
 
   setNavEnabled(enabled: boolean): void {
+    this.navEnabled = enabled;
     this.tabbar.dataset.disabled = enabled ? "false" : "true";
+    this.renderTabs();
+  }
+
+  setNavigationPending(screen?: ScreenId): void {
+    this.pendingNavigation = screen;
+    this.tabbar.dataset.pending = screen ? "true" : "false";
+    this.renderTabs();
+  }
+
+  setActionPending(pending: boolean): void {
+    this.actionPending = pending;
+    this.syncActionState();
   }
 
   setActiveScreen(screen: ScreenId): void {
@@ -261,6 +286,12 @@ export class AppShell {
     for (const tab of tabs) {
       const button = createElement("button", "tab-button");
       button.type = "button";
+      button.disabled = !this.navEnabled;
+      button.setAttribute("aria-disabled", String(!this.navEnabled));
+      if (this.pendingNavigation === tab.id) {
+        button.dataset.loading = "true";
+        button.setAttribute("aria-busy", "true");
+      }
       button.append(createIcon(SCREEN_ICONS[tab.id]), createElement("span", undefined, tab.label));
       if (this.activeScreen === tab.id) {
         button.classList.add("is-active");
@@ -525,6 +556,7 @@ export class AppShell {
 
     this.content.replaceChildren(screen, castBar);
     this.content.scrollTop = 0;
+    this.syncActionState();
   }
 
   private gearTile(options: {
@@ -998,12 +1030,15 @@ export class AppShell {
   }
 
   showLoadingScreen(message: string): void {
+    this.clearStatus();
     const panel = createElement("section", "fishing-status is-loading");
+    panel.setAttribute("aria-live", "polite");
     panel.append(createElement("span", "eyebrow", "One moment"), createElement("p", "muted", message));
     this.replaceScreen(panel);
   }
 
   showRetryPanel(eyebrow: string, message: string, retryLabel: string, onRetry: () => void, onBack?: () => void): void {
+    this.clearStatus();
     const panel = createElement("section", "fishing-status");
     panel.append(createElement("span", "eyebrow", eyebrow), createElement("p", "muted", message));
     const actions = createElement("div", onBack ? "result-actions" : "");
@@ -1022,6 +1057,7 @@ export class AppShell {
   }
 
   showFishingResult(result: CompleteFishingResponse, onDecision: (decision: "keep" | "sell") => void, onBack: () => void): void {
+    this.clearStatus();
     const panel = createElement("section", "fishing-status");
     panel.append(
       createElement("span", "eyebrow", result.outcome === "caught" ? "Fish landed" : "The line went slack"),
@@ -1059,6 +1095,7 @@ export class AppShell {
   }
 
   showDecisionResult(result: CatchDecisionResponse, onBack: () => void): void {
+    this.clearStatus();
     const panel = createElement("section", "fishing-status");
     panel.append(
       createElement("span", "eyebrow", result.decision === "sell" ? "Fish sold" : "Fish kept"),
@@ -1077,6 +1114,24 @@ export class AppShell {
     const scrollTop = options.preserveScroll ? this.content.scrollTop : 0;
     this.content.replaceChildren(panel);
     this.content.scrollTop = scrollTop;
+    this.syncActionState();
+  }
+
+  private syncActionState(): void {
+    this.content.dataset.pending = this.actionPending ? "true" : "false";
+    this.content.setAttribute("aria-busy", String(this.actionPending));
+    const controls = this.content.querySelectorAll<HTMLButtonElement | HTMLSelectElement>("button, select");
+    for (const control of controls) {
+      if (this.actionPending) {
+        if (!control.disabled) control.dataset.pendingDisabled = "true";
+        control.disabled = true;
+        control.setAttribute("aria-disabled", "true");
+      } else if (control.dataset.pendingDisabled === "true") {
+        control.disabled = false;
+        delete control.dataset.pendingDisabled;
+        control.removeAttribute("aria-disabled");
+      }
+    }
   }
 
   private specimenDetails(specimen: FishSpecimen): HTMLElement {

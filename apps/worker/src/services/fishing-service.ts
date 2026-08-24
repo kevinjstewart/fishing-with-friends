@@ -6,6 +6,7 @@ import type {
   CompleteFishingResponse,
   EquipmentType,
   FishQuality,
+  ActiveFishingEncounterResponse,
   FishSpecimen,
   FishingEncounterResponse,
   FishingMiniGameConfig,
@@ -144,6 +145,50 @@ function riskFor(weightKg: number, rod: (typeof GAME_CATALOG.rods)[number]): Ris
   return "high";
 }
 
+function encounterResponseFromRow(row: EncounterRow): FishingEncounterResponse {
+  const location = GAME_CATALOG.locations.find((candidate) => candidate.id === row.location_id);
+  const species = GAME_CATALOG.fish.find((candidate) => candidate.id === row.species_id);
+  const rod = GAME_CATALOG.rods.find((candidate) => candidate.id === row.rod_id);
+  const lure = GAME_CATALOG.lures.find((candidate) => candidate.id === row.lure_id);
+  if (!location || !species || !rod || !lure) throw new Error("The stored fishing encounter references missing catalogue data.");
+
+  return {
+    encounterId: row.id,
+    difficultySeed: row.difficulty_seed,
+    locationId: location.id,
+    locationName: location.name,
+    species,
+    miniGame: miniGameFor(species, rod, lure),
+    rodRiskBand: riskFor(row.weight_kg, rod),
+    expiresAt: row.expires_at,
+  };
+}
+
+export async function getActiveFishingEncounter(env: Env, playerId: string): Promise<ActiveFishingEncounterResponse> {
+  await new GameRepository(env.DB).ensurePlayerState(playerId);
+  const encounter = await env.DB
+    .prepare("SELECT * FROM fishing_encounters WHERE player_id = ? AND status = 'active' ORDER BY started_at DESC LIMIT 1")
+    .bind(playerId)
+    .first<EncounterRow>();
+  if (!encounter) return { encounter: null, expired: false };
+
+  if (new Date(encounter.expires_at).getTime() <= Date.now()) {
+    await env.DB
+      .prepare("UPDATE fishing_encounters SET status = ?, completed_at = ? WHERE id = ? AND player_id = ? AND status = 'active'")
+      .bind("expired", new Date().toISOString(), encounter.id, playerId)
+      .run();
+    return { encounter: null, expired: true };
+  }
+
+  const response = encounterResponseFromRow(encounter);
+  const remainingSeconds = Math.max(1, Math.ceil((new Date(encounter.expires_at).getTime() - Date.now()) / 1000));
+  response.miniGame = {
+    ...response.miniGame,
+    durationSeconds: Math.min(response.miniGame.durationSeconds, remainingSeconds),
+  };
+  return { encounter: response, expired: false };
+}
+
 export interface RodBreakInput {
   weightKg: number;
   rodMaxFishWeightKg: number;
@@ -211,8 +256,20 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
   if ((ownedLure.durability ?? 0) < 1 && ownedLure.quantity < 2) throw conflict("That lure has no uses remaining. Buy a fresh one from the shop.");
   if (!ownedBait || ownedBait.quantity < 1) throw conflict("You are out of that bait. Dig for Worms or visit the shop.");
 
-  const activeEncounter = await env.DB.prepare("SELECT id FROM fishing_encounters WHERE player_id = ? AND status = 'active' AND expires_at > ? LIMIT 1").bind(playerId, new Date().toISOString()).first<{ id: string }>();
-  if (activeEncounter) throw conflict("Finish your current fishing attempt first.");
+  const activeEncounter = await env.DB
+    .prepare("SELECT id, expires_at FROM fishing_encounters WHERE player_id = ? AND status = 'active' LIMIT 1")
+    .bind(playerId)
+    .first<{ id: string; expires_at: string }>();
+  if (activeEncounter) {
+    if (new Date(activeEncounter.expires_at).getTime() <= Date.now()) {
+      await env.DB
+        .prepare("UPDATE fishing_encounters SET status = ?, completed_at = ? WHERE id = ? AND player_id = ? AND status = 'active'")
+        .bind("expired", new Date().toISOString(), activeEncounter.id, playerId)
+        .run();
+    } else {
+      throw conflict("Finish your current fishing attempt first.");
+    }
+  }
 
   const species = selectEligibleSpecies(location.id, bait.id, lure.id);
   if (!species) throw conflict("That bait cannot attract fish in this location.");
@@ -251,19 +308,32 @@ export async function startFishing(env: Env, playerId: string, input: StartFishi
     } else {
       await env.DB.prepare("UPDATE player_equipment SET quantity = quantity + 1, durability = 0 WHERE player_id = ? AND equipment_type = 'lure' AND equipment_id = ?").bind(playerId, lure.id).run();
     }
+    const activeAfterInsertFailure = await env.DB
+      .prepare("SELECT id FROM fishing_encounters WHERE player_id = ? AND status = 'active' AND expires_at > ? LIMIT 1")
+      .bind(playerId, new Date().toISOString())
+      .first<{ id: string }>();
+    if (activeAfterInsertFailure) throw conflict("Finish your current fishing attempt first.");
     throw error;
   }
 
-  return {
-    encounterId,
-    difficultySeed,
-    locationId: location.id,
-    locationName: location.name,
-    species,
-    miniGame,
-    rodRiskBand: riskFor(specimen.weight_kg, rod),
-    expiresAt: expiresAt.toISOString(),
-  };
+  return encounterResponseFromRow({
+    id: encounterId,
+    player_id: playerId,
+    location_id: location.id,
+    species_id: species.id,
+    weight_kg: specimen.weight_kg,
+    length_cm: specimen.length_cm,
+    quality: specimen.quality,
+    sale_value_coins: specimen.sale_value_coins,
+    difficulty_seed: difficultySeed,
+    rod_id: rod.id,
+    lure_id: lure.id,
+    bait_id: bait.id,
+    started_at: startedAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
+    status: "active",
+    completed_at: null,
+  });
 }
 
 export async function completeFishing(env: Env, playerId: string, encounterId: string, input: CompleteFishingRequest): Promise<CompleteFishingResponse> {
