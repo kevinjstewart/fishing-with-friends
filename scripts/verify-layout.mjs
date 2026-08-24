@@ -24,6 +24,51 @@ async function rectOf(page, selector) {
   });
 }
 
+async function verifyGearSelector({ browser, base, check, recordConsoleError }) {
+  const page = await browser.newPage({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") recordConsoleError(message.text());
+  });
+  page.on("pageerror", (error) => recordConsoleError(String(error)));
+  await page.route("**/api/game/state", async (route) => {
+    const response = await route.fetch();
+    const state = await response.json();
+    if (!state.inventory.baits.some((bait) => bait.id === "sweet-corn" && bait.quantity > 0)) {
+      state.inventory.baits.push({ id: "sweet-corn", quantity: 3, durability: null });
+    }
+    await route.fulfill({
+      status: response.status(),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(state),
+    });
+  });
+
+  await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".gear-dock .gear-slot:last-child .gear-tile", { timeout: 20_000 });
+  const baitTile = page.locator(".gear-dock .gear-slot:last-child .gear-tile");
+  check("gear selector exposes expanded state", (await baitTile.getAttribute("aria-expanded")) === "false", "collapsed before tap");
+  await baitTile.tap();
+  await page.waitForSelector(".gear-dock .gear-slot:last-child .equipment-options:not([hidden])", { timeout: 5_000 });
+  check("gear selector opens on tap", (await page.locator(".equipment-options:not([hidden])").count()) === 1, "one menu open");
+  check(
+    "gear selector keeps full mobile names",
+    (await page.locator(".equipment-options:not([hidden]) .equipment-option-name").allTextContents()).includes("Sweet Corn"),
+    "full option name rendered",
+  );
+
+  await page.locator(".screen-hero").tap();
+  check("gear selector dismisses outside tap", (await page.locator(".equipment-options:not([hidden])").count()) === 0, "menu closed");
+  await baitTile.tap();
+  await page.keyboard.press("Escape");
+  check("gear selector dismisses with Escape", (await page.locator(".equipment-options:not([hidden])").count()) === 0, "menu closed");
+  await page.close();
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage({
   viewport: { width: 393, height: 852 },
@@ -80,6 +125,14 @@ const castDetailsText = await page.locator(".cast-details").textContent();
 check("cast cost is explicit", /1 .* \+ 1 lure use/.test(castDetailsText ?? ""), `details "${castDetailsText?.trim()}"`);
 check("cast projects resource consumption", /After casting:/.test(castDetailsText ?? ""), `details "${castDetailsText?.trim()}"`);
 check("locations explain rod risk", (await page.locator(".location-risk-reason").count()) === cardCount, `${await page.locator(".location-risk-reason").count()} explanations for ${cardCount} cards`);
+check("location fish lists avoid non-interactive +N", (await page.locator(".fish-chip.is-more").count()) === 0, "no +N fish indicators");
+const fishDetails = page.locator(".fish-list-details").first();
+if ((await fishDetails.count()) > 0) {
+  await fishDetails.locator("summary").tap();
+  check("location fish list expands", (await fishDetails.locator(".fish-chips-expanded .fish-chip").count()) > 0, "additional species are revealed");
+} else {
+  report.push("SKIP  location fish list expands  (no location has more than three species)");
+}
 
 // Scroll content to the bottom: last location card must clear the cast bar.
 await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -107,10 +160,13 @@ if ((await unlockedCards.count()) > 1) {
 // Locked card deep-links to shop boats tab.
 const lockedCard = page.locator(".location-card.is-locked").first();
 if ((await lockedCard.count()) > 0) {
+  const lockText = await lockedCard.locator(".lock-tag").textContent();
+  check("locked location explains its unlock path", /Requires|Buy/.test(lockText ?? ""), lockText?.trim() || "no lock guidance");
   await lockedCard.tap();
   await page.waitForSelector(".shop-list", { timeout: 10000 });
   const activeTab = await page.locator(".shop-tab.is-active").textContent();
   check("locked card opens shop boats tab", activeTab?.trim() === "Boats", `active tab "${activeTab?.trim()}"`);
+  check("boats explain their unlocked waters", (await page.locator('.shop-detail-label', { hasText: "Unlocks these waters" }).count()) > 0, "location unlocks rendered");
 } else {
   report.push("SKIP  locked card deep-link  (no locked locations in dev state)");
 }
@@ -124,6 +180,8 @@ await page.waitForSelector(".shop-list .shop-item", { timeout: 10000 });
 const tabsRect = await rectOf(page, ".shop-tabs");
 const topbar2 = await rectOf(page, ".app-topbar");
 check("shop tabs below topbar", tabsRect.top >= topbar2.bottom - 1, `tabs top ${tabsRect.top.toFixed(1)} vs topbar bottom ${topbar2.bottom.toFixed(1)}`);
+check("shop renders catalog descriptions", (await page.locator(".shop-description").count()) === (await page.locator(".shop-list .shop-item").count()), "one description per item");
+check("shop renders equipment state", (await page.locator(".shop-state").count()) > 0, "owned or equipped state visible");
 
 // Sticky behavior: scroll the shop and confirm tabs pin under the topbar
 // (only meaningful when the list is tall enough to scroll).
@@ -154,6 +212,9 @@ for (const tabName of ["Rods", "Lures", "Boats"]) {
   await page.waitForTimeout(300);
   const itemCount = await page.locator(".shop-list .shop-item").count();
   check(`${tabName} tab renders items`, itemCount >= 1, `${itemCount} items`);
+  check(`${tabName} tab renders stats`, (await page.locator(".shop-list .shop-stats").count()) === itemCount, "one stat grid per item");
+  const actionLabels = await page.locator(".shop-list .buy-btn").allTextContents();
+  check(`${tabName} actions use explicit labels`, actionLabels.every((label) => /Buy|Claim/.test(label)), actionLabels.join(" | ") || "all items owned");
 }
 await page.screenshot({ path: "/tmp/layout-shop-boats.png" });
 
@@ -167,7 +228,10 @@ const buyText = await firstBait.locator(".buy-btn").textContent();
 check("bait ×10 chip updates buy total", /\d+/.test(buyText ?? ""), `buy button "${buyText?.trim()}"`);
 const activeChip = await firstBait.locator(".qty-chip.is-active").textContent();
 check("active quantity chip is ×10", activeChip?.trim() === "×10", `active chip "${activeChip?.trim()}"`);
+check("bait cards explain attraction", (await page.locator(".shop-species").count()) === (await page.locator(".shop-list .shop-item").count()), "attracted species visible");
 await page.screenshot({ path: "/tmp/layout-shop-bait-qty.png" });
+
+await verifyGearSelector({ browser, base: BASE, check, recordConsoleError });
 
 // ---------- Chunk 3 economy confirmation ----------
 const stateForCollection = await page.evaluate(async () => {

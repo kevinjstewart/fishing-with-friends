@@ -162,6 +162,54 @@ function eligibleFishForSetup(state: GameStateResponse, location: LocationAvaila
   );
 }
 
+function speciesNamesForIds(state: GameStateResponse, ids: string[]): string[] {
+  return ids
+    .map((id) => state.catalog.fish.find((species) => species.id === id)?.commonName ?? id)
+    .filter((name, index, names) => names.indexOf(name) === index);
+}
+
+function shopStatGrid(entries: Array<[label: string, value: string]>): HTMLElement {
+  const grid = createElement("div", "shop-stats");
+  for (const [label, value] of entries) {
+    const stat = createElement("div", "shop-stat-cell");
+    stat.append(createElement("strong", undefined, value), createElement("span", "muted", label));
+    grid.append(stat);
+  }
+  return grid;
+}
+
+function shopSpeciesList(label: string, names: string[]): HTMLElement {
+  const section = createElement("div", "shop-species");
+  section.append(createElement("span", "shop-detail-label", label));
+  const list = createElement("div", "fish-chips");
+  for (const name of names) list.append(createElement("span", "fish-chip", name));
+  section.append(list);
+  return section;
+}
+
+function locationFishList(state: GameStateResponse, location: LocationAvailability): HTMLElement {
+  const names = speciesNamesForIds(state, location.fishIds);
+  const section = createElement("div", "location-fish");
+  section.append(createElement("span", "location-detail-label", "Fish you can catch"));
+
+  const visible = createElement("div", "fish-chips");
+  for (const name of names.slice(0, 3)) visible.append(createElement("span", "fish-chip", name));
+  section.append(visible);
+
+  if (names.length > 3) {
+    const details = document.createElement("details");
+    details.className = "fish-list-details";
+    const summary = document.createElement("summary");
+    summary.className = "fish-list-summary";
+    summary.textContent = `View all ${names.length} species`;
+    const remaining = createElement("div", "fish-chips fish-chips-expanded");
+    for (const name of names.slice(3)) remaining.append(createElement("span", "fish-chip", name));
+    details.append(summary, remaining);
+    section.append(details);
+  }
+  return section;
+}
+
 interface ToastHandle {
   root: HTMLElement;
   dismissTimer?: number;
@@ -223,6 +271,18 @@ export class AppShell {
     this.topbar.append(brand, this.walletChip);
     this.frame = createElement("div", "app-frame");
     this.frame.append(this.topbar, this.content, this.tabbar, this.toastLayer);
+    this.frame.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(".gear-slot")) this.closeEquipmentMenus();
+    });
+    this.frame.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const open = this.frame.querySelector<HTMLElement>(".equipment-options:not([hidden])");
+      if (!open) return;
+      const trigger = open.parentElement?.querySelector<HTMLElement>(".gear-tile");
+      this.closeEquipmentMenus();
+      trigger?.focus();
+    });
     this.root.replaceChildren(this.frame);
     this.renderTabs();
   }
@@ -577,10 +637,7 @@ export class AppShell {
       const riskReason = createElement("p", "location-risk-reason");
       riskReason.append(createIcon("alert"), document.createTextNode(location.riskReason));
 
-      const fishNames = location.fishIds.map((fishId) => state.catalog.fish.find((species) => species.id === fishId)?.commonName ?? fishId);
-      const fishChips = createElement("div", "fish-chips");
-      for (const fishName of fishNames.slice(0, 3)) fishChips.append(createElement("span", "fish-chip", fishName));
-      if (fishNames.length > 3) fishChips.append(createElement("span", "fish-chip is-more", `+${fishNames.length - 3}`));
+      const fishList = locationFishList(state, location);
 
       const foot = createElement("div", "location-foot");
       const value = createElement("span", "value-tag");
@@ -619,11 +676,23 @@ export class AppShell {
       } else {
         const requiredBoat = state.catalog.boats.find((candidate) => candidate.id === location.requiredBoatId);
         const lock = createElement("span", "lock-tag");
-        lock.append(createIcon("lock"), document.createTextNode(requiredBoat?.name ?? "Better boat"));
+        const lockCopy = createElement("span", "lock-copy");
+        const requiredBoatName = requiredBoat?.name ?? "a better boat";
+        lockCopy.append(
+          createElement("strong", undefined, `Locked · Requires ${requiredBoatName}`),
+          createElement(
+            "small",
+            undefined,
+            requiredBoat
+              ? `Buy ${requiredBoatName} for ${formatCoins(requiredBoat.priceCoins)} coins to unlock this water.`
+              : "Upgrade your boat to unlock this water.",
+          ),
+        );
+        lock.append(createIcon("lock"), lockCopy);
         foot.append(lock);
         card.setAttribute("role", "button");
         card.setAttribute("tabindex", "0");
-        card.setAttribute("aria-label", `${location.name}, locked. Requires ${requiredBoat?.name ?? "a better boat"} — open the shop`);
+        card.setAttribute("aria-label", `${location.name}, locked. Requires ${requiredBoatName}. Open the Boats shop to unlock it.`);
         const openBoats = (): void => this.openShop("boats");
         card.addEventListener("click", openBoats);
         card.addEventListener("keydown", (event) => {
@@ -634,7 +703,7 @@ export class AppShell {
         });
       }
 
-      card.append(top, description, riskReason, fishChips, foot);
+      card.append(top, description, riskReason, fishList, foot);
       locationsList.append(card);
     }
 
@@ -684,6 +753,14 @@ export class AppShell {
     return tile;
   }
 
+  private closeEquipmentMenus(): void {
+    for (const options of this.frame.querySelectorAll<HTMLElement>(".equipment-options:not([hidden])")) {
+      options.hidden = true;
+      options.style.left = "";
+      options.parentElement?.querySelector<HTMLElement>(".gear-tile")?.setAttribute("aria-expanded", "false");
+    }
+  }
+
   private buildGearDock(state: GameStateResponse): HTMLElement {
     const dock = createElement("section", "gear-dock");
     dock.setAttribute("aria-label", "Current tackle");
@@ -696,10 +773,8 @@ export class AppShell {
     const lureDefinition = lure ? state.catalog.lures.find((item) => item.id === lure.id) : undefined;
 
     const closeAllDropdowns = (): void => {
-      for (const options of dock.querySelectorAll<HTMLElement>(".equipment-options")) {
-        options.hidden = true;
-        options.style.left = "";
-      }
+      this.closeEquipmentMenus();
+      for (const options of dock.querySelectorAll<HTMLElement>(".equipment-options")) options.hidden = true;
     };
 
     // The boat is permanent context, not a quick-swap slot.
@@ -768,6 +843,10 @@ export class AppShell {
 
       const options = createElement("div", "equipment-options");
       options.hidden = true;
+      options.id = `equipment-options-${slot}`;
+      options.setAttribute("role", "menu");
+      tile.setAttribute("aria-controls", options.id);
+      tile.setAttribute("aria-expanded", "false");
 
       for (const definition of ownedDefinitions) {
         const ownership = state.inventory[`${slot}s` as const].find((item) => item.id === definition.id);
@@ -777,12 +856,17 @@ export class AppShell {
             : slot === "lure"
               ? `${ownership?.durability ?? 0}/${(definition as (typeof state.catalog.lures)[number]).maximumDurability} uses`
               : `up to ${(definition as (typeof state.catalog.rods)[number]).maxFishWeightKg} kg`;
-        const optionButton = createElement("button", "equipment-option", `${definition.name} · ${optionDetail}`);
+        const optionButton = createElement("button", "equipment-option");
         optionButton.type = "button";
-        if (state.activeEquipment[`${slot}Id`] === definition.id) optionButton.classList.add("is-active");
+        const active = state.activeEquipment[`${slot}Id`] === definition.id;
+        optionButton.append(createElement("span", "equipment-option-name", definition.name), createElement("span", "equipment-option-detail", optionDetail));
+        optionButton.setAttribute("role", "menuitemradio");
+        optionButton.setAttribute("aria-checked", String(active));
+        if (active) optionButton.classList.add("is-active");
         optionButton.addEventListener("click", () => {
           options.hidden = true;
           options.style.left = "";
+          tile.setAttribute("aria-expanded", "false");
           this.selectEquipmentHandler?.({ [`${slot}Id`]: definition.id });
         });
         options.append(optionButton);
@@ -793,6 +877,7 @@ export class AppShell {
         closeAllDropdowns();
         if (!show) return;
         options.hidden = false;
+        tile.setAttribute("aria-expanded", "true");
         const margin = 8;
         const viewportWidth = document.documentElement.clientWidth;
         const bounds = options.getBoundingClientRect();
@@ -885,26 +970,42 @@ export class AppShell {
     this.replaceScreen(panel, { preserveScroll });
   }
 
-  private shopItemShell(options: { tone: string; icon: IconName; name: string; stat: string; owned?: boolean }): { card: HTMLElement; body: HTMLElement; side: HTMLElement } {
-    const card = createElement("article", `shop-item tone-${options.tone}${options.owned ? " is-owned" : ""}`);
+  private shopItemShell(options: {
+    tone: string;
+    icon: IconName;
+    name: string;
+    description: string;
+    status?: "owned" | "equipped";
+  }): { card: HTMLElement; body: HTMLElement; details: HTMLElement; side: HTMLElement } {
+    const card = createElement("article", `shop-item tone-${options.tone}${options.status ? ` is-${options.status}` : ""}`);
     const icon = createElement("span", "shop-icon");
     icon.append(createIcon(options.icon));
     const body = createElement("div", "shop-body");
-    body.append(createElement("h2", undefined, options.name), createElement("p", "shop-stat", options.stat));
+    const heading = createElement("div", "shop-heading");
+    heading.append(createElement("h2", undefined, options.name));
+    if (options.status) {
+      const state = createElement("span", `shop-state is-${options.status}`);
+      state.append(createIcon("check"), options.status === "equipped" ? "Equipped" : "Owned");
+      heading.append(state);
+    }
+    const details = createElement("div", "shop-details");
+    body.append(heading, createElement("p", "shop-description", options.description), details);
     const side = createElement("div", "shop-side");
     card.append(icon, body, side);
-    return { card, body, side };
+    return { card, body, details, side };
   }
 
-  private appendBuyControls(side: HTMLElement, itemId: string, totalCost: number, quantity?: number): void {
+  private appendBuyControls(side: HTMLElement, itemId: string, itemName: string, itemKind: string, totalCost: number, quantity?: number): void {
     const coins = this.gameState?.coins ?? 0;
     const button = createElement("button", "buy-btn");
     button.type = "button";
-    if (totalCost === 0) {
-      button.append("Claim");
-    } else {
-      button.append(createIcon("coin"), document.createTextNode(formatCoins(totalCost)));
-    }
+    const actionLabel = totalCost === 0 ? `Claim ${itemKind}` : `Buy ${itemKind}`;
+    const price = createElement("span", "buy-price");
+    if (quantity && quantity > 1) price.append(createElement("small", undefined, `×${quantity}`));
+    if (totalCost === 0) price.append(createElement("small", "buy-free", "Free"));
+    else price.append(createIcon("coin"), document.createTextNode(formatCoins(totalCost)));
+    button.append(createElement("span", "buy-label", actionLabel), price);
+    button.setAttribute("aria-label", totalCost === 0 ? `${actionLabel} ${itemName}` : `${actionLabel} ${itemName} for ${formatCoins(totalCost)} coins`);
     if (coins < totalCost) {
       button.disabled = true;
       side.append(button, createElement("span", "short-note", `Need ${formatCoins(totalCost - coins)} more`));
@@ -914,62 +1015,94 @@ export class AppShell {
     side.append(button);
   }
 
-  private ownedCheck(): HTMLElement {
-    const check = createElement("span", "owned-check");
-    check.append(createIcon("check"), "Owned");
-    return check;
-  }
-
   private boatCard(state: GameStateResponse, boat: BoatDefinition): HTMLElement {
     const owned = state.inventory.boats.some((item) => item.id === boat.id && item.quantity > 0);
-    const unlocks = boat.unlocksLocationIds.map((id) => state.catalog.locations.find((location) => location.id === id)?.name ?? id).join(" · ");
-    const { card, side } = this.shopItemShell({
+    const equipped = owned && state.activeEquipment.boatId === boat.id;
+    const unlocks = boat.unlocksLocationIds.map((id) => state.catalog.locations.find((location) => location.id === id)?.name ?? id);
+    const { card, details, side } = this.shopItemShell({
       tone: "boat",
       icon: "anchor",
       name: boat.name,
-      stat: unlocks ? `Tier ${boat.tier} · ${unlocks}` : `Tier ${boat.tier} · starter craft`,
-      owned,
+      description: boat.description,
+      status: equipped ? "equipped" : owned ? "owned" : undefined,
     });
-    if (owned) side.append(this.ownedCheck());
-    else this.appendBuyControls(side, boat.id, boat.priceCoins);
+    details.append(
+      shopStatGrid([
+        ["Tier", `${boat.tier}`],
+        ["Price", boat.priceCoins === 0 ? "Free" : `${formatCoins(boat.priceCoins)} coins`],
+        ["Spots", `${unlocks.length}`],
+      ]),
+      shopSpeciesList("Unlocks these waters", unlocks),
+    );
+    if (!owned) this.appendBuyControls(side, boat.id, boat.name, "boat", boat.priceCoins);
     return card;
   }
 
   private rodCard(state: GameStateResponse, rod: RodDefinition): HTMLElement {
     const owned = state.inventory.rods.some((item) => item.id === rod.id && item.quantity > 0);
-    const { card, side } = this.shopItemShell({
+    const equipped = owned && state.activeEquipment.rodId === rod.id;
+    const { card, details, side } = this.shopItemShell({
       tone: "rod",
       icon: "rod",
       name: rod.name,
-      stat: `Lands ≤${rod.maxFishWeightKg}kg · +${Math.round(rod.catchZoneBonus * 100)}% catch zone`,
-      owned,
+      description: rod.description,
+      status: equipped ? "equipped" : owned ? "owned" : undefined,
     });
-    if (owned) side.append(this.ownedCheck());
-    else this.appendBuyControls(side, rod.id, rod.priceCoins);
+    details.append(
+      shopStatGrid([
+        ["Max fish", `${rod.maxFishWeightKg.toFixed(1)} kg`],
+        ["Strength", `${rod.strength}/3`],
+        ["Control", `×${rod.control.toFixed(2)}`],
+        ["Break resist.", `${Math.round(rod.breakResistance * 100)}%`],
+        ["Catch zone", `+${Math.round(rod.catchZoneBonus * 100)}%`],
+      ]),
+    );
+    if (!owned) this.appendBuyControls(side, rod.id, rod.name, "rod", rod.priceCoins);
     return card;
   }
 
   private lureCard(state: GameStateResponse, lure: LureDefinition): HTMLElement {
     const ownedItem = state.inventory.lures.find((item) => item.id === lure.id && item.quantity > 0);
-    const { card, side } = this.shopItemShell({
+    const equipped = Boolean(ownedItem && state.activeEquipment.lureId === lure.id);
+    const { card, details, side } = this.shopItemShell({
       tone: "lure",
       icon: "lure",
       name: lure.name,
-      stat: `${lure.maximumDurability} uses · +${Math.round(lure.catchZoneBonus * 100)}% catch zone${ownedItem ? ` · own ${ownedItem.quantity}` : ""}`,
+      description: lure.description,
+      status: equipped ? "equipped" : ownedItem ? "owned" : undefined,
     });
-    this.appendBuyControls(side, lure.id, lure.priceCoins);
+    details.append(
+      shopStatGrid([
+        ["Uses", `${lure.maximumDurability}`],
+        ["Catch zone", `+${Math.round(lure.catchZoneBonus * 100)}%`],
+        ["Difficulty", `+${Math.round(lure.difficultyModifier * 100)}%`],
+        ["Owned", `${ownedItem?.quantity ?? 0}`],
+      ]),
+      shopSpeciesList("Best for", speciesNamesForIds(state, lure.preferredFishIds)),
+    );
+    this.appendBuyControls(side, lure.id, lure.name, "lure", lure.priceCoins);
     return card;
   }
 
   private baitCard(state: GameStateResponse, bait: BaitDefinition): HTMLElement {
     const ownedQuantity = state.inventory.baits.find((item) => item.id === bait.id)?.quantity ?? 0;
     const quantity = this.baitQuantities.get(bait.id) ?? 1;
-    const { card, body, side } = this.shopItemShell({
+    const equipped = ownedQuantity > 0 && state.activeEquipment.baitId === bait.id;
+    const { card, body, details, side } = this.shopItemShell({
       tone: "bait",
       icon: "bait",
       name: bait.name,
-      stat: `${bait.fishIds.length} species · ${formatCoins(bait.priceCoins)} each${ownedQuantity > 0 ? ` · own ${ownedQuantity}` : ""}`,
+      description: bait.description,
+      status: equipped ? "equipped" : ownedQuantity > 0 ? "owned" : undefined,
     });
+    details.append(
+      shopStatGrid([
+        ["Attraction", `×${bait.attraction.toFixed(2)}`],
+        ["Price", `${formatCoins(bait.priceCoins)} / portion`],
+        ["Owned", `${ownedQuantity}`],
+      ]),
+      shopSpeciesList("Attracts", speciesNamesForIds(state, bait.fishIds)),
+    );
     const chips = createElement("div", "qty-chips");
     chips.setAttribute("role", "group");
     chips.setAttribute("aria-label", `Amount of ${bait.name} to buy`);
@@ -984,7 +1117,7 @@ export class AppShell {
       chips.append(chip);
     }
     body.append(chips);
-    this.appendBuyControls(side, bait.id, bait.priceCoins * quantity, quantity);
+    this.appendBuyControls(side, bait.id, bait.name, "bait", bait.priceCoins * quantity, quantity);
     return card;
   }
 

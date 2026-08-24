@@ -921,10 +921,13 @@ button.gear-tile:active {
 }
 
 .gear-name {
+  display: -webkit-box;
   max-width: 100%;
+  min-height: 2.2em;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.1;
   font-size: 0.68rem;
   font-weight: 700;
 }
@@ -1024,7 +1027,9 @@ button.gear-tile:active {
   left: 0;
   display: grid;
   gap: 6px;
+  width: max-content;
   min-width: 230px;
+  max-width: min(280px, calc(100vw - 24px));
   padding: 10px;
   border: 1px solid var(--line-strong);
   border-radius: 14px;
@@ -1051,6 +1056,9 @@ button.gear-tile:active {
 }
 
 .equipment-option {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
   min-height: 42px;
   padding: 9px 11px;
   border: 1px solid var(--line);
@@ -1058,9 +1066,21 @@ button.gear-tile:active {
   color: var(--ink);
   background: rgba(17, 37, 55, 0.6);
   font-size: 0.78rem;
+  line-height: 1.25;
   text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.equipment-option-name {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.equipment-option-detail {
+  color: var(--ink-dim);
+  font-size: 0.68rem;
 }
 
 .equipment-option.is-active {
@@ -1214,13 +1234,30 @@ button.gear-tile:active {
   align-items: center;
   gap: 6px;
   color: var(--gold);
-  font-size: 0.74rem;
-  font-weight: 600;
+  font-size: 0.72rem;
 }
 
 .lock-tag .icon {
   width: 13px;
   height: 13px;
+  flex: 0 0 auto;
+}
+
+.lock-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lock-copy strong {
+  color: #ffe0a0;
+  font-size: 0.72rem;
+}
+
+.lock-copy small {
+  color: var(--ink-dim);
+  font-size: 0.66rem;
+  line-height: 1.35;
 }
 
 .location-card.is-selected {
@@ -1261,8 +1298,22 @@ button.gear-tile:active {
 }
 
 .location-card.is-locked {
-  opacity: 0.55;
-  filter: saturate(0.5);
+  opacity: 0.84;
+  filter: saturate(0.72);
+}
+
+.location-fish {
+  display: grid;
+  gap: 5px;
+}
+
+.location-detail-label,
+.shop-detail-label {
+  color: var(--aqua);
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .fish-chips {
@@ -1281,9 +1332,21 @@ button.gear-tile:active {
   font-weight: 500;
 }
 
-.fish-chip.is-more {
-  color: var(--ink-faint);
-  border-style: dashed;
+.fish-list-details {
+  display: grid;
+  gap: 6px;
+}
+
+.fish-list-summary {
+  width: fit-content;
+  color: var(--aqua);
+  font-size: 0.67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fish-chips-expanded {
+  padding-top: 1px;
 }
 
 .cast-bar {
@@ -1650,14 +1713,19 @@ button.gear-tile:active {
 .shop-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 11px;
   padding: 10px 12px;
 }
 
 .shop-item.is-owned {
-  opacity: 0.6;
-  filter: saturate(0.7);
+  border-color: rgba(151, 201, 227, 0.24);
+  filter: saturate(0.78);
+}
+
+.shop-item.is-equipped {
+  border-color: rgba(94, 234, 212, 0.5);
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.15), var(--shadow-card);
 }
 
 .shop-icon {
@@ -1676,36 +1744,134 @@ button.gear-tile:active {
 
 .shop-body {
   display: grid;
-  gap: 2px;
+  gap: 7px;
+  min-width: 0;
+}
+
+.shop-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
   min-width: 0;
 }
 
 .shop-body h2 {
+  min-width: 0;
   font-size: 0.92rem;
+  line-height: 1.2;
 }
 
-.shop-stat {
+.shop-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid rgba(151, 201, 227, 0.28);
+  border-radius: 999px;
+  color: var(--ink-dim);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shop-state .icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.5;
+}
+
+.shop-state.is-equipped {
+  border-color: rgba(94, 234, 212, 0.48);
+  color: #9ff5e5;
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.shop-state.is-owned {
+  color: #c7d9e4;
+  background: rgba(151, 201, 227, 0.08);
+}
+
+.shop-description {
   margin: 0;
   color: var(--ink-dim);
-  font-size: 0.7rem;
-  line-height: 1.4;
+  font-size: 0.72rem;
+  line-height: 1.42;
+}
+
+.shop-details {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shop-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.shop-stat-cell {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(11, 32, 49, 0.58);
+}
+
+.shop-stat-cell strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.shop-stat-cell span {
+  font-size: 0.57rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.shop-species {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.shop-species .fish-chips {
+  overflow: visible;
+}
+
+.shop-body .fish-chip {
+  font-size: 0.63rem;
+}
+
+.shop-body .qty-chips {
+  margin-top: 0;
 }
 
 .shop-side {
   display: grid;
   gap: 4px;
   justify-items: end;
-  align-content: center;
+  align-content: start;
+  min-width: 78px;
 }
 
 .buy-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 38px;
-  min-width: 74px;
-  padding: 8px 14px;
+  min-width: 86px;
+  padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 12px;
   color: #052430;
@@ -1718,7 +1884,23 @@ button.gear-tile:active {
   transition: transform 0.18s var(--ease-spring), filter 0.18s ease;
 }
 
-.buy-btn .icon {
+.buy-label {
+  white-space: nowrap;
+}
+
+.buy-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.buy-price small {
+  color: rgba(5, 36, 48, 0.72);
+  font-size: 0.66rem;
+}
+
+.buy-price .icon {
   width: 13px;
   height: 13px;
   stroke-width: 2.2;
@@ -1741,22 +1923,6 @@ button.gear-tile:active {
   font-size: 0.62rem;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.owned-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 4px;
-  color: #8cefc0;
-  font-size: 0.76rem;
-  font-weight: 700;
-}
-
-.owned-check .icon {
-  width: 15px;
-  height: 15px;
-  stroke-width: 2.4;
 }
 
 .qty-chips {
@@ -2490,6 +2656,10 @@ button.gear-tile:active {
    ------------------------------------------------------------ */
 
 @media (min-width: 720px) {
+  .shop-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .locations-list {
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
