@@ -235,6 +235,90 @@ async function verifyGearSelector({ browser, base, check, recordConsoleError }) 
   await page.close();
 }
 
+async function verifyCatchResults({ browser, base, check, recordConsoleError }) {
+  const page = await browser.newPage({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  attachConsoleListeners(page, recordConsoleError);
+  await page.route("https://en.wikipedia.org/w/api.php**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ query: { pages: [] } }) });
+  });
+  await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+  const state = await page.evaluate(async () => {
+    const token = sessionStorage.getItem("fishing-with-friends.session");
+    const response = await fetch("/api/game/state", { headers: { Authorization: `Bearer ${token}` } });
+    return response.json();
+  });
+
+  const renderResult = async ({ outcome = "caught", rodBroke = false } = {}) => {
+    await page.evaluate(async ({ state, outcome, rodBroke }) => {
+      const { AppShell } = await import("/src/ui/app-shell.ts");
+      const root = document.querySelector("#ui-root");
+      const shell = new AppShell(root);
+      shell.setGameState(state);
+      const species = state.catalog.fish[0];
+      const location = state.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
+      const specimen = {
+        id: "catch-result-fixture",
+        speciesId: species.id,
+        species,
+        weightKg: species.typicalWeightKg * 1.35,
+        lengthCm: Math.round(species.typicalLengthCm * 1.2),
+        quality: "trophy",
+        saleValueCoins: 184,
+        caughtAt: new Date().toISOString(),
+        locationId: location.id,
+        locationName: location.name,
+      };
+      shell.showFishingResult({
+        outcome,
+        message: outcome === "caught" ? "A clean fight and a beautiful fish." : "One last run shook the hook free.",
+        species,
+        rodId: state.activeEquipment.rodId,
+        rodRiskBand: rodBroke ? "high" : "low",
+        rodBreakChancePercent: rodBroke ? 27.5 : 0.25,
+        catch: outcome === "caught" ? specimen : null,
+        rodBroke,
+        replacementRodId: rodBroke ? state.catalog.rods[1]?.id ?? null : null,
+      }, () => {}, () => {});
+    }, { state, outcome, rodBroke });
+  };
+
+  await renderResult();
+  await page.waitForSelector(".catch-reveal");
+  check("catch result leads with trophy reveal", (await page.locator(".catch-reveal .catch-hero-image").count()) === 1, "fish reveal rendered");
+  check("catch result shows three primary stats", (await page.locator(".catch-specimen .stat-chip").count()) === 3, "weight, length, and value visible");
+  check("catch result presents keep and sell equally", (await page.locator(".catch-choice").count()) === 2, "two decision cards rendered");
+  check("catch result keeps tackle report collapsed", !(await page.locator(".result-risk").getAttribute("open")), "low-risk report collapsed");
+  const catchTabbar = await rectOf(page, ".tabbar");
+  const initialDecision = await rectOf(page, ".catch-decision");
+  const decisionStyles = await page.locator(".catch-decision").evaluate((element) => ({
+    position: getComputedStyle(element).position,
+    bottom: getComputedStyle(element).bottom,
+    parentTransform: getComputedStyle(element.parentElement).transform,
+    parentAnimation: getComputedStyle(element.parentElement).animationName,
+  }));
+  check("catch decision is immediately visible", initialDecision.top >= 0 && initialDecision.bottom <= catchTabbar.top + 2, `decision ${initialDecision.top.toFixed(1)}–${initialDecision.bottom.toFixed(1)} vs tabbar top ${catchTabbar.top.toFixed(1)}; ${JSON.stringify(decisionStyles)}`);
+  await page.screenshot({ path: "/tmp/layout-catch-result-top.png" });
+  await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await page.waitForTimeout(180);
+  const sellChoice = await rectOf(page, ".sell-choice");
+  check("catch decisions clear bottom chrome", sellChoice.bottom <= catchTabbar.top + 2, `decision bottom ${sellChoice.bottom.toFixed(1)} vs tabbar top ${catchTabbar.top.toFixed(1)}`);
+  await page.screenshot({ path: "/tmp/layout-catch-result.png" });
+
+  await renderResult({ rodBroke: true });
+  check("broken rod report opens automatically", (await page.locator(".result-risk").getAttribute("open")) !== null, "action-needed report expanded");
+  check("broken rod report names replacement", /equipped now|claim a free/i.test(await page.locator(".tackle-report-body").textContent()), "recovery path visible");
+
+  await renderResult({ outcome: "lost" });
+  check("lost result has a focused retry state", (await page.locator(".lost-reveal").count()) === 1 && (await page.locator(".retry-cast").count()) === 1, "lost reveal and retry rendered");
+  await page.close();
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage({
   viewport: { width: 393, height: 852 },
@@ -422,6 +506,7 @@ check("bait cards explain attraction", (await page.locator(".shop-species").coun
 await page.screenshot({ path: "/tmp/layout-shop-bait-qty.png" });
 
 await verifyGearSelector({ browser, base: BASE, check, recordConsoleError });
+await verifyCatchResults({ browser, base: BASE, check, recordConsoleError });
 
 // ---------- Chunk 3 economy confirmation ----------
 const stateForCollection = await page.evaluate(async () => {
