@@ -296,6 +296,16 @@ class FakeD1Statement {
       return 0;
     }
 
+    if (sql.includes("SET durability = ? WHERE") && sql.includes("durability <= 0")) {
+      const [freshDurability, playerId, lureId] = this.values as [number, string, string];
+      const lure = findEquipment(stores, playerId, "lure", lureId);
+      if (lure && (lure.durability ?? 0) < 1) {
+        lure.durability = freshDurability;
+        return 1;
+      }
+      return 0;
+    }
+
     if (sql.includes("UPDATE player_equipment SET quantity = quantity - 1")) {
       const [playerId, equipmentId] = this.values as [string, string];
       const item = findEquipment(stores, playerId, "bait", equipmentId);
@@ -653,7 +663,7 @@ describe("shop", () => {
   it("sells bait, validates purchases, and rejects unaffordable items", async () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
     try {
-      const { env, token } = await setup();
+      const { env, stores, token } = await setup();
       const headers = jsonHeaders(token);
 
       const worms = await app.request("/api/game/shop/purchase", { method: "POST", headers, body: JSON.stringify({ itemId: "worm", quantity: 5 }) }, env);
@@ -685,6 +695,14 @@ describe("shop", () => {
       const crayfishResult = (await crayfish.json()) as { coins: number; inventory: GameStateResponse["inventory"] };
       expect(crayfishResult.coins).toBe(sale.coins - 28);
       expect(crayfishResult.inventory.baits.find((bait) => bait.id === "crayfish")?.quantity).toBe(1);
+
+      const lure = stores.equipment.find((item) => item.player_id && item.equipment_type === "lure");
+      if (!lure) throw new Error("Starter lure was not initialized.");
+      lure.durability = 3;
+      const replacementLure = await app.request("/api/game/shop/purchase", { method: "POST", headers, body: JSON.stringify({ itemId: lure.equipment_id }) }, env);
+      expect(replacementLure.status).toBe(200);
+      const replacementResult = (await replacementLure.json()) as { inventory: GameStateResponse["inventory"] };
+      expect(replacementResult.inventory.lures[0]).toMatchObject({ id: lure.equipment_id, quantity: 2, durability: 3 });
 
       const selectCrayfish = await app.request("/api/game/equipment/select", { method: "POST", headers, body: JSON.stringify({ baitId: "crayfish" }) }, env);
       expect(selectCrayfish.status).toBe(200);
