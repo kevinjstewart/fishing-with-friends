@@ -1494,80 +1494,121 @@ export class AppShell {
 
   showFishingResult(result: CompleteFishingResponse, onDecision: (decision: "keep" | "sell") => void, onBack: () => void): void {
     this.clearStatus();
-    const panel = createElement("section", "fishing-status");
+    const panel = createElement("section", `fishing-status catch-result outcome-${result.outcome}`);
     const species = result.species ?? result.catch?.species;
-    const outcome = createElement("div", `outcome-banner outcome-${result.outcome}`);
-    outcome.append(
-      createElement("span", "outcome-kicker", result.outcome === "caught" ? "CATCH CONFIRMED" : "CATCH LOST"),
-      createElement("strong", undefined, result.outcome === "caught" ? "The fish is yours to decide" : "The fish got away"),
-    );
-    panel.append(
-      outcome,
-      createElement("span", "eyebrow", result.outcome === "caught" ? "Fish landed" : "The line went slack"),
-      createElement("h1", undefined, result.outcome === "caught" && result.catch ? result.catch.species.commonName : species?.commonName ?? "Unknown fish"),
-      createElement("p", "result-message", result.message),
-    );
-
-    const risk = createElement("aside", `result-risk risk-${result.rodRiskBand}`);
     const rod = this.gameState?.catalog.rods.find((candidate) => candidate.id === result.rodId);
-    const riskHeading = createElement("div", "result-risk-heading");
-    riskHeading.append(createElement("strong", undefined, riskLabel(result.rodRiskBand)));
-    risk.append(
-      riskHeading,
-      createElement("p", undefined, `${rod?.name ?? "Your rod"} had a ${result.rodBreakChancePercent.toFixed(2)}% break chance for this fish.`),
-      createElement("span", "result-risk-consequence", result.rodBroke ? "The rod broke and is no longer usable." : RISK_PRESENTATION[result.rodRiskBand].consequence),
-    );
-    panel.append(risk);
 
-    if (result.rodBroke) {
-      const warning = createElement("aside", "rod-break-warning");
-      const replacementName = result.replacementRodId
-        ? this.gameState?.catalog.rods.find((candidate) => candidate.id === result.replacementRodId)?.name ?? "your strongest remaining rod"
-        : undefined;
-      warning.append(
-        createElement("strong", undefined, `${rod?.name ?? "Your rod"} snapped.`),
-        createElement(
-          "p",
-          "muted",
-          replacementName
-            ? `${replacementName} is equipped now. Replace the broken rod in the shop before taking another high-risk cast.`
-            : "No usable rod remains. Open Shop → Rods to claim the free Starter Fiberglass replacement before casting again.",
-        ),
+    const tackleReport = (): HTMLDetailsElement => {
+      const report = document.createElement("details");
+      report.className = `result-risk risk-${result.rodRiskBand}${result.rodBroke ? " did-break" : ""}`;
+      report.open = result.rodBroke;
+      const summary = document.createElement("summary");
+      const summaryLabel = createElement("span", "tackle-report-label");
+      summaryLabel.append(createIcon("rod"), document.createTextNode(result.rodBroke ? "Rod snapped" : "Tackle report"));
+      summary.append(summaryLabel, createElement("strong", undefined, result.rodBroke ? "Action needed" : riskLabel(result.rodRiskBand)));
+      const body = createElement("div", "tackle-report-body");
+      body.append(
+        createElement("p", undefined, `${rod?.name ?? "Your rod"} faced a ${result.rodBreakChancePercent.toFixed(2)}% break chance.`),
+        createElement("span", "result-risk-consequence", result.rodBroke ? "This rod is no longer usable." : RISK_PRESENTATION[result.rodRiskBand].consequence),
       );
-      panel.append(warning);
-    }
+      if (result.rodBroke) {
+        const replacementName = result.replacementRodId
+          ? this.gameState?.catalog.rods.find((candidate) => candidate.id === result.replacementRodId)?.name ?? "your strongest remaining rod"
+          : undefined;
+        body.append(
+          createElement(
+            "p",
+            "rod-replacement",
+            replacementName
+              ? `${replacementName} is equipped now.`
+              : "Claim a free Starter Fiberglass rod in Shop → Rods before casting again.",
+          ),
+        );
+      }
+      report.append(summary, body);
+      return report;
+    };
+
     if (result.catch) {
-      panel.append(createFishImage(result.catch.species));
-      panel.append(this.specimenDetails(result.catch));
-      const actions = createElement("div", "result-actions");
-      const keep = createElement("button", "secondary-action keep-action");
-      keep.append(createIcon("trophy"), "Keep fish");
-      const sell = createElement("button", "primary-action", `Sell fish · ${formatCoins(result.catch.saleValueCoins)} coins`);
+      const reveal = createElement("article", "catch-reveal");
+      const masthead = createElement("header", "catch-masthead");
+      const landedSeal = createElement("span", "landed-seal");
+      landedSeal.append(createIcon("spark"), document.createTextNode("LANDED"));
+      const title = createElement("div", "catch-title");
+      title.append(createElement("span", "eyebrow", result.catch.locationName), createElement("h1", undefined, result.catch.species.commonName));
+      masthead.append(title, landedSeal);
+
+      const visual = createElement("div", "catch-visual");
+      const image = createFishImage(result.catch.species);
+      image.classList.add("catch-hero-image");
+      const quality = createElement("span", `catch-quality quality-${result.catch.quality}`, capitalize(result.catch.quality));
+      visual.append(image, quality);
+
+      const details = this.specimenDetails(result.catch);
+      details.classList.add("catch-specimen");
+      const flavor = createElement("p", "catch-flavor", result.message);
+      reveal.append(masthead, visual, details, flavor);
+
+      const decision = createElement("section", "catch-decision");
+      const decisionHeading = createElement("div", "catch-decision-heading");
+      decisionHeading.append(createElement("span", "eyebrow", "Your call"), createElement("strong", undefined, "Keep the trophy or cash out?"));
+      const actions = createElement("div", "result-actions catch-actions");
+      const keep = createElement("button", "catch-choice keep-choice");
+      const keepCopy = createElement("span", "choice-copy");
+      keepCopy.append(createElement("strong", undefined, "Keep"), createElement("small", undefined, "Add to collection"));
+      keep.append(createIcon("trophy"), keepCopy);
+      const sell = createElement("button", "catch-choice sell-choice");
+      const sellCopy = createElement("span", "choice-copy");
+      sellCopy.append(createElement("strong", undefined, "Sell"), createElement("small", undefined, `+${formatCoins(result.catch.saleValueCoins)} coins`));
+      sell.append(createIcon("coin"), sellCopy);
       keep.type = "button";
       sell.type = "button";
       keep.addEventListener("click", () => onDecision("keep"));
       sell.addEventListener("click", () => onDecision("sell"));
       actions.append(keep, sell);
-      panel.append(actions);
+      decision.append(decisionHeading, actions);
+      panel.append(reveal, tackleReport(), decision);
     } else {
-      const back = createElement("button", "secondary-action", "Back to lakes");
+      const lost = createElement("article", "lost-reveal");
+      const lostMark = createElement("span", "lost-mark");
+      lostMark.append(createIcon("fish"));
+      lost.append(
+        lostMark,
+        createElement("span", "eyebrow", "The line went slack"),
+        createElement("h1", undefined, "It got away"),
+        createElement("strong", "lost-species", species?.commonName ?? "Unknown fish"),
+        createElement("p", "result-message", result.message),
+      );
+      const back = createElement("button", "primary-action retry-cast");
+      back.append(createIcon("waves"), document.createTextNode("Cast again"));
       back.type = "button";
       back.addEventListener("click", onBack);
-      panel.append(back);
+      panel.append(lost, tackleReport(), back);
     }
     this.replaceScreen(panel);
   }
 
   showDecisionResult(result: CatchDecisionResponse, onBack: () => void): void {
     this.clearStatus();
-    const panel = createElement("section", "fishing-status");
-    panel.append(
-      createElement("span", "eyebrow", result.decision === "sell" ? "Fish sold" : "Fish kept"),
-      createElement("h1", undefined, result.decision === "sell" ? `+${formatCoins(result.catch.saleValueCoins)}` : "Added to your collection"),
-      createElement("p", "muted", `${result.catch.species.commonName} · Wallet: ${formatCoins(result.coins)}`),
-      this.specimenDetails(result.catch),
+    const panel = createElement("section", `fishing-status decision-result decision-${result.decision}`);
+    const mark = createElement("span", "decision-mark");
+    mark.append(createIcon(result.decision === "sell" ? "coin" : "trophy"));
+    const receipt = createElement("div", "decision-receipt");
+    receipt.append(
+      createElement("span", undefined, result.catch.species.commonName),
+      createElement("strong", undefined, result.decision === "sell" ? `+${formatCoins(result.catch.saleValueCoins)} coins` : "Collection +1"),
     );
-    const back = createElement("button", "primary-action", "Back to lakes");
+    const wallet = createElement("div", "decision-wallet");
+    wallet.append(createIcon("coin"), createElement("span", undefined, "Wallet"), createElement("strong", undefined, formatCoins(result.coins)));
+    panel.append(
+      mark,
+      createElement("span", "eyebrow", result.decision === "sell" ? "Sold" : "Trophy secured"),
+      createElement("h1", undefined, result.decision === "sell" ? "Nice payday!" : "Into the livewell!"),
+      receipt,
+      wallet,
+    );
+    const back = createElement("button", "primary-action decision-continue");
+    back.append(createIcon("waves"), document.createTextNode("Fish again"));
     back.type = "button";
     back.addEventListener("click", onBack);
     panel.append(back);
