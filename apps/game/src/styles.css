@@ -246,6 +246,22 @@ button {
   transition: opacity 0.28s ease, visibility 0.28s ease;
 }
 
+.app-frame::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--app-safe-top));
+  left: calc(-1 * var(--app-safe-left));
+  right: calc(-1 * var(--app-safe-right));
+  height: calc(var(--app-safe-top) + var(--topbar-h));
+  background: linear-gradient(
+    180deg,
+    rgba(4, 18, 32, 0.92),
+    rgba(4, 18, 32, 0.55) 78%,
+    transparent
+  );
+  pointer-events: none;
+}
+
 /* While fighting, the scene owns the entire screen. */
 body.is-fighting .app-frame {
   opacity: 0;
@@ -258,6 +274,7 @@ body.is-fighting .app-frame {
    ------------------------------------------------------------ */
 
 .app-topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -267,7 +284,6 @@ body.is-fighting .app-frame {
     12px
     6px
     12px;
-  background: linear-gradient(180deg, rgba(4, 18, 32, 0.92), rgba(4, 18, 32, 0.55) 78%, transparent);
   pointer-events: auto;
 }
 
