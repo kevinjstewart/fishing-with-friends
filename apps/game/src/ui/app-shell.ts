@@ -14,6 +14,7 @@ import type {
 } from "@fishing/shared";
 import { createElement } from "./create-element";
 import { createFishImage } from "./fish-images";
+import { getSpeciesSizeComparison } from "./specimen-size";
 
 export type ScreenId = "lakes" | "friends" | "shop" | "collection" | "journal";
 
@@ -1075,11 +1076,40 @@ export class AppShell {
 
   private specimenDetails(specimen: FishSpecimen): HTMLElement {
     const details = createElement("div", "specimen-details");
+    const comparison = getSpeciesSizeComparison(specimen);
+    const size = createElement("div", "species-size");
+    const sizeHeading = createElement("div", "species-size-heading");
+    sizeHeading.append(
+      createElement("span", "species-size-label", "Species size"),
+      createElement("strong", "species-size-value", `${comparison.percentOfMaximum}% of max`),
+    );
+
+    const track = createElement("div", "species-size-track");
+    track.setAttribute(
+      "aria-label",
+      `${specimen.weightKg.toFixed(1)} kilograms, ${comparison.label.toLowerCase()} for ${specimen.species.commonName}. Typical is ${specimen.species.typicalWeightKg.toFixed(1)} kilograms and the species maximum is ${specimen.species.maximumWeightKg.toFixed(1)} kilograms.`,
+    );
+    track.setAttribute("role", "img");
+    const fill = createElement("span", "species-size-fill");
+    fill.style.width = `${comparison.fillPercent}%`;
+    const typicalMarker = createElement("span", "species-size-typical");
+    typicalMarker.style.left = `${comparison.typicalMarkerPercent}%`;
+    typicalMarker.setAttribute("aria-hidden", "true");
+    typicalMarker.title = `Typical size: ${specimen.species.typicalWeightKg.toFixed(1)} kg`;
+    track.append(fill, typicalMarker);
+
+    const scale = createElement("div", "species-size-scale");
+    scale.append(
+      createElement("span", "species-size-status", comparison.label),
+      createElement("span", "species-size-typical-label", `Typical ${specimen.species.typicalWeightKg.toFixed(1)} kg · Max ${specimen.species.maximumWeightKg.toFixed(1)} kg`),
+    );
+    size.append(sizeHeading, track, scale);
     details.append(
       createElement("strong", undefined, capitalize(specimen.quality)),
       statChip(specimen.weightKg.toFixed(1), "KG"),
       statChip(`${specimen.lengthCm}`, "CM"),
       statChip(specimen.saleValueCoins.toLocaleString(), "COINS"),
+      size,
     );
     return details;
   }

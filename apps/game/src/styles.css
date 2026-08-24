@@ -1911,6 +1911,101 @@ button.gear-tile:active {
   font-size: 0.78rem;
 }
 
+.specimen-details .species-size {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  padding: 10px 11px 9px;
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  border-radius: 12px;
+  background: rgba(13, 34, 52, 0.48);
+}
+
+.specimen-details .species-size-heading,
+.specimen-details .species-size-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.specimen-details .species-size-heading {
+  color: var(--ink-faint);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.specimen-details .species-size-value {
+  color: var(--aqua);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.species-size-track {
+  position: relative;
+  height: 8px;
+  overflow: visible;
+  border-radius: 999px;
+  background: rgba(151, 201, 227, 0.14);
+}
+
+.species-size-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 3px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--aqua));
+  box-shadow: 0 0 12px rgba(94, 234, 212, 0.32);
+}
+
+.species-size-fill::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  border: 2px solid var(--aqua);
+  border-radius: 50%;
+  background: var(--bg-mid);
+  box-shadow: 0 0 10px rgba(94, 234, 212, 0.55);
+}
+
+.species-size-typical {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  transform: translateX(-1px);
+  border-radius: 2px;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.65);
+}
+
+.specimen-details .species-size-scale {
+  color: var(--ink-faint);
+  font-size: 0.65rem;
+  line-height: 1.3;
+}
+
+.specimen-details .species-size-status {
+  color: var(--aqua);
+  font-weight: 700;
+}
+
+.specimen-details .species-size-typical-label::before {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  margin-right: 5px;
+  transform: translateY(1px);
+  border-radius: 2px;
+  background: var(--gold);
+}
+
 .rod-break-warning {
   display: grid;
   gap: 4px;

@@ -26,7 +26,7 @@ The game should be functionally complete when the main checklist is complete. De
 
 ## Current checkpoint — 2026-08-22
 
-* [x] The initial data-driven catalogue now contains three freshwater locations, three boats, three rods, three lures, four baits, and thirteen fish species with biological ranges, movement profiles, and source attribution.
+* [x] The data-driven catalogue now contains four freshwater locations, three boats, three rods, four lures, five baits, and seventeen fish species with biological ranges, movement profiles, and source attribution.
 * [x] Authenticated players now receive an idempotently persisted starter state: 100 coins, Shore Fishing access, a Starter Fiberglass rod, a Copper Spinner with 10 durability, and 10 Worms.
 * [x] The Worker now creates encounters, consumes bait and lure durability, calculates specimen size/value, resolves bounded skill performance, and supports keep/sell decisions with duplicate-resolution guards.
 * [x] The browser displays the server-owned loadout and lake access states, including lake selection and a touch/mouse/keyboard fishing challenge.
