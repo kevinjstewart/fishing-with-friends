@@ -36,29 +36,26 @@
   --shadow-card: 0 14px 34px rgba(1, 10, 18, 0.35);
   --shadow-glow: 0 8px 26px rgba(56, 205, 236, 0.28);
 
-  --safe-top: calc(
-    env(safe-area-inset-top, 0px)
-    + var(--tg-safe-area-inset-top, 0px)
-    + var(--tg-content-safe-area-inset-top, 0px)
-  );
-  --safe-bottom: calc(
-    env(safe-area-inset-bottom, 0px)
-    + var(--tg-safe-area-inset-bottom, 0px)
-    + var(--tg-content-safe-area-inset-bottom, 0px)
-  );
-  --safe-left: calc(
-    env(safe-area-inset-left, 0px)
-    + var(--tg-safe-area-inset-left, 0px)
-    + var(--tg-content-safe-area-inset-left, 0px)
-  );
-  --safe-right: calc(
-    env(safe-area-inset-right, 0px)
-    + var(--tg-safe-area-inset-right, 0px)
-    + var(--tg-content-safe-area-inset-right, 0px)
-  );
+  /* The single boundary between Telegram/browser insets and app layout.
+     Production and the local Telegram simulator both publish these values. */
+  --app-device-safe-top: var(--tg-safe-area-inset-top, 0px);
+  --app-device-safe-bottom: var(--tg-safe-area-inset-bottom, 0px);
+  --app-device-safe-left: var(--tg-safe-area-inset-left, 0px);
+  --app-device-safe-right: var(--tg-safe-area-inset-right, 0px);
+
+  --app-telegram-safe-top: var(--tg-content-safe-area-inset-top, 0px);
+  --app-telegram-safe-bottom: var(--tg-content-safe-area-inset-bottom, 0px);
+  --app-telegram-safe-left: var(--tg-content-safe-area-inset-left, 0px);
+  --app-telegram-safe-right: var(--tg-content-safe-area-inset-right, 0px);
+
+  --app-safe-top: calc(var(--app-device-safe-top) + var(--app-telegram-safe-top));
+  --app-safe-bottom: calc(var(--app-device-safe-bottom) + var(--app-telegram-safe-bottom));
+  --app-safe-left: calc(var(--app-device-safe-left) + var(--app-telegram-safe-left));
+  --app-safe-right: calc(var(--app-device-safe-right) + var(--app-telegram-safe-right));
 
   --topbar-h: 56px;
   --tabbar-h: 62px;
+  --tabbar-content-height: var(--tabbar-h);
 
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -136,12 +133,84 @@ button {
 #safe-area-probe {
   position: absolute;
   visibility: hidden;
+  width: 0;
+  height: 0;
+  overflow: hidden;
   pointer-events: none;
   padding:
-    var(--safe-top)
-    var(--safe-right)
-    var(--safe-bottom)
-    var(--safe-left);
+    var(--app-safe-top)
+    var(--app-safe-right)
+    var(--app-safe-bottom)
+    var(--app-safe-left);
+}
+
+.telegram-chrome,
+.telegram-chrome > div {
+  position: fixed;
+  margin: 0;
+  border: 0;
+  box-sizing: border-box;
+  pointer-events: none !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: white;
+  background: rgba(255, 45, 85, 0.82);
+  z-index: 2147483000;
+}
+
+.telegram-chrome-status {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-device-safe-top);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 18px 14px;
+  font-size: 12px;
+}
+
+.telegram-chrome-controls {
+  top: var(--app-device-safe-top);
+  left: 0;
+  right: 0;
+  height: var(--app-telegram-safe-top);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 159, 10, 0.84);
+  font-size: 12px;
+}
+
+.telegram-chrome-edge-left,
+.telegram-chrome-edge-right {
+  top: 0;
+  bottom: 0;
+  width: calc(var(--app-device-safe-left) + var(--app-telegram-safe-left));
+}
+
+.telegram-chrome-edge-right {
+  left: auto;
+  right: 0;
+  width: calc(var(--app-device-safe-right) + var(--app-telegram-safe-right));
+}
+
+.telegram-chrome-home {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-device-safe-bottom);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 7px;
+}
+
+.telegram-chrome-home::after {
+  content: "";
+  width: 134px;
+  height: 5px;
+  border-radius: 999px;
+  background: white;
 }
 
 /* ------------------------------------------------------------
@@ -169,6 +238,11 @@ button {
   z-index: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  padding:
+    var(--app-safe-top)
+    var(--app-safe-right)
+    0
+    var(--app-safe-left);
   transition: opacity 0.28s ease, visibility 0.28s ease;
 }
 
@@ -187,12 +261,12 @@ body.is-fighting .app-frame {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: calc(var(--topbar-h) + var(--safe-top));
+  min-height: var(--topbar-h);
   padding:
-    calc(6px + var(--safe-top))
-    max(12px, var(--safe-right))
     6px
-    max(12px, var(--safe-left));
+    12px
+    6px
+    12px;
   background: linear-gradient(180deg, rgba(4, 18, 32, 0.92), rgba(4, 18, 32, 0.55) 78%, transparent);
   pointer-events: auto;
 }
@@ -289,9 +363,9 @@ body.is-fighting .app-frame {
   align-content: start;
   padding:
     4px
-    max(12px, var(--safe-right))
-    0
-    max(12px, var(--safe-left));
+    12px
+    calc(var(--tabbar-content-height) + var(--app-safe-bottom))
+    12px;
   scrollbar-gutter: stable;
 }
 
@@ -319,10 +393,18 @@ body.is-fighting .app-frame {
    ------------------------------------------------------------ */
 
 .tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  min-height: calc(var(--tabbar-h) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  min-height: calc(var(--tabbar-h) + var(--app-safe-bottom));
+  padding:
+    0
+    var(--app-safe-right)
+    var(--app-safe-bottom)
+    var(--app-safe-left);
   border-top: 1px solid var(--line);
   background: var(--chrome-blur);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
@@ -461,7 +543,7 @@ body.is-fighting .app-frame {
 
 .toast-layer {
   position: fixed;
-  top: calc(var(--safe-top) + var(--topbar-h) + 6px);
+  top: calc(var(--app-safe-top) + var(--topbar-h) + 6px);
   left: 50%;
   z-index: 30;
   display: grid;
@@ -1024,7 +1106,7 @@ h2 {
 
 .cast-bar {
   position: sticky;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 10px);
+  bottom: calc(var(--tabbar-content-height) + var(--app-safe-bottom) + 10px);
   z-index: 10;
   display: grid;
   gap: 8px;

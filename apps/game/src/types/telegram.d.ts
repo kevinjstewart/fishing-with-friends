@@ -25,11 +25,11 @@ declare global {
     };
     viewportStableHeight?: number;
     onEvent?: (
-      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged",
+      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged" | "fullscreenChanged",
       handler: (payload?: { isStateStable?: boolean }) => void,
     ) => void;
     offEvent?: (
-      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged",
+      eventType: "viewportChanged" | "safeAreaChanged" | "contentSafeAreaChanged" | "fullscreenChanged",
       handler: (payload?: { isStateStable?: boolean }) => void,
     ) => void;
   }

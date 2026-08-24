@@ -3,7 +3,13 @@ import "./styles.css";
 import { ApiClient, ApiClientError } from "./api/client";
 import { createGame } from "./game/create-game";
 import { AppShell, type EquipmentSelectionRequest, type ScreenId } from "./ui/app-shell";
+import { publishSafeArea, readSafeArea } from "./safe-area";
 import { createTelegramIntegration } from "./telegram/integration";
+import {
+  activateTelegramViewportMock,
+  resolveTelegramMockId,
+  telegramViewportPresets,
+} from "./telegram/mock";
 
 const uiRoot = document.querySelector<HTMLElement>("#ui-root");
 const gameRoot = document.querySelector<HTMLElement>("#game-root");
@@ -21,17 +27,28 @@ const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
 
 function syncSafeArea(): void {
   if (!safeAreaProbe) return;
-  game.registry.set("safeArea", {
-    top: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingTop) || 0,
-    right: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingRight) || 0,
-    bottom: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingBottom) || 0,
-    left: Number.parseFloat(getComputedStyle(safeAreaProbe).paddingLeft) || 0,
-  });
+  const telegramMock = window.__FISHING_TELEGRAM_MOCK__;
+  if (telegramMock) {
+    publishSafeArea(document.documentElement, {
+      device: telegramMock.safeArea,
+      content: telegramMock.contentSafeArea,
+    });
+  } else {
+    const webApp = window.Telegram?.WebApp;
+    publishSafeArea(document.documentElement, {
+      device: webApp?.safeAreaInset,
+      content: webApp?.contentSafeAreaInset,
+    });
+  }
+  game.registry.set("safeArea", readSafeArea(document.body));
   game.events.emit("safearea:changed");
 }
 
 const telegram = createTelegramIntegration(syncSafeArea);
 telegram.initialize();
+
+const telegramMock = resolveTelegramMockId(new URLSearchParams(window.location.search).get("telegramMock"));
+if (telegramMock) activateTelegramViewportMock(telegramViewportPresets[telegramMock]);
 
 syncSafeArea();
 window.addEventListener("orientationchange", () => window.setTimeout(syncSafeArea, 120));
