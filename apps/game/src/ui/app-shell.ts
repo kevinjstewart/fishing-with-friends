@@ -148,6 +148,7 @@ export class AppShell {
   private selectedLocationId?: string;
   private collectionSort: CollectionSortMode = "newest";
   private shopCategory: ShopCategory = "bait";
+  private renderedShopCategory?: ShopCategory;
   private latestCollection?: CollectionResponse;
   private latestJournal?: FishJournalResponse;
   private latestLeaderboard?: LeaderboardResponse;
@@ -702,6 +703,8 @@ export class AppShell {
   renderShop(): void {
     const state = this.gameState;
     if (!state) return;
+    const preserveScroll = this.renderedShopCategory === this.shopCategory;
+    this.renderedShopCategory = this.shopCategory;
     const panel = createElement("section", "screen shop-screen");
 
     const hero = createElement("header", "screen-hero");
@@ -748,7 +751,7 @@ export class AppShell {
     }
 
     panel.append(hero, tabs, list);
-    this.replaceScreen(panel);
+    this.replaceScreen(panel, { preserveScroll });
   }
 
   private shopItemShell(options: { tone: string; icon: IconName; name: string; stat: string; owned?: boolean }): { card: HTMLElement; body: HTMLElement; side: HTMLElement } {
@@ -1064,9 +1067,10 @@ export class AppShell {
     this.replaceScreen(panel);
   }
 
-  private replaceScreen(panel: HTMLElement): void {
+  private replaceScreen(panel: HTMLElement, options: { preserveScroll?: boolean } = {}): void {
+    const scrollTop = options.preserveScroll ? this.content.scrollTop : 0;
     this.content.replaceChildren(panel);
-    this.content.scrollTop = 0;
+    this.content.scrollTop = scrollTop;
   }
 
   private specimenDetails(specimen: FishSpecimen): HTMLElement {

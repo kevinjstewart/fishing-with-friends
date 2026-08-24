@@ -389,25 +389,6 @@ body.is-fighting .app-frame {
   scrollbar-gutter: stable;
 }
 
-.app-content > * {
-  animation: rise 0.5s var(--ease-spring) backwards;
-}
-
-.app-content > :nth-child(2) { animation-delay: 0.05s; }
-.app-content > :nth-child(3) { animation-delay: 0.1s; }
-.app-content > :nth-child(n + 4) { animation-delay: 0.15s; }
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* ------------------------------------------------------------
    Bottom tab bar
    ------------------------------------------------------------ */
@@ -987,32 +968,6 @@ button.gear-tile:active {
     border-color: rgba(94, 234, 212, 0.42);
   }
 }
-
-.gear-dock > *,
-.locations-list > *,
-.shop-list > *,
-.collection-grid > *,
-.journal-grid > * {
-  animation: rise 0.5s var(--ease-spring) backwards;
-}
-
-.gear-dock > :nth-child(2),
-.locations-list > :nth-child(2),
-.shop-list > :nth-child(2),
-.collection-grid > :nth-child(2),
-.journal-grid > :nth-child(2) { animation-delay: 0.05s; }
-
-.gear-dock > :nth-child(3),
-.locations-list > :nth-child(3),
-.shop-list > :nth-child(3),
-.collection-grid > :nth-child(3),
-.journal-grid > :nth-child(3) { animation-delay: 0.1s; }
-
-.gear-dock > :nth-child(n + 4),
-.locations-list > :nth-child(n + 3),
-.shop-list > :nth-child(n + 3),
-.collection-grid > :nth-child(n + 3),
-.journal-grid > :nth-child(n + 3) { animation-delay: 0.15s; }
 
 .specimen-details {
   display: grid;
