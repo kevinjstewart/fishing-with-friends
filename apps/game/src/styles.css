@@ -57,6 +57,8 @@
   --tabbar-h: 62px;
   --tabbar-content-height: var(--tabbar-h);
   --tabbar-total-height: calc(var(--tabbar-content-height) + var(--app-safe-bottom));
+  --cast-bar-h: 100px;
+  --cta-gap: 10px;
 
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -372,6 +374,7 @@ body.is-fighting .app-frame {
    ------------------------------------------------------------ */
 
 .app-content {
+  scroll-padding-bottom: calc(var(--tabbar-total-height) + var(--cta-gap) + var(--cast-bar-h));
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -381,7 +384,7 @@ body.is-fighting .app-frame {
   padding:
     4px
     12px
-    var(--tabbar-total-height)
+    calc(var(--tabbar-total-height) + var(--cta-gap) + var(--cast-bar-h))
     12px;
   scrollbar-gutter: stable;
 }
@@ -1125,7 +1128,7 @@ h2 {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--tabbar-total-height) + 10px);
+  bottom: calc(var(--tabbar-total-height) + var(--cta-gap));
   z-index: 10;
   display: grid;
   gap: 8px;
