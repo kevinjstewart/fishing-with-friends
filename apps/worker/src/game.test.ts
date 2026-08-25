@@ -485,7 +485,7 @@ describe("game state route", () => {
       expect.objectContaining({ id: "pinewater-lake", unlocked: false }),
       expect.objectContaining({ id: "lake-greywater", unlocked: false }),
     ]));
-    expect(state.catalog.fish).toHaveLength(17);
+    expect(state.catalog.fish).toHaveLength(40);
   });
 
   it("does not duplicate starter equipment when state is requested again", async () => {
@@ -567,7 +567,7 @@ describe("fishing loop", () => {
       const journalResponse = await app.request("/api/game/journal", { headers: { Authorization: `Bearer ${token}` } }, env);
       expect(journalResponse.status).toBe(200);
       const journal = (await journalResponse.json()) as { entries: Array<{ speciesId: string; discovered: boolean; timesCaught: number; heaviestWeightKg: number | null }> };
-      expect(journal.entries).toHaveLength(17);
+      expect(journal.entries).toHaveLength(40);
       const entry = journal.entries.find((candidate) => candidate.speciesId === encounter.species.id);
       expect(entry).toMatchObject({
         discovered: true,

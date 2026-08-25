@@ -311,7 +311,7 @@ export class AppShell {
     const mark = createElement("span", "brand-mark");
     mark.append(createIcon("rod"));
     brand.setAttribute("aria-label", "Fishing with Friends");
-    brand.append(mark, createElement("span", undefined, "FISH ON!"));
+    brand.append(mark, createElement("span", undefined, "ANGLER'S CLUB"));
 
     this.walletChip = createElement("button", "wallet-chip");
     this.walletChip.type = "button";
@@ -1018,7 +1018,7 @@ export class AppShell {
 
     const hero = createElement("header", "screen-hero");
     const heroText = createElement("div", "screen-hero-text");
-    heroText.append(createElement("span", "eyebrow", "Tackle shop"), createElement("h1", undefined, "Loadout lab"));
+    heroText.append(createElement("span", "eyebrow", "Club outfitter"), createElement("h1", undefined, "The Tackle Room"));
     const walletNote = createElement("span", "hero-value");
     walletNote.setAttribute("aria-label", `Coins available: ${formatCoins(state.coins)}`);
     walletNote.append(createIcon("coin"), createElement("span", undefined, formatCoins(state.coins)));

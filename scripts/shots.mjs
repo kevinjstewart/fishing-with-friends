@@ -14,7 +14,11 @@ await page.goto(`${BASE}/?telegramMock=ios`, { waitUntil: "networkidle" });
 await page.waitForSelector(".locations-list .location-card", { timeout: 20000 });
 
 const dismissToasts = async () => {
-  await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
+  await page.evaluate(() => {
+    document.querySelectorAll(".toast").forEach((toast) => toast.remove());
+    const frame = document.querySelector(".app-frame");
+    if (frame instanceof HTMLElement) frame.dataset.toastVisible = "false";
+  });
   await page.waitForTimeout(250);
 };
 

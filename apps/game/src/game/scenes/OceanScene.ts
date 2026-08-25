@@ -53,30 +53,30 @@ interface FightLayout {
 }
 
 const COLORS = {
-  abyss: 0x030d17,
-  deep: 0x061925,
-  waterTop: 0x11516b,
-  waterBottom: 0x04121f,
-  foam: 0xbfe8df,
-  net: 0xf4d58d,
-  netActive: 0x8ef0c7,
-  fish: 0xf4a261,
-  fishLight: 0xffd28f,
-  danger: 0xf06c62,
-  ink: 0xfff4d6,
-  dim: 0xa7c3d6,
-  glass: 0x0a1b2b,
+  abyss: 0x050604,
+  deep: 0x0b120e,
+  waterTop: 0x164b3b,
+  waterBottom: 0x07100c,
+  foam: 0xc8b77f,
+  net: 0xd6b86a,
+  netActive: 0x4dad88,
+  fish: 0xb87345,
+  fishLight: 0xe0bd7d,
+  danger: 0xb44758,
+  ink: 0xf4eddf,
+  dim: 0xaaa28f,
+  glass: 0x0b0e0b,
 };
 
 const RARITY_COLORS: Record<string, number> = {
-  common: 0xcfe3ef,
-  uncommon: 0x7ef0bd,
-  rare: 0xa5cdff,
-  legendary: 0xffe08a,
+  common: 0xc5bdad,
+  uncommon: 0x65aa88,
+  rare: 0x8e789d,
+  legendary: 0xd6b86a,
 };
 
-const DISPLAY_FONT = '"Sora", "Trebuchet MS", sans-serif';
-const BODY_FONT = '"Inter", "Trebuchet MS", sans-serif';
+const DISPLAY_FONT = '"Sora", "Avenir Next", sans-serif';
+const BODY_FONT = '"Commissioner", "Avenir Next", sans-serif';
 
 function hex(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
