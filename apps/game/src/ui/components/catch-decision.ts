@@ -119,6 +119,13 @@ export class CatchDecisionElement extends LitElement {
         font-size: 0.61rem;
       }
 
+      .sell-choice .choice-copy small {
+        color: #241b08;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+
       @media (max-height: 700px) {
         .catch-decision {
           gap: 5px;
