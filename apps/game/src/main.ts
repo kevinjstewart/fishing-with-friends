@@ -122,8 +122,8 @@ async function reconcileCollectionAndWallet(): Promise<{
 function renderLakes(): void {
   if (!currentGameState) return;
   shell.setNavEnabled(true);
-  shell.setActiveScreen("lakes");
   shell.setGameState(currentGameState);
+  shell.renderLakes();
   game.events.emit("fishing:lobby");
 }
 

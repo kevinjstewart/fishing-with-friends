@@ -142,7 +142,7 @@ async function verifyPendingPurchase({ browser, base, check, recordConsoleError 
   check("duplicate purchase is ignored", purchaseRequests === 1, `${purchaseRequests} purchase request`);
 
   purchaseGate.release();
-  await page.waitForFunction(() => document.querySelector(".app-content")?.getAttribute("aria-busy") === "false", null, { timeout: 10_000 });
+  await page.waitForFunction(() => document.querySelector("game-app")?.shadowRoot?.querySelector(".app-content")?.getAttribute("aria-busy") === "false", null, { timeout: 10_000 });
   check("pending action clears after response", await page.locator('.app-content[aria-busy="false"]').count() === 1, "aria-busy=false");
   await page.close();
 }
@@ -189,7 +189,11 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
 
   await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
   if (expired) {
-    await page.waitForFunction(() => document.querySelector(".toast[data-state=ready]")?.textContent?.includes("interrupted fishing attempt expired"), null, { timeout: 20_000 });
+    await page.waitForFunction(() => {
+      const app = document.querySelector("game-app")?.shadowRoot;
+      const toast = app?.querySelector("status-toast")?.shadowRoot?.querySelector(".toast[data-state=ready]");
+      return toast?.textContent?.includes("interrupted fishing attempt expired") ?? false;
+    }, null, { timeout: 20_000 });
     check("expired encounter is explained", (await page.locator('.toast[data-state="ready"]').textContent()).includes("interrupted fishing attempt expired"), "expired encounter message shown");
     const toastBounds = await page.locator(".toast").boundingBox();
     const topbarBounds = await page.locator(".app-topbar").boundingBox();
