@@ -368,6 +368,13 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
   await page.waitForSelector(".catch-reveal");
   check("catch result leads with trophy reveal", (await page.locator(".catch-reveal .catch-hero-image").count()) === 1, "fish reveal rendered");
   check("catch result shows three primary stats", (await page.locator(".catch-specimen .stat-chip").count()) === 3, "weight, length, and value visible");
+  check("catch result makes sell value prominent", (await page.locator("[data-testid=catch-sale-value]").count()) === 1 && /184/.test(await page.locator("[data-testid=catch-sale-value]").textContent()), "sell value badge shows +184 coins");
+  const catchVisual = await rectOf(page, ".catch-visual");
+  const sellValueBadge = await rectOf(page, "[data-testid=catch-sale-value]");
+  const catchQuality = await rectOf(page, ".catch-quality");
+  report.push(`MEASURE  sell value badge  ${sellValueBadge.width.toFixed(1)}×${sellValueBadge.height.toFixed(1)} at ${sellValueBadge.left.toFixed(1)},${sellValueBadge.top.toFixed(1)}`);
+  check("sell value badge stays inside catch image", sellValueBadge.left >= catchVisual.left && sellValueBadge.right <= catchVisual.right && sellValueBadge.top >= catchVisual.top && sellValueBadge.bottom <= catchVisual.bottom, `badge ${sellValueBadge.left.toFixed(1)}–${sellValueBadge.right.toFixed(1)} × ${sellValueBadge.top.toFixed(1)}–${sellValueBadge.bottom.toFixed(1)} inside image`);
+  check("sell value badge clears quality badge", !rectsOverlap(sellValueBadge, catchQuality), "top-right payout badge does not overlap bottom-left quality badge");
   check("catch result presents keep and sell equally", (await page.locator(".catch-choice").count()) === 2, "two decision cards rendered");
   check("catch result keeps tackle report collapsed", !(await page.locator(".result-risk").getAttribute("open")), "low-risk report collapsed");
   const catchTabbar = await rectOf(page, ".tabbar");

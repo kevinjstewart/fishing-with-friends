@@ -140,6 +140,54 @@ export class CatchResultElement extends LitElement {
         text-transform: uppercase;
       }
 
+      .catch-sale-value {
+        position: absolute;
+        top: 13px;
+        right: 13px;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 118px;
+        padding: 8px 10px 9px;
+        border: 1px solid rgba(255, 239, 166, 0.9);
+        border-radius: 7px;
+        color: #171207;
+        background: linear-gradient(135deg, #f4dfa0, #c69f4c);
+        box-shadow: inset 0 1px rgba(255, 255, 255, 0.42), 0 10px 20px rgba(0, 0, 0, 0.32);
+      }
+
+      .catch-sale-value .icon {
+        width: 21px;
+        height: 21px;
+        stroke-width: 2.1;
+      }
+
+      .catch-sale-copy {
+        display: grid;
+        gap: 2px;
+        line-height: 1;
+      }
+
+      .catch-sale-label {
+        font-size: 0.52rem;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+      }
+
+      .catch-sale-copy strong {
+        font-family: var(--font-display);
+        font-size: 1.08rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }
+
+      .catch-sale-copy strong small {
+        font-family: var(--font-body);
+        font-size: 0.52rem;
+        letter-spacing: 0.09em;
+      }
+
       .quality-good { color: var(--aqua); }
       .quality-large { color: #91c9ff; }
       .quality-trophy,
@@ -446,7 +494,7 @@ export class CatchResultElement extends LitElement {
     if (!result.catch) {
       return html`<section class="fishing-status catch-result" data-testid="catch-result"><article class="lost-reveal"><span class="lost-mark">${icon("fish")}</span><span class="eyebrow">The line went slack</span><h1>It got away</h1><strong class="lost-species">${species?.commonName ?? "Unknown fish"}</strong><p class="result-message">${result.message}</p><button class="primary-action retry-cast" type="button" ?disabled=${this.actionPending} @click=${() => emitUiEvent(this, "ui:return-to-lakes", undefined)}>${icon("waves")}<span>Cast again</span></button></article>${this.tackleReport(result)}</section>`;
     }
-    return html`<section class="fishing-status catch-result" data-testid="catch-result"><article class="catch-reveal"><header class="catch-masthead"><div class="catch-title"><span class="eyebrow">${result.catch.locationName}</span><h1>${result.catch.species.commonName}</h1></div><span class="landed-seal">${icon("spark")}<span>LANDED</span></span></header><div class="catch-visual"><fish-image variant="catch" .species=${result.catch.species}></fish-image><span class="catch-quality quality-${result.catch.quality}">${capitalize(result.catch.quality)}</span></div><specimen-details variant="catch" .specimen=${result.catch}></specimen-details><p class="catch-flavor">${result.message}</p></article>${this.tackleReport(result)}<catch-decision .specimen=${result.catch} ?actionPending=${this.actionPending}></catch-decision></section>`;
+    return html`<section class="fishing-status catch-result" data-testid="catch-result"><article class="catch-reveal"><header class="catch-masthead"><div class="catch-title"><span class="eyebrow">${result.catch.locationName}</span><h1>${result.catch.species.commonName}</h1></div><span class="landed-seal">${icon("spark")}<span>LANDED</span></span></header><div class="catch-visual"><fish-image variant="catch" .species=${result.catch.species}></fish-image><span class="catch-quality quality-${result.catch.quality}">${capitalize(result.catch.quality)}</span><div class="catch-sale-value" data-testid="catch-sale-value" role="group" aria-label=${`Sell value: ${formatCoins(result.catch.saleValueCoins)} coins`}>${icon("coin")}<span class="catch-sale-copy"><span class="catch-sale-label">SELL VALUE</span><strong>+${formatCoins(result.catch.saleValueCoins)} <small>COINS</small></strong></span></div></div><specimen-details variant="catch" .specimen=${result.catch}></specimen-details><p class="catch-flavor">${result.message}</p></article>${this.tackleReport(result)}<catch-decision .specimen=${result.catch} ?actionPending=${this.actionPending}></catch-decision></section>`;
   }
 }
 
