@@ -1,5 +1,6 @@
 import type { FishSpecies } from "@fishing/shared";
-import { createElement } from "./create-element";
+import { LitElement, html, css, nothing } from "lit";
+import { uiFoundationStyles } from "./component-styles";
 
 interface PageImagesResponse {
   query?: {
@@ -99,12 +100,7 @@ async function requestFishImage(articleTitle: string): Promise<string | null> {
     try {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
-        // A missing article is a stable negative result. Rate limits and server
-        // failures are transient and should get the same bounded retry as a
-        // network failure.
-        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
-          return null;
-        }
+        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) return null;
         throw new Error(`Fish image request failed with ${response.status}`);
       }
       const payload = (await response.json()) as PageImagesResponse;
@@ -129,21 +125,18 @@ export function loadFishImage(species: FishSpecies): Promise<string | null> {
     imageUrl = requestFishImage(articleTitle).catch(() => null);
     imageCache.set(species.id, imageUrl);
     void imageUrl.then((url) => {
-      // Do not permanently poison the cache after a transient outage. A
-      // later screen render can make a fresh, bounded attempt.
       if (!url && imageCache.get(species.id) === imageUrl) imageCache.delete(species.id);
     });
   }
   return imageUrl;
 }
 
-async function loadImageWithRetries(imageUrl: string): Promise<HTMLImageElement | null> {
+async function loadImageWithRetries(imageUrl: string): Promise<string | null> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-    const image = document.createElement("img");
+    const image = new Image();
     image.decoding = "async";
     image.loading = "eager";
     image.referrerPolicy = "no-referrer";
-
     const loaded = await new Promise<boolean>((resolve) => {
       let settled = false;
       const timeoutId = window.setTimeout(() => finish(false), IMAGE_TIMEOUT_MS);
@@ -161,53 +154,181 @@ async function loadImageWithRetries(imageUrl: string): Promise<HTMLImageElement 
       image.addEventListener("error", onError, { once: true });
       image.src = retryUrl(imageUrl, attempt);
     });
-
-    if (loaded) return image;
+    if (loaded) return retryUrl(imageUrl, attempt);
     if (attempt < MAX_ATTEMPTS - 1) await waitForRetry(attempt);
   }
-
   return null;
 }
 
-export function createFishImage(species: FishSpecies): HTMLElement {
-  const figure = document.createElement("figure");
-  figure.className = "fish-image";
-  figure.dataset.imageState = "loading";
-  const placeholder = createElement("span", "fish-image-placeholder muted", "Loading photo…");
-  figure.append(placeholder);
+export class FishImageElement extends LitElement {
+  static properties = {
+    species: { attribute: false },
+    variant: { type: String },
+  };
 
-  void loadFishImage(species).then((imageUrl) => {
-    if (!figure.isConnected) return;
-    if (!imageUrl) {
-      placeholder.textContent = "Photo unavailable";
-      figure.classList.add("is-unavailable");
-      figure.dataset.imageState = "unavailable";
-      return;
-    }
-
-    void loadImageWithRetries(imageUrl).then((image) => {
-      if (!figure.isConnected) return;
-      if (!image) {
-        placeholder.textContent = "Photo unavailable";
-        figure.classList.add("is-unavailable");
-        figure.dataset.imageState = "unavailable";
-        return;
+  static styles = [
+    uiFoundationStyles,
+    css`
+      :host {
+        display: block;
       }
 
-      image.alt = `${species.commonName} photograph from Wikipedia`;
-      const attribution = document.createElement("a");
-      attribution.href = articleUrl(FISH_ARTICLE_TITLES.get(species.id) ?? "");
-      attribution.target = "_blank";
-      attribution.rel = "noopener noreferrer";
-      attribution.textContent = "Wikipedia";
+      figure.fish-image {
+        position: relative;
+        display: block;
+        min-height: 168px;
+        margin: 0;
+        overflow: hidden;
+        border-bottom: 1px solid rgba(214, 184, 106, 0.16);
+        background: rgba(5, 16, 28, 0.5);
+      }
 
-      const caption = document.createElement("figcaption");
-      caption.append("Photo via ", attribution);
-      figure.append(image, caption);
-      figure.classList.add("is-loaded");
-      figure.dataset.imageState = "loaded";
-    });
-  });
+      .fish-image-placeholder {
+        display: grid;
+        min-height: 168px;
+        align-content: center;
+        padding: 12px;
+        color: var(--ink-faint);
+        font-size: 0.78rem;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+      }
 
-  return figure;
+      .fish-image img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 168px;
+        object-fit: cover;
+        object-position: center;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+
+      .fish-image.is-loaded .fish-image-placeholder {
+        visibility: hidden;
+        opacity: 0;
+      }
+
+      .fish-image.is-loaded img {
+        opacity: 1;
+      }
+
+      figcaption {
+        position: absolute;
+        right: 10px;
+        bottom: 0;
+        z-index: 1;
+        display: block;
+        max-width: calc(100% - 20px);
+        padding: 12px 0 7px 18px;
+        background: linear-gradient(90deg, transparent, rgba(4, 18, 32, 0.78) 32%);
+        text-align: right;
+        font-size: 0.68rem;
+      }
+
+      figcaption a {
+        color: var(--aqua);
+      }
+
+      :host([variant="catch"]) figure.fish-image,
+      figure.fish-image.catch-hero-image {
+        min-height: 220px;
+        height: 220px;
+        border: 0;
+      }
+
+      :host([variant="catch"]) .fish-image img,
+      figure.fish-image.catch-hero-image img {
+        height: 220px;
+        filter: saturate(1.08) contrast(1.04);
+      }
+
+      :host([variant="catch"]) figure.fish-image::after,
+      figure.fish-image.catch-hero-image::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, transparent 50%, rgba(3, 17, 22, 0.88));
+        pointer-events: none;
+      }
+
+      @media (max-height: 700px) {
+        :host([variant="catch"]) figure.fish-image,
+        :host([variant="catch"]) .fish-image img {
+          min-height: 176px;
+          height: 176px;
+        }
+      }
+
+      @media (forced-colors: active) {
+        figure.fish-image {
+          forced-color-adjust: none;
+          border-color: ButtonText;
+          background: Canvas;
+        }
+
+        .fish-image img {
+          forced-color-adjust: none;
+        }
+      }
+    `,
+  ];
+
+  declare species?: FishSpecies;
+  declare variant: string;
+  private imageState: "loading" | "unavailable" | "loaded" = "loading";
+  private imageUrl?: string;
+  private loadSequence = 0;
+
+  constructor() {
+    super();
+    this.variant = "card";
+  }
+
+  protected updated(changed: Map<string, unknown>): void {
+    if (!changed.has("species") || !this.species) return;
+    const sequence = ++this.loadSequence;
+    this.imageState = "loading";
+    this.imageUrl = undefined;
+    void this.loadSpeciesImage(this.species, sequence);
+  }
+
+  private async loadSpeciesImage(species: FishSpecies, sequence: number): Promise<void> {
+    const imageUrl = await loadFishImage(species);
+    if (sequence !== this.loadSequence || !this.isConnected) return;
+    if (!imageUrl) {
+      this.imageState = "unavailable";
+      this.requestUpdate();
+      return;
+    }
+    const loadedUrl = await loadImageWithRetries(imageUrl);
+    if (sequence !== this.loadSequence || !this.isConnected) return;
+    this.imageUrl = loadedUrl ?? undefined;
+    this.imageState = loadedUrl ? "loaded" : "unavailable";
+    this.requestUpdate();
+  }
+
+  render() {
+    const species = this.species;
+    if (!species) return nothing;
+    const catchClass = this.variant === "catch" ? "catch-hero-image" : "";
+    return html`
+      <figure class="fish-image ${catchClass} is-${this.imageState}" data-image-state=${this.imageState}>
+        ${this.imageUrl
+          ? html`<img src=${this.imageUrl} alt="${species.commonName} photograph from Wikipedia" />
+              <figcaption>Photo via <a href=${articleUrl(FISH_ARTICLE_TITLES.get(species.id) ?? "")} target="_blank" rel="noopener noreferrer">Wikipedia</a></figcaption>`
+          : html`<span class="fish-image-placeholder muted">${this.imageState === "unavailable" ? "Photo unavailable" : "Loading photo…"}</span>`}
+      </figure>
+    `;
+  }
+}
+
+if (!customElements.get("fish-image")) customElements.define("fish-image", FishImageElement);
+
+export function createFishImage(species: FishSpecies): FishImageElement {
+  const image = document.createElement("fish-image") as FishImageElement;
+  image.species = species;
+  return image;
 }

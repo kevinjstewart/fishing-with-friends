@@ -141,7 +141,7 @@ async function verifyFishImageResilience({ browser, base, check }) {
   await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Collection", exact: true }).tap();
   await page.waitForSelector(".collection-screen .fish-image", { timeout: 10_000 });
-  await page.waitForFunction(() => document.querySelector('.fish-image[data-image-state="unavailable"]') !== null, null, { timeout: 15_000 });
+  await page.locator('.fish-image[data-image-state="unavailable"]').first().waitFor({ timeout: 15_000 });
 
   check("fish image API retries a transient failure", apiAttempts === 2, `${apiAttempts} API attempts`);
   check("fish image load retries a failed external image", imageAttempts >= 2, `${imageAttempts} image attempts`);
@@ -170,19 +170,95 @@ async function verifyAccessibilityModes({ browser, base, check, recordConsoleErr
   }
   await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
   await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
-  const styles = await page.evaluate(() => {
-    const screen = document.querySelector(".screen");
-    const castBar = document.querySelector(".cast-bar");
-    const media = window.matchMedia("(forced-colors: active)");
-    return {
-      forcedColors: media.matches,
-      animationName: screen ? getComputedStyle(screen).animationName : "missing",
-      castShadow: castBar ? getComputedStyle(castBar).boxShadow : "missing",
-    };
-  });
+  const styles = {
+    forcedColors: await page.evaluate(() => window.matchMedia("(forced-colors: active)").matches),
+    animationName: await page.locator(".screen").first().evaluate((element) => getComputedStyle(element).animationName),
+    castShadow: await page.locator(".cast-bar").first().evaluate((element) => getComputedStyle(element).boxShadow),
+  };
   check("reduced-motion disables screen transitions", styles.animationName === "none", `animation-name ${styles.animationName}`);
   check("forced-colors mode is active", styles.forcedColors, "forced-colors media query matched");
   check("forced-colors removes decorative cast shadow", styles.castShadow === "none", `cast bar shadow ${styles.castShadow}`);
+  await page.close();
+}
+
+async function verifyToastAndStyleIsolation({ page, check }) {
+  const readToastLayout = () => page.locator(".app-content").evaluate((element) => {
+    const app = element.getRootNode().host;
+    const frame = app instanceof Element ? app.shadowRoot?.querySelector(".app-frame") : undefined;
+    const contentStyles = getComputedStyle(element);
+    return {
+      paddingTop: Number.parseFloat(contentStyles.paddingTop),
+      frameToastVisible: frame?.dataset.toastVisible ?? "missing",
+      toastHostHidden: app instanceof Element ? app.shadowRoot?.querySelector("status-toast")?.hasAttribute("hidden") ?? false : false,
+    };
+  });
+
+  await page.locator("game-app").evaluate((element) => {
+    const app = element;
+    app.dismissStatus?.();
+  });
+  await page.locator('.app-frame[data-toast-visible="false"]').waitFor({ state: "visible" });
+  const hidden = await readToastLayout();
+  check("hidden toast reserves zero layout space", hidden.paddingTop === 4 && hidden.frameToastVisible === "false" && hidden.toastHostHidden, JSON.stringify(hidden));
+
+  await page.locator("game-app").evaluate((element) => {
+    const app = element;
+    app.status = { message: "Layout verification toast", state: "ready" };
+    app.requestUpdate();
+  });
+  await page.locator('.toast[data-state="ready"]').waitFor({ state: "visible" });
+  const visible = await readToastLayout();
+  const expectedReserve = page.viewportSize()?.height && page.viewportSize().height <= 640 ? 56 : 64;
+  check("visible toast reserves the expected layout space", visible.paddingTop - hidden.paddingTop === expectedReserve && visible.frameToastVisible === "true" && !visible.toastHostHidden, `${JSON.stringify(visible)}; delta ${(visible.paddingTop - hidden.paddingTop).toFixed(1)}px expected ${expectedReserve}px`);
+
+  const isolation = await page.locator("game-app").evaluate((element) => {
+    const root = element.shadowRoot;
+    const topbar = root?.querySelector("game-topbar");
+    const tabbar = root?.querySelector("game-tabbar");
+    return {
+      topbarShadow: !!topbar?.shadowRoot,
+      tabbarShadow: !!tabbar?.shadowRoot,
+      topbarCannotSeeTabbarMarkup: !topbar?.shadowRoot?.querySelector(".tabbar"),
+      tabbarCannotSeeTopbarMarkup: !tabbar?.shadowRoot?.querySelector(".app-topbar"),
+    };
+  });
+  check("component styles stay isolated in Shadow DOM", Object.values(isolation).every(Boolean), JSON.stringify(isolation));
+
+  await page.locator("game-app").evaluate((element) => {
+    const app = element;
+    app.dismissStatus?.();
+  });
+  await page.locator('.app-frame[data-toast-visible="false"]').waitFor({ state: "visible" });
+}
+
+async function verifyLandscapeScreens({ browser, base, check, recordConsoleError }) {
+  const page = await browser.newPage({
+    viewport: { width: 852, height: 393 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  attachConsoleListeners(page, recordConsoleError);
+  await page.goto(`${base}/?telegramMock=landscape`, { waitUntil: "networkidle" });
+  await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+
+  const screens = [
+    { label: "Shop", selector: ".shop-list .shop-item" },
+    { label: "Collection", selector: ".collection-screen" },
+    { label: "Journal", selector: ".journal-grid .journal-card" },
+    { label: "Friends", selector: ".friends-screen" },
+  ];
+  for (const screen of screens) {
+    await page.getByRole("button", { name: screen.label, exact: true }).tap();
+    await page.waitForSelector(screen.selector, { timeout: 15_000 });
+    await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await page.waitForTimeout(180);
+    const last = await rectOf(page, `${screen.selector} >> nth=-1`);
+    const tabbar = await rectOf(page, ".tabbar");
+    const contentOverflow = await page.locator(".app-content").evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+    check(`${screen.label} landscape scroll clears fixed chrome`, last.bottom <= tabbar.top + 2, `last ${last.bottom.toFixed(1)} vs tabbar top ${tabbar.top.toFixed(1)}`);
+    check(`${screen.label} landscape has no horizontal content overflow`, !contentOverflow, `scrollWidth overflow ${contentOverflow}`);
+  }
   await page.close();
 }
 
@@ -211,11 +287,11 @@ async function verifyGearSelector({ browser, base, check, recordConsoleError }) 
   });
 
   await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
-  await page.waitForSelector(".gear-dock .gear-slot:last-child .gear-tile", { timeout: 20_000 });
-  const baitTile = page.locator(".gear-dock .gear-slot:last-child .gear-tile");
+  const baitTile = page.locator('gear-selector[equipmenttype="bait"] .gear-tile').first();
+  await baitTile.waitFor({ state: "visible", timeout: 20_000 });
   check("gear selector exposes expanded state", (await baitTile.getAttribute("aria-expanded")) === "false", "collapsed before tap");
   await baitTile.tap();
-  await page.waitForSelector(".gear-dock .gear-slot:last-child .equipment-options:not([hidden])", { timeout: 5_000 });
+  await page.locator('gear-selector[equipmenttype="bait"] .equipment-options:not([hidden])').waitFor({ state: "visible", timeout: 5_000 });
   check("gear selector opens on tap", (await page.locator(".equipment-options:not([hidden])").count()) === 1, "one menu open");
   check(
     "gear selector keeps full mobile names",
@@ -296,12 +372,16 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
   check("catch result keeps tackle report collapsed", !(await page.locator(".result-risk").getAttribute("open")), "low-risk report collapsed");
   const catchTabbar = await rectOf(page, ".tabbar");
   const initialDecision = await rectOf(page, ".catch-decision");
-  const decisionStyles = await page.locator(".catch-decision").evaluate((element) => ({
-    position: getComputedStyle(element).position,
-    bottom: getComputedStyle(element).bottom,
-    parentTransform: getComputedStyle(element.parentElement).transform,
-    parentAnimation: getComputedStyle(element.parentElement).animationName,
-  }));
+  const decisionStyles = await page.locator(".catch-decision").evaluate((element) => {
+    const host = element.getRootNode() instanceof ShadowRoot ? element.getRootNode().host : element.parentElement;
+    return {
+      position: getComputedStyle(element).position,
+      bottom: getComputedStyle(element).bottom,
+      parentTransform: host instanceof Element ? getComputedStyle(host).transform : "none",
+      parentAnimation: host instanceof Element ? getComputedStyle(host).animationName : "none",
+    };
+  });
+  report.push(`MEASURE  catch decision to tabbar  ${(catchTabbar.top - initialDecision.bottom).toFixed(1)}px`);
   check("catch decision is immediately visible", initialDecision.top >= 0 && initialDecision.bottom <= catchTabbar.top + 2, `decision ${initialDecision.top.toFixed(1)}–${initialDecision.bottom.toFixed(1)} vs tabbar top ${catchTabbar.top.toFixed(1)}; ${JSON.stringify(decisionStyles)}`);
   await page.screenshot({ path: "/tmp/layout-catch-result-top.png" });
   await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
@@ -350,6 +430,8 @@ check("panel surface token is defined", declaredCssVariables.has("--panel"), "--
 await verifyViewportChrome({ browser, base: BASE, check, recordConsoleError });
 await verifyFishImageResilience({ browser, base: BASE, check });
 await verifyAccessibilityModes({ browser, base: BASE, check, recordConsoleError });
+await verifyToastAndStyleIsolation({ page, check });
+await verifyLandscapeScreens({ browser, base: BASE, check, recordConsoleError });
 
 // ---------- Main screen ----------
 const topbar = await rectOf(page, ".app-topbar");
@@ -361,6 +443,10 @@ const tabbar = await rectOf(page, ".tabbar");
 check("topbar above hero", topbar.bottom <= hero.top + 1, `topbar bottom ${topbar.bottom.toFixed(1)} vs hero top ${hero.top.toFixed(1)}`);
 check("hero above gear dock", hero.bottom <= gearDock.top + 1, `hero bottom ${hero.bottom.toFixed(1)} vs dock top ${gearDock.top.toFixed(1)}`);
 check("cast bar clears tabbar with CTA gap", Math.abs(tabbar.top - castBar.bottom - 10) < 2, `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected 10)`);
+report.push(`MEASURE  topbar to hero  ${(hero.top - topbar.bottom).toFixed(1)}px`);
+report.push(`MEASURE  hero to first control  ${(gearDock.top - hero.bottom).toFixed(1)}px`);
+report.push(`MEASURE  cast bar to tabbar  ${(tabbar.top - castBar.bottom).toFixed(1)}px`);
+check("hero-to-first-control spacing stays compact", gearDock.top - hero.bottom >= 0 && gearDock.top - hero.bottom <= 20, `gap ${(gearDock.top - hero.bottom).toFixed(1)}px (expected 0–20)`);
 check("tabbar reaches viewport bottom", Math.abs(tabbar.bottom - 852) < 1, `tabbar bottom ${tabbar.bottom.toFixed(1)} vs 852`);
 check("cast bar within viewport", castBar.left >= 0 && castBar.right <= 393, `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)}`);
 const startupToast = page.locator(".toast").first();
@@ -377,13 +463,20 @@ check("screen transitions have an entry animation", screenAnimationName !== "non
 const cardCount = await page.locator(".locations-list .location-card").count();
 check("location cards rendered", cardCount >= 2, `${cardCount} cards`);
 
+const iconPaintState = await page.locator("svg.icon").evaluateAll((elements) => ({
+  count: elements.length,
+  invalidPathCount: elements.reduce((count, element) => count + [...element.querySelectorAll("path")].filter((path) => path.namespaceURI !== "http://www.w3.org/2000/svg").length, 0),
+  emptyIconCount: elements.filter((element) => element.querySelectorAll("path").length === 0).length,
+}));
+check("icons render as native SVG paths", iconPaintState.count > 0 && iconPaintState.invalidPathCount === 0 && iconPaintState.emptyIconCount === 0, JSON.stringify(iconPaintState));
+
 // Gear dock tiles: 4 tiles, equal widths, no horizontal overflow.
 const tiles = await page.locator(".gear-dock .gear-tile").all();
 check("4 gear tiles", tiles.length === 4, `${tiles.length} tiles`);
 const tileRects = [];
 for (const tile of tiles) tileRects.push(await tile.evaluate((el) => el.getBoundingClientRect().toJSON()));
-const widths = tileRects.map((r) => Math.round(r.width));
-check("gear tiles uniform width", new Set(widths).size === 1, `widths ${widths.join(",")}`);
+const widths = tileRects.map((r) => r.width);
+check("gear tiles uniform width", Math.max(...widths) - Math.min(...widths) < 1.01, `widths ${widths.map((width) => width.toFixed(2)).join(",")}`);
 check("gear dock no horizontal overflow", tileRects[3].right <= 393 - 12 + 1, `right edge ${tileRects[3].right.toFixed(1)}`);
 const clippedGearNames = await page.locator(".gear-name").evaluateAll((elements) =>
   elements.filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1).length,
@@ -413,6 +506,7 @@ await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeig
 await page.waitForTimeout(350);
 const lastCard = await rectOf(page, ".locations-list .location-card >> nth=-1");
 check("last location card fully visible above cast bar", lastCard.bottom <= castBar.top + 2, `card bottom ${lastCard.bottom.toFixed(1)} vs cast bar top ${castBar.top.toFixed(1)}`);
+report.push(`MEASURE  last scrollable element to cast bar  ${(castBar.top - lastCard.bottom).toFixed(1)}px`);
 await page.screenshot({ path: "/tmp/layout-main-scrolled.png" });
 
 // Select a different location card — selection ring + hero should update.
