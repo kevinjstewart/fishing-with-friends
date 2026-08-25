@@ -7,35 +7,35 @@
 :root {
   color-scheme: dark;
 
-  --font-display: "Bowlby One SC", Impact, sans-serif;
-  --font-body: "Nunito Sans", ui-rounded, sans-serif;
+  --font-display: "Sora", "Avenir Next", sans-serif;
+  --font-body: "Commissioner", "Avenir Next", Avenir, sans-serif;
 
-  --bg-deep: #06141c;
-  --bg-mid: #0b3040;
-  --ink: #f8f4dc;
-  --ink-dim: #b9d1cf;
-  --ink-faint: #7fa5a6;
+  --bg-deep: #080907;
+  --bg-mid: #11140f;
+  --ink: #f4eddf;
+  --ink-dim: #b8b09f;
+  --ink-faint: #817b70;
 
-  --aqua: #72efc5;
-  --cyan: #39c6d8;
-  --gold: #ffc857;
-  --coral: #ff745c;
-  --violet: #8fa7ff;
+  --aqua: #1c8a67;
+  --cyan: #5aa58d;
+  --gold: #d6b86a;
+  --coral: #b44758;
+  --violet: #8e789d;
 
-  --line: rgba(151, 201, 227, 0.16);
-  --line-strong: rgba(151, 201, 227, 0.3);
-  --glass: rgba(9, 27, 43, 0.72);
+  --line: rgba(214, 184, 106, 0.16);
+  --line-strong: rgba(214, 184, 106, 0.34);
+  --glass: rgba(13, 15, 12, 0.88);
   --panel: var(--glass);
-  --glass-lite: rgba(13, 34, 52, 0.55);
-  --chrome-blur: rgba(4, 18, 32, 0.78);
+  --glass-lite: rgba(22, 25, 20, 0.74);
+  --chrome-blur: rgba(8, 9, 7, 0.94);
 
-  --radius-lg: 20px;
-  --radius-md: 16px;
-  --radius-sm: 12px;
+  --radius-lg: 14px;
+  --radius-md: 11px;
+  --radius-sm: 8px;
 
-  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.45);
-  --shadow-card: 0 14px 34px rgba(1, 10, 18, 0.35);
-  --shadow-glow: 0 8px 26px rgba(56, 205, 236, 0.28);
+  --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.62);
+  --shadow-card: 0 16px 36px rgba(0, 0, 0, 0.42);
+  --shadow-glow: 0 8px 28px rgba(214, 184, 106, 0.16);
 
   /* The single boundary between Telegram/browser insets and app layout.
      Production and the local Telegram simulator both publish these values. */
@@ -63,7 +63,7 @@
   --content-cast-gap: var(--cta-gap);
   --toast-reserve-h: 0px;
 
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.2, 0.72, 0.2, 1);
 }
 
 * {
@@ -3971,6 +3971,776 @@ h2 { font-family: var(--font-body); font-weight: 900; }
 
   .cast-readiness { flex: 1 1 auto; justify-content: flex-start; }
   .cast-cta { width: auto; min-height: 40px; padding: 8px 12px; font-size: .75rem; white-space: nowrap; }
+}
+
+/* ============================================================
+   Angler's Club — casino lounge theme
+   Tailored typography, dark lacquer, brass rules, green felt.
+   ============================================================ */
+
+body {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(88, 104, 69, 0.2), transparent 36%),
+    linear-gradient(160deg, #0c100c 0%, #070806 58%, #0d0b09 100%);
+}
+
+body::before {
+  opacity: 0.32;
+  background-image:
+    linear-gradient(30deg, transparent 48.8%, rgba(214, 184, 106, 0.055) 49%, rgba(214, 184, 106, 0.055) 51%, transparent 51.2%),
+    linear-gradient(150deg, transparent 48.8%, rgba(214, 184, 106, 0.055) 49%, rgba(214, 184, 106, 0.055) 51%, transparent 51.2%);
+  background-size: 42px 72px;
+}
+
+.app-frame::before {
+  background: linear-gradient(180deg, rgba(7, 8, 6, 0.99), rgba(7, 8, 6, 0.8) 76%, transparent);
+}
+
+.app-topbar {
+  padding-inline: 16px;
+}
+
+.app-brand {
+  gap: 10px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-shadow: none;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(214, 184, 106, 0.72);
+  border-radius: 50%;
+  color: var(--gold);
+  background: radial-gradient(circle at 38% 30%, #25352a, #101510 70%);
+  box-shadow: inset 0 0 0 3px #0b0d0a, inset 0 0 0 4px rgba(214, 184, 106, 0.28), 0 8px 24px rgba(0, 0, 0, 0.38);
+  transform: none;
+}
+
+.brand-mark .icon {
+  stroke: var(--gold);
+  stroke-width: 1.7;
+}
+
+.wallet-chip,
+.hero-value {
+  border: 1px solid rgba(214, 184, 106, 0.48);
+  border-radius: 6px;
+  color: #ead28d;
+  background: linear-gradient(180deg, rgba(48, 40, 20, 0.92), rgba(25, 21, 12, 0.96));
+  box-shadow: inset 0 1px rgba(255, 239, 186, 0.09), 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+
+.wallet-chip strong,
+.hero-value {
+  font-family: var(--font-body);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+h1,
+h2 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  text-shadow: none;
+}
+
+h1 {
+  background: linear-gradient(105deg, #f8f1e4 12%, #e4cf97 92%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: clamp(1.38rem, 5.5vw, 1.95rem);
+  line-height: 1.02;
+}
+
+h2 {
+  font-size: 1.02rem;
+}
+
+.eyebrow {
+  margin-bottom: 6px;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.24em;
+}
+
+.screen {
+  gap: 9px;
+}
+
+.screen-hero,
+.dashboard-header,
+.fishing-status {
+  min-height: 82px;
+  padding: 16px 17px;
+  border: 1px solid rgba(214, 184, 106, 0.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(214, 184, 106, 0.07) 0 1px, transparent 1px calc(100% - 1px), rgba(214, 184, 106, 0.07) calc(100% - 1px)),
+    linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 38px rgba(0, 0, 0, 0.34);
+}
+
+.screen-hero {
+  min-height: 0;
+  padding: 12px 14px;
+}
+
+.screen-hero::before,
+.dashboard-header::before {
+  right: 16px;
+  bottom: 12px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 50%;
+  transform: none;
+}
+
+.screen-hero::after,
+.dashboard-header::after,
+.fishing-status::after {
+  top: auto;
+  right: 31px;
+  bottom: 27px;
+  width: 38px;
+  height: 1px;
+  background: rgba(214, 184, 106, 0.18);
+}
+
+.gear-dock {
+  gap: 0;
+  padding: 5px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 10px;
+  background: rgba(9, 11, 8, 0.9);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+}
+
+.gear-slot + .gear-slot {
+  border-left: 1px solid rgba(214, 184, 106, 0.12);
+}
+
+.gear-tile {
+  gap: 5px;
+  min-height: 82px;
+  padding: 9px 4px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gear-icon {
+  width: 34px;
+  height: 34px;
+  border-width: 1px;
+  border-radius: 50%;
+}
+
+.gear-name {
+  min-height: auto;
+  color: #e8e0d2;
+  font-size: 0.59rem;
+  font-weight: 550;
+  line-height: 1.14;
+}
+
+.gear-meta {
+  color: var(--ink-faint);
+  font-size: 0.57rem;
+  font-weight: 550;
+}
+
+.locations-list {
+  grid-auto-columns: min(78vw, 300px);
+  gap: 11px;
+}
+
+.location-card {
+  min-height: 156px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(214, 184, 106, 0.22);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(214, 184, 106, 0.055) 0 1px, transparent 1px 64%, rgba(214, 184, 106, 0.04) 64% 65%, transparent 65%),
+    linear-gradient(145deg, rgba(23, 42, 32, 0.98), rgba(8, 13, 10, 0.98));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 36px rgba(0, 0, 0, 0.38);
+}
+
+.location-card[data-location="cedar-marsh"],
+.location-card[data-location="granite-reservoir"] {
+  background: linear-gradient(145deg, rgba(48, 43, 27, 0.98), rgba(13, 12, 8, 0.98));
+}
+
+.location-card[data-location="lake-greywater"],
+.location-card[data-location="northwind-channel"],
+.location-card[data-location="stormglass-basin"] {
+  background: linear-gradient(145deg, rgba(29, 31, 36, 0.98), rgba(9, 9, 11, 0.98));
+}
+
+.location-card::after {
+  right: 17px;
+  bottom: 17px;
+  width: 38px;
+  height: 38px;
+  opacity: 0.4;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  transform: none;
+  box-shadow: inset 0 0 0 5px rgba(214, 184, 106, 0.06);
+}
+
+.location-card::before {
+  width: 2px;
+}
+
+.location-card.is-selected {
+  border-color: rgba(225, 199, 128, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(214, 184, 106, 0.18), 0 0 0 1px rgba(214, 184, 106, 0.18), 0 22px 42px rgba(0, 0, 0, 0.46);
+  transform: translateY(-1px);
+}
+
+.location-top h2 {
+  color: #f3eadb;
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+.risk-dots {
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid rgba(214, 184, 106, 0.14);
+  border-radius: 5px;
+  background: rgba(5, 7, 5, 0.64);
+}
+
+.risk-dot-label {
+  font-size: 0.53rem;
+  font-weight: 550;
+  letter-spacing: 0.05em;
+}
+
+.fish-cue {
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgba(214, 184, 106, 0.46);
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(8, 12, 8, 0.78);
+  transform: none;
+}
+
+.fish-chip {
+  padding: 4px 8px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 5px;
+  color: #d7d0c4;
+  background: rgba(5, 8, 6, 0.62);
+  font-size: 0.64rem;
+  font-weight: 550;
+}
+
+.value-tag,
+.lock-tag {
+  border: 1px solid rgba(214, 184, 106, 0.28);
+  border-radius: 5px;
+  color: #e5cb82;
+  background: rgba(25, 21, 11, 0.72);
+  font-weight: 650;
+}
+
+.location-radio {
+  width: 27px;
+  height: 27px;
+  border-width: 1px;
+  background: rgba(7, 9, 7, 0.72);
+}
+
+.location-card.is-selected .location-radio {
+  color: #10130d;
+  background: var(--gold);
+  box-shadow: 0 0 22px rgba(214, 184, 106, 0.24);
+}
+
+.cast-bar {
+  gap: 8px 10px;
+  padding: 10px;
+  border: 1px solid rgba(214, 184, 106, 0.42);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 18, 13, 0.98), rgba(7, 8, 6, 0.99));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 24px 54px rgba(0, 0, 0, 0.64);
+}
+
+.cast-details-copy strong {
+  font-family: var(--font-body);
+  font-weight: 650;
+}
+
+.cast-risk,
+.readiness-chip {
+  border-width: 1px;
+  border-radius: 6px;
+  font-weight: 550;
+}
+
+.cast-cta,
+.primary-action {
+  border: 1px solid rgba(244, 219, 151, 0.5);
+  border-radius: 6px;
+  color: #fff4e5;
+  background: linear-gradient(180deg, #a53449, #721a2d);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.14), 0 9px 22px rgba(79, 10, 27, 0.35);
+  font-family: var(--font-body);
+  font-size: 0.77rem;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.cast-cta:not(:disabled):active,
+.primary-action:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(79, 10, 27, 0.3);
+}
+
+.secondary-action,
+.buy-btn {
+  border-width: 1px;
+  border-radius: 6px;
+  font-weight: 550;
+}
+
+.tabbar {
+  padding-inline: calc(8px + var(--app-safe-right)) calc(8px + var(--app-safe-left));
+  border-top: 1px solid rgba(214, 184, 106, 0.2);
+  background: rgba(7, 8, 6, 0.97);
+  box-shadow: 0 -16px 36px rgba(0, 0, 0, 0.34);
+}
+
+.tab-button {
+  gap: 3px;
+  color: #7d7b70;
+  font-size: 0.57rem;
+  font-weight: 550;
+  letter-spacing: 0.05em;
+}
+
+.tab-button.is-active {
+  color: #e4cc8c;
+}
+
+.tab-button.is-active::after {
+  inset: auto auto 0;
+  z-index: 0;
+  width: 28px;
+  height: 1px;
+  border-radius: 0;
+  background: var(--gold);
+  box-shadow: 0 0 12px rgba(214, 184, 106, 0.42);
+}
+
+.tab-button.is-active .icon {
+  filter: drop-shadow(0 0 8px rgba(214, 184, 106, 0.18));
+}
+
+.shop-tabs {
+  padding: 4px;
+  border: 1px solid rgba(214, 184, 106, 0.2);
+  border-radius: 8px;
+  background: rgba(8, 9, 7, 0.96);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+}
+
+.shop-tab {
+  min-height: 40px;
+  border-radius: 5px;
+  font-weight: 550;
+}
+
+.shop-tab.is-active {
+  color: #f2e8d7;
+  background: linear-gradient(180deg, #8f2a40, #651829);
+  box-shadow: inset 0 0 0 1px rgba(214, 184, 106, 0.3);
+}
+
+.shop-item,
+.crew-board,
+.crew-self,
+.collection-card,
+.journal-card,
+.empty-state {
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(19, 22, 17, 0.96), rgba(9, 10, 8, 0.98));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.shop-item {
+  gap: 11px;
+  padding: 13px;
+}
+
+.shop-description {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.shop-stat-cell {
+  border-radius: 4px;
+  background: rgba(214, 184, 106, 0.055);
+}
+
+.shop-stat-cell strong {
+  color: #dcc47f;
+  font-weight: 650;
+}
+
+.buy-btn {
+  color: #15120a;
+  background: linear-gradient(180deg, #e1c97f, #ad8d3e);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.3), 0 7px 16px rgba(0, 0, 0, 0.28);
+}
+
+.crew-self {
+  border-color: rgba(214, 184, 106, 0.32);
+  background: rgba(214, 184, 106, 0.055);
+}
+
+.crew-rank {
+  border-radius: 50%;
+  font-weight: 650;
+}
+
+.crew-row.is-self {
+  background: rgba(214, 184, 106, 0.055);
+  box-shadow: inset 2px 0 var(--gold);
+}
+
+.crew-you {
+  color: #15120a;
+  background: var(--gold);
+}
+
+.collection-card,
+.journal-card {
+  border-radius: 9px;
+}
+
+.fish-image {
+  border-bottom-width: 1px;
+}
+
+.rarity-badge,
+.sort-select,
+.journal-controls,
+.toast,
+.equipment-options,
+.equipment-option,
+.journal-field-notes,
+.result-risk {
+  border-width: 1px;
+  border-radius: 6px;
+}
+
+.rarity-badge {
+  font-weight: 550;
+  letter-spacing: 0.1em;
+}
+
+.sort-select,
+.journal-controls,
+.equipment-options,
+.journal-field-notes {
+  background: rgba(8, 10, 7, 0.96);
+}
+
+.equipment-option.is-active {
+  border-color: rgba(214, 184, 106, 0.48);
+  background: rgba(214, 184, 106, 0.09);
+}
+
+.toast {
+  font-weight: 550;
+  background: rgba(9, 10, 8, 0.97);
+}
+
+@keyframes screen-pop {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+.app-content > .screen,
+.app-content > .fishing-status {
+  animation: screen-pop 0.28s ease-out both;
+}
+
+::selection {
+  color: #120f08;
+  background: rgba(214, 184, 106, 0.78);
+}
+
+* {
+  scrollbar-color: rgba(214, 184, 106, 0.55) rgba(7, 8, 6, 0.72);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(214, 184, 106, 0.55);
+}
+
+:focus-visible {
+  outline-color: var(--gold);
+}
+
+.primary-action::after {
+  opacity: 0.12;
+}
+
+.catch-reveal {
+  border: 1px solid rgba(214, 184, 106, 0.42);
+  border-radius: 10px;
+  background: #0b0e0a;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 24px 48px rgba(0, 0, 0, 0.48);
+}
+
+.catch-reveal::before {
+  top: 18px;
+  right: 18px;
+  width: 42px;
+  height: 42px;
+  opacity: 0.22;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  transform: none;
+  box-shadow: inset 0 0 0 6px rgba(214, 184, 106, 0.08);
+}
+
+.catch-reveal::after {
+  opacity: 0.06;
+  background-image:
+    linear-gradient(45deg, transparent 49%, var(--gold) 49.5%, var(--gold) 50.5%, transparent 51%),
+    linear-gradient(-45deg, transparent 49%, var(--gold) 49.5%, var(--gold) 50.5%, transparent 51%);
+  background-size: 34px 34px;
+}
+
+.catch-masthead {
+  padding: 16px;
+  border-bottom: 1px solid rgba(214, 184, 106, 0.2);
+  background: linear-gradient(110deg, #172219, #0a0d09);
+}
+
+.catch-title h1 {
+  font-size: clamp(1.35rem, 6vw, 2rem);
+}
+
+.landed-seal {
+  padding: 7px 9px;
+  border: 1px solid rgba(214, 184, 106, 0.58);
+  border-radius: 5px;
+  color: #ead28d;
+  background: rgba(31, 26, 13, 0.9);
+  box-shadow: none;
+  font-weight: 650;
+  transform: none;
+}
+
+.catch-visual {
+  background: linear-gradient(155deg, #1c3327, #090d0a);
+}
+
+.catch-quality {
+  padding: 6px 10px;
+  border-width: 1px;
+  border-radius: 5px;
+  background: rgba(7, 9, 7, 0.9);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+  font-weight: 650;
+}
+
+.catch-specimen,
+.catch-flavor {
+  background: #0b0e0a;
+}
+
+.catch-specimen .stat-chip {
+  border-radius: 5px;
+  background: rgba(214, 184, 106, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(214, 184, 106, 0.14);
+}
+
+.catch-specimen .stat-chip b,
+.catch-specimen .stat-chip small {
+  font-weight: 650;
+}
+
+.catch-specimen .species-size {
+  border-color: rgba(214, 184, 106, 0.16);
+  background: rgba(214, 184, 106, 0.035);
+}
+
+.catch-decision {
+  border: 1px solid rgba(214, 184, 106, 0.42);
+  border-radius: 10px;
+  background: rgba(9, 11, 8, 0.97);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 22px 46px rgba(0, 0, 0, 0.58);
+}
+
+.catch-choice {
+  min-height: 56px;
+  border-width: 1px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.keep-choice {
+  border-color: rgba(214, 184, 106, 0.3);
+  color: #efe6d8;
+  background: linear-gradient(180deg, #244333, #172b21);
+}
+
+.sell-choice {
+  border-color: rgba(214, 184, 106, 0.54);
+  color: #181309;
+  background: linear-gradient(180deg, #e2cb82, #ae8d3d);
+}
+
+.choice-copy strong,
+.choice-copy small {
+  font-weight: 650;
+}
+
+.lost-reveal,
+.fishing-status.decision-result {
+  border-width: 1px;
+  border-radius: 10px;
+  border-color: rgba(214, 184, 106, 0.32);
+  background: radial-gradient(circle at 50% 4%, rgba(214, 184, 106, 0.1), transparent 31%), linear-gradient(150deg, #172219, #090b08);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.42);
+}
+
+.lost-mark,
+.decision-mark {
+  border-width: 1px;
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(214, 184, 106, 0.08);
+  box-shadow: inset 0 0 0 6px rgba(214, 184, 106, 0.035);
+  transform: none;
+}
+
+.decision-sell .decision-mark {
+  border-color: rgba(214, 184, 106, 0.72);
+  color: #161108;
+  background: var(--gold);
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.08);
+}
+
+.decision-receipt,
+.decision-wallet {
+  border-radius: 6px;
+  background: rgba(214, 184, 106, 0.045);
+}
+
+/* Compact table markers replace the old capsule-chip treatment. */
+.risk-dots {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.fish-chips {
+  gap: 7px 11px;
+}
+
+.fish-chip {
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #d8d0c2;
+  background: transparent;
+  box-shadow: none;
+  line-height: 1.35;
+}
+
+.fish-chip + .fish-chip::before {
+  content: "·";
+  position: absolute;
+  left: -7px;
+  color: rgba(214, 184, 106, 0.55);
+}
+
+.value-tag,
+.lock-tag {
+  padding: 1px 0 1px 7px;
+  border: 0;
+  border-left: 1px solid rgba(214, 184, 106, 0.55);
+  border-radius: 0;
+  background: transparent;
+}
+
+.readiness-chip {
+  padding: 4px 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.018);
+  box-shadow: none;
+}
+
+.readiness-chip.is-ok,
+.readiness-chip.is-warn,
+.readiness-chip.is-bad {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.shop-state {
+  padding: 2px 0 2px 7px;
+  border: 0;
+  border-left: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.qty-chip {
+  min-height: 27px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: rgba(214, 184, 106, 0.035);
+  box-shadow: none;
+}
+
+.qty-chip.is-active {
+  color: #171209;
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.rarity-badge {
+  padding: 2px 0 2px 7px;
+  border: 0;
+  border-left: 2px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+}
+
+.gear-badge,
+.crew-you,
+.catch-quality,
+.landed-seal {
+  border-radius: 2px;
 }
 
 /* ------------------------------------------------------------

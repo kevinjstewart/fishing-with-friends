@@ -77,6 +77,7 @@ export interface CatchRow {
 }
 
 const rarityWeights = { common: 70, uncommon: 28, rare: 10, legendary: 2 } as const;
+const rarityAttractionScales = { common: 0.35, uncommon: 0.8, rare: 1.55, legendary: 2.5 } as const;
 const rarityValueMultipliers = { common: 1, uncommon: 1.12, rare: 1.32, legendary: 1.7 } as const;
 const qualityValueMultipliers: Record<FishQuality, number> = { common: 0.9, good: 1, large: 1.18, trophy: 1.55, exceptional: 2.2 };
 
@@ -109,12 +110,21 @@ export function selectEligibleSpecies(locationId: string, baitId: string, lureId
   );
   if (eligible.length === 0) return undefined;
 
-  const weights = eligible.map((species) => {
-    const lurePreference = lure.preferredFishIds.includes(species.id) ? 1.8 : 1;
-    const baitPreference = bait.fishIds.includes(species.id) ? bait.attraction : 1;
-    return rarityWeights[species.rarity] * lurePreference * baitPreference;
-  });
+  const weights = eligible.map((species) => speciesSelectionWeight(species, bait, lure));
   return chooseWeighted(eligible, weights, random);
+}
+
+export function speciesSelectionWeight(
+  species: (typeof GAME_CATALOG.fish)[number],
+  bait: (typeof GAME_CATALOG.baits)[number],
+  lure: (typeof GAME_CATALOG.lures)[number],
+): number {
+  const lurePreference = lure.preferredFishIds.includes(species.id) ? 2.35 : 0.72;
+  // Attraction intentionally favours scarce fish more than common fish. A uniform
+  // multiplier would cancel out during weighted selection and make premium bait
+  // no better than starter bait when both can catch the same pool.
+  const attractionBonus = 1 + (bait.attraction - 1) * rarityAttractionScales[species.rarity];
+  return rarityWeights[species.rarity] * lurePreference * attractionBonus;
 }
 
 function specimenForSpecies(species: (typeof GAME_CATALOG.fish)[number], random = Math.random): Pick<EncounterRow, "weight_kg" | "length_cm" | "quality" | "sale_value_coins"> {
