@@ -128,6 +128,18 @@ npm run dev:game
 npm run dev:worker
 ```
 
+The React port is isolated behind an explicit migration entry while Lit remains the production frontend. The default commands build `apps/game/index.html` and `apps/game/dist`; the migration commands build only `apps/game/index.react.html` into `apps/game/dist-react`:
+
+```bash
+npm run typecheck
+npm test
+npm run lint
+npm run build:game
+npm run build:game:react
+```
+
+With the Worker running, use `npm run dev:game:react` and open `http://127.0.0.1:5174/index.react.html`. Verify the isolated entry with `npm run verify:react`. Feature screens and the default Worker asset build remain on Lit until a later migration phase.
+
 In managed environments where Wrangler cannot write its default preferences or logs, provide writable task-local paths before starting the stack or applying local migrations:
 
 ```bash

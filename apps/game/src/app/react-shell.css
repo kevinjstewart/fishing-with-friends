@@ -1,0 +1,185 @@
+#react-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.react-scaffold {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  overflow-y: auto;
+  padding: calc(var(--app-safe-top) + 18px) max(14px, var(--app-safe-right)) calc(var(--app-safe-bottom) + 18px) max(14px, var(--app-safe-left));
+  pointer-events: none;
+  scrollbar-gutter: stable;
+}
+
+.react-scaffold-header,
+.react-scaffold-content {
+  width: min(100%, 620px);
+  margin-inline: auto;
+  pointer-events: auto;
+}
+
+.react-scaffold-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, rgba(24, 31, 24, 0.96), rgba(11, 13, 10, 0.96));
+  box-shadow: var(--shadow-card);
+}
+
+.react-scaffold-mark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  color: var(--gold);
+  font: 800 11px/1 var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+.react-scaffold-kicker,
+.react-scaffold-subtitle {
+  margin: 0;
+}
+
+.react-scaffold-kicker {
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-display);
+}
+
+.react-scaffold-subtitle {
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.react-bootstrap-panel {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
+  box-shadow: var(--shadow-lg);
+  animation: react-scaffold-pop 0.28s ease-out both;
+}
+
+.react-bootstrap-panel h1 {
+  margin: 0;
+  color: var(--ink);
+  font: 800 clamp(24px, 7vw, 36px)/1.05 var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.react-bootstrap-copy,
+.react-bootstrap-note {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.react-bootstrap-note {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.react-bootstrap-action {
+  min-height: 46px;
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  color: #120f08;
+  background: var(--gold);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.react-bootstrap-action:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.react-bootstrap-facts {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.react-bootstrap-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.react-bootstrap-facts dt {
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.react-bootstrap-facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 650;
+  text-align: right;
+}
+
+.react-bootstrap-spinner {
+  width: 26px;
+  height: 26px;
+  margin-top: 8px;
+  border: 3px solid rgba(214, 184, 106, 0.22);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: react-scaffold-spin 0.85s linear infinite;
+}
+
+@keyframes react-scaffold-pop {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes react-scaffold-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-bootstrap-panel,
+  .react-bootstrap-spinner {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .react-scaffold-header,
+  .react-bootstrap-panel {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .react-bootstrap-action {
+    border-color: ButtonText;
+    color: ButtonText;
+    background: ButtonFace;
+  }
+}

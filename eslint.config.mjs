@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/.wrangler/**", "**/coverage/**", "node_modules/**"],
+    ignores: ["**/dist/**", "**/dist-react/**", "**/.wrangler/**", "**/coverage/**", "node_modules/**"],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
