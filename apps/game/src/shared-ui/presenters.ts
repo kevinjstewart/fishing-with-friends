@@ -1,4 +1,12 @@
 import type { FishSpecimen, FishSpecies, GameStateResponse, LocationAvailability, RiskBand } from "@fishing/shared/contracts";
+import type { CollectionSortMode } from "../ui/types";
+
+export const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpecimen) => number> = {
+  newest: (a, b) => b.caughtAt.localeCompare(a.caughtAt),
+  heaviest: (a, b) => b.weightKg - a.weightKg,
+  value: (a, b) => b.saleValueCoins - a.saleValueCoins,
+  species: (a, b) => a.species.commonName.localeCompare(b.species.commonName) || b.weightKg - a.weightKg,
+};
 
 export const RISK_PRESENTATION: Record<RiskBand, { label: string; consequence: string }> = {
   low: {

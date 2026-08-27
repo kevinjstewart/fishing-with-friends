@@ -7,6 +7,8 @@ import { appReducer, initialAppState } from "./app-reducer";
 const queryKeyForScreen: Partial<Record<ScreenId, readonly unknown[]>> = {
   friends: queryKeys.leaderboard,
   journal: queryKeys.journal,
+  shop: queryKeys.gameState,
+  collection: queryKeys.collection,
 };
 
 export interface ScreenNavigation {

@@ -9,6 +9,8 @@ import { RetryPanel } from "../features/chrome/ScreenStatus";
 import { StatusToast } from "../features/chrome/StatusToast";
 import { FriendsRoute } from "../features/friends/FriendsRoute";
 import { JournalRoute } from "../features/journal/JournalRoute";
+import { CollectionRoute } from "../features/collection/CollectionRoute";
+import { ShopRoute } from "../features/shop/ShopRoute";
 
 export interface AppProps {
   services: ReactAppServices;
@@ -41,8 +43,8 @@ function BootstrapContent({ bootstrap }: { bootstrap: BootstrapState }) {
   );
 }
 
-function UnmigratedScreen({ screen }: { screen: Exclude<ScreenId, "friends" | "journal"> }) {
-  const heading = screen === "lakes" ? "Lakes" : screen === "shop" ? "Tackle shop" : "Your collection";
+function UnmigratedScreen({ screen }: { screen: Extract<ScreenId, "lakes"> }) {
+  const heading = "Lakes";
   return (
     <section className="screen migration-placeholder" data-testid={`${screen}-screen`}>
       <div className="dashboard-header">
@@ -70,6 +72,12 @@ function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, o
   }
   if (screen === "journal") {
     return <JournalRoute api={api} state={gameState} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onGoFishing={onGoFishing} />;
+  }
+  if (screen === "shop") {
+    return <ShopRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} />;
+  }
+  if (screen === "collection") {
+    return <CollectionRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onGoFishing={onGoFishing} />;
   }
   return <UnmigratedScreen screen={screen} />;
 }

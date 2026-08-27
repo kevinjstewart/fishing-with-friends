@@ -3,11 +3,15 @@ import { useCallback, useEffect, useReducer, useState } from "react";
 import type {
   ActiveFishingEncounterResponse,
   AuthResponse,
+  CollectionResponse,
   FishJournalResponse,
   GameStateResponse,
   LeaderboardResponse,
   MeResponse,
   PlayerProfile,
+  PurchaseRequest,
+  PurchaseResponse,
+  SellCatchResponse,
 } from "@fishing/shared/contracts";
 import { queryKeys } from "../api/query-keys";
 import { appReducer, initialAppState } from "./app-reducer";
@@ -21,6 +25,9 @@ export interface BootstrapApi {
   getActiveEncounter(signal?: AbortSignal): Promise<ActiveFishingEncounterResponse>;
   getJournal(signal?: AbortSignal): Promise<FishJournalResponse>;
   getLeaderboard(signal?: AbortSignal): Promise<LeaderboardResponse>;
+  getCollection(signal?: AbortSignal): Promise<CollectionResponse>;
+  purchase(input: PurchaseRequest): Promise<PurchaseResponse>;
+  sellCatch(catchId: string): Promise<SellCatchResponse>;
 }
 
 export interface BootstrapOptions {

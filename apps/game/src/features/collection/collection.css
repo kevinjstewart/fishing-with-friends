@@ -1,0 +1,194 @@
+.react-app-shell .collection-screen {
+  gap: 9px;
+}
+
+.react-app-shell .collection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.react-app-shell .collection-actions .secondary-action {
+  width: auto;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.react-app-shell .collection-actions .is-confirming {
+  border-color: rgba(255, 143, 125, 0.56);
+  color: #ffd2cb;
+  background: rgba(185, 66, 62, 0.22);
+}
+
+.react-app-shell .collection-actions .collection-cancel {
+  flex: 0 0 auto;
+}
+
+.react-app-shell .collection-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(214, 184, 106, 0.22);
+  border-radius: 7px;
+  color: var(--ink-dim);
+  background: rgba(214, 184, 106, 0.05);
+  font-size: 0.76rem;
+}
+
+.react-app-shell .collection-feedback::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.react-app-shell .collection-feedback.is-error {
+  border-color: rgba(255, 143, 125, 0.4);
+  color: #ffd2cb;
+  background: rgba(185, 66, 62, 0.12);
+}
+
+.react-app-shell .collection-feedback .secondary-action {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.react-app-shell .sort-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.react-app-shell .sort-row .sort-select {
+  min-width: 160px;
+}
+
+.react-app-shell .collection-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.react-app-shell .collection-card {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(19, 22, 17, 0.96), rgba(9, 10, 8, 0.98));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.react-app-shell .collection-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.react-app-shell .collection-card h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.react-app-shell .rarity-badge {
+  flex: 0 0 auto;
+  padding: 2px 0 2px 7px;
+  border-left: 2px solid currentColor;
+  color: #cfe3ef;
+  font-size: 0.58rem;
+  font-weight: 550;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .rarity-uncommon { color: #8cefc0; }
+.react-app-shell .rarity-rare { color: #a5cdff; }
+.react-app-shell .rarity-legendary { color: #ffe9ad; }
+
+.react-app-shell .collection-species-info {
+  border-top: 1px solid rgba(214, 184, 106, 0.16);
+  padding-top: 7px;
+}
+
+.react-app-shell .collection-species-info summary {
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 0.72rem;
+  list-style-position: inside;
+}
+
+.react-app-shell .collection-species-notes {
+  display: grid;
+  gap: 7px;
+  padding-top: 8px;
+}
+
+.react-app-shell .collection-description {
+  color: var(--ink-dim);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.react-app-shell .collection-screen .species-fact {
+  display: grid;
+  gap: 2px;
+}
+
+.react-app-shell .collection-screen .species-fact > span {
+  color: var(--ink-faint);
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .collection-screen .species-fact > p {
+  color: var(--ink);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.react-app-shell .collection-screen .journal-source {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.react-app-shell .collection-screen .journal-source a {
+  color: var(--gold);
+}
+
+.react-app-shell .sell-action {
+  width: 100%;
+}
+
+.react-app-shell .sell-action .icon {
+  stroke: var(--gold);
+}
+
+@media (min-width: 720px) {
+  .react-app-shell .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (forced-colors: active) {
+  .react-app-shell .collection-card,
+  .react-app-shell .collection-feedback {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    color: ButtonText;
+    background: Canvas;
+    box-shadow: none;
+  }
+}
