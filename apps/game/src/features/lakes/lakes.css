@@ -1,0 +1,965 @@
+.react-app-shell .lakes-screen {
+  gap: 9px;
+}
+
+.react-app-shell .lakes-screen .screen-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(214, 184, 106, 0.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(214, 184, 106, 0.07) 0 1px, transparent 1px calc(100% - 1px), rgba(214, 184, 106, 0.07) calc(100% - 1px)),
+    linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 38px rgba(0, 0, 0, 0.34);
+}
+
+.react-app-shell .lakes-screen .screen-hero::before {
+  content: "";
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.react-app-shell .lakes-screen .screen-hero::after {
+  content: "";
+  position: absolute;
+  right: 31px;
+  bottom: 27px;
+  width: 38px;
+  height: 1px;
+  background: rgba(214, 184, 106, 0.18);
+  pointer-events: none;
+}
+
+.react-app-shell .lakes-screen .screen-hero-text {
+  min-width: 0;
+}
+
+.react-app-shell .lakes-screen .screen-hero h1 {
+  overflow: hidden;
+  font-size: clamp(1.18rem, 5vw, 1.58rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app-shell .lakes-screen .hero-value {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid rgba(214, 184, 106, 0.48);
+  border-radius: 6px;
+  color: #ead28d;
+  background: linear-gradient(180deg, rgba(48, 40, 20, 0.92), rgba(25, 21, 12, 0.96));
+  box-shadow: inset 0 1px rgba(255, 239, 186, 0.09), 0 8px 22px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.react-app-shell .lakes-screen .hero-value .icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--gold);
+}
+
+.react-app-shell .gear-dock {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 5px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 10px;
+  background: rgba(9, 11, 8, 0.9);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+}
+
+.react-app-shell .gear-slot,
+.react-app-shell .boat-tile,
+.react-app-shell .gear-selector-wrap {
+  min-width: 0;
+}
+
+.react-app-shell .gear-slot {
+  position: relative;
+}
+
+.react-app-shell .gear-selector-wrap + .gear-selector-wrap {
+  border-left: 1px solid rgba(214, 184, 106, 0.12);
+}
+
+.react-app-shell .boat-tile,
+.react-app-shell .gear-tile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 5px;
+  min-height: 82px;
+  padding: 9px 4px 7px;
+  text-align: center;
+}
+
+.react-app-shell .boat-tile {
+  border: 0;
+}
+
+.react-app-shell .boat-tile .gear-meta {
+  line-height: 1.5;
+}
+
+.react-app-shell button.gear-tile {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.react-app-shell button.gear-tile:active {
+  transform: scale(0.96);
+}
+
+.react-app-shell .gear-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.react-app-shell .gear-icon .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.react-app-shell .boat-tile .gear-icon {
+  color: #b6c5ff;
+  background: linear-gradient(145deg, rgba(142, 166, 255, 0.2), rgba(142, 166, 255, 0.06));
+}
+
+.react-app-shell .tone-rod .gear-icon {
+  color: #7df0dd;
+  background: linear-gradient(145deg, rgba(94, 234, 212, 0.2), rgba(56, 205, 236, 0.07));
+}
+
+.react-app-shell .tone-lure .gear-icon {
+  color: #ffa79a;
+  background: linear-gradient(145deg, rgba(255, 143, 125, 0.2), rgba(255, 143, 125, 0.06));
+}
+
+.react-app-shell .tone-bait .gear-icon {
+  color: #ffd685;
+  background: linear-gradient(145deg, rgba(255, 209, 102, 0.2), rgba(255, 209, 102, 0.06));
+}
+
+.react-app-shell .gear-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid rgba(214, 184, 106, 0.5);
+  border-radius: 2px;
+  color: #ead28d;
+  background: #17130b;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.react-app-shell .gear-text {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.react-app-shell .gear-name {
+  display: block;
+  max-width: 100%;
+  min-height: 2.2em;
+  overflow-wrap: anywhere;
+  color: #e8e0d2;
+  font-size: 0.59rem;
+  font-weight: 550;
+  line-height: 1.14;
+  text-wrap: balance;
+}
+
+.react-app-shell .gear-meta {
+  color: var(--ink-faint);
+  font-size: 0.57rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.react-app-shell .gear-bar {
+  width: 34px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(151, 201, 227, 0.16);
+}
+
+.react-app-shell .gear-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #67f0d4, #31c7e8);
+  box-shadow: 0 0 6px rgba(94, 234, 212, 0.55);
+}
+
+.react-app-shell .gear-tile.is-alert .gear-icon {
+  color: #ffa79a;
+  background: rgba(185, 66, 62, 0.2);
+  animation: lakes-gear-alert 1.7s ease-in-out infinite;
+}
+
+.react-app-shell .gear-tile.is-alert .gear-meta,
+.react-app-shell .gear-tile.is-alert .gear-name {
+  color: #ffc2ba;
+}
+
+@keyframes lakes-gear-alert {
+  50% { box-shadow: 0 0 16px rgba(255, 143, 125, 0.55); }
+}
+
+.react-app-shell .equipment-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  min-width: 230px;
+  max-width: min(280px, calc(100vw - 24px));
+  max-height: 240px;
+  margin-left: var(--menu-shift-x, 0px);
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid rgba(214, 184, 106, 0.34);
+  border-radius: 6px;
+  background: rgba(8, 10, 7, 0.96);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.55);
+  animation: lakes-pop-in 0.18s var(--ease-spring);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.react-app-shell .equipment-options[hidden] {
+  display: none;
+}
+
+@keyframes lakes-pop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.react-app-shell .equipment-option {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid rgba(214, 184, 106, 0.16);
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(17, 25, 17, 0.74);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.react-app-shell .equipment-option-name {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.react-app-shell .equipment-option-detail {
+  color: var(--ink-dim);
+  font-size: 0.68rem;
+}
+
+.react-app-shell .equipment-option.is-active {
+  border-color: rgba(214, 184, 106, 0.48);
+  color: #e4cc8c;
+  background: rgba(214, 184, 106, 0.09);
+  font-weight: 700;
+}
+
+.react-app-shell .locations-list {
+  display: grid;
+  align-items: start;
+  grid-auto-columns: min(78vw, 300px);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  gap: 11px;
+  margin-inline: -12px;
+  padding: 3px 12px 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.react-app-shell .locations-list::-webkit-scrollbar {
+  display: none;
+}
+
+.react-app-shell .location-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  min-height: 156px;
+  align-content: start;
+  padding: 16px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(214, 184, 106, 0.22);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(214, 184, 106, 0.055) 0 1px, transparent 1px 64%, rgba(214, 184, 106, 0.04) 64% 65%, transparent 65%),
+    linear-gradient(145deg, rgba(23, 42, 32, 0.98), rgba(8, 13, 10, 0.98));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 36px rgba(0, 0, 0, 0.38);
+  scroll-snap-align: center;
+  transition: transform 0.25s var(--ease-spring), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.react-app-shell .location-card[data-location="cedar-marsh"],
+.react-app-shell .location-card[data-location="granite-reservoir"] {
+  background: linear-gradient(145deg, rgba(48, 43, 27, 0.98), rgba(13, 12, 8, 0.98));
+}
+
+.react-app-shell .location-card[data-location="lake-greywater"],
+.react-app-shell .location-card[data-location="northwind-channel"],
+.react-app-shell .location-card[data-location="stormglass-basin"] {
+  background: linear-gradient(145deg, rgba(29, 31, 36, 0.98), rgba(9, 9, 11, 0.98));
+}
+
+.react-app-shell .location-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 2px;
+}
+
+.react-app-shell .location-card::after {
+  content: "";
+  position: absolute;
+  right: 17px;
+  bottom: 17px;
+  z-index: -1;
+  width: 38px;
+  height: 38px;
+  opacity: 0.4;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 5px rgba(214, 184, 106, 0.06);
+  pointer-events: none;
+}
+
+.react-app-shell .location-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.react-app-shell .location-card.risk-low::before { background: linear-gradient(180deg, #57e0a4, #2f8f68); }
+.react-app-shell .location-card.risk-moderate::before { background: linear-gradient(180deg, #ffd166, #c98e2e); }
+.react-app-shell .location-card.risk-high::before { background: linear-gradient(180deg, #ff8f7d, #b9342e); }
+
+.react-app-shell .location-card[role] {
+  cursor: pointer;
+}
+
+.react-app-shell .location-card.is-selected {
+  border-color: rgba(225, 199, 128, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(214, 184, 106, 0.18), 0 0 0 1px rgba(214, 184, 106, 0.18), 0 22px 42px rgba(0, 0, 0, 0.46);
+  transform: translateY(-1px);
+}
+
+.react-app-shell .location-card.is-selected h2 {
+  color: #f3eadb;
+}
+
+.react-app-shell .location-card.is-locked {
+  opacity: 0.84;
+  filter: saturate(0.72);
+}
+
+.react-app-shell .location-top,
+.react-app-shell .location-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.react-app-shell .location-top h2 {
+  min-width: 0;
+  color: #f3eadb;
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.react-app-shell .risk-dots {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 0;
+  color: var(--ink-faint);
+}
+
+.react-app-shell .risk-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(151, 201, 227, 0.16);
+}
+
+.react-app-shell .risk-dots i.on {
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.react-app-shell .risk-dots.risk-low { color: #7ef0bd; }
+.react-app-shell .risk-dots.risk-moderate { color: #ffd685; }
+.react-app-shell .risk-dots.risk-high { color: #ffa79a; }
+
+.react-app-shell .risk-dot-label {
+  margin-left: 3px;
+  color: currentColor;
+  font-size: 0.53rem;
+  font-weight: 550;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.react-app-shell .location-risk-reason {
+  color: #e5cb82;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.react-app-shell .location-fish {
+  display: grid;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.react-app-shell .lakes-screen .fish-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 11px;
+}
+
+.react-app-shell .fish-cue {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgba(214, 184, 106, 0.46);
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(8, 12, 8, 0.78);
+}
+
+.react-app-shell .fish-cue .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.react-app-shell .lakes-screen .fish-chip {
+  position: relative;
+  padding: 0;
+  color: #d8d0c2;
+  background: transparent;
+  font-size: 0.64rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.react-app-shell .lakes-screen .fish-chip + .fish-chip::before {
+  content: "·";
+  position: absolute;
+  left: -7px;
+  color: rgba(214, 184, 106, 0.55);
+}
+
+.react-app-shell .fish-list-details {
+  display: grid;
+  gap: 6px;
+}
+
+.react-app-shell .fish-list-details summary {
+  width: fit-content;
+  color: var(--gold);
+  font-size: 0.64rem;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.react-app-shell .fish-list-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.react-app-shell .fish-list-details summary::after {
+  content: " +";
+  color: var(--ink-dim);
+}
+
+.react-app-shell .fish-chips-expanded {
+  padding-top: 1px;
+}
+
+.react-app-shell .value-tag,
+.react-app-shell .lock-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 0 1px 7px;
+  border-left: 1px solid rgba(214, 184, 106, 0.55);
+  color: #e5cb82;
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.react-app-shell .value-tag .icon,
+.react-app-shell .lock-tag .icon {
+  width: 13px;
+  height: 13px;
+  stroke: var(--gold);
+}
+
+.react-app-shell .lock-tag {
+  gap: 8px;
+  margin-left: auto;
+}
+
+.react-app-shell .lock-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.react-app-shell .lock-copy strong {
+  color: #e5cb82;
+  font-size: 0.72rem;
+}
+
+.react-app-shell .lock-copy small {
+  color: var(--ink-dim);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+.react-app-shell .location-radio {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 27px;
+  height: 27px;
+  border: 1px solid rgba(214, 184, 106, 0.34);
+  border-radius: 50%;
+  color: transparent;
+  background: rgba(7, 9, 7, 0.72);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.react-app-shell .location-radio .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.8;
+}
+
+.react-app-shell .location-card.is-selected .location-radio {
+  border-color: transparent;
+  color: #10130d;
+  background: var(--gold);
+  box-shadow: 0 0 22px rgba(214, 184, 106, 0.24);
+}
+
+.react-app-shell .recovery-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 143, 125, 0.32);
+  border-left: 3px solid rgba(255, 143, 125, 0.7);
+  border-radius: var(--radius-md);
+  background: rgba(84, 39, 36, 0.28);
+}
+
+.react-app-shell .recovery-banner p {
+  margin-top: 4px;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.react-app-shell .recovery-banner strong {
+  color: #ffa79a;
+}
+
+.react-app-shell .recovery-banner button {
+  width: 100%;
+}
+
+.react-app-shell .lakes-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(214, 184, 106, 0.22);
+  border-radius: 7px;
+  color: var(--ink-dim);
+  background: rgba(214, 184, 106, 0.05);
+  font-size: 0.76rem;
+}
+
+.react-app-shell .lakes-feedback.is-loading::before,
+.react-app-shell .lakes-feedback.is-ready::before,
+.react-app-shell .lakes-feedback.is-error::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.react-app-shell .lakes-feedback.is-error {
+  border-color: rgba(255, 143, 125, 0.4);
+  color: #ffd2cb;
+  background: rgba(185, 66, 62, 0.12);
+}
+
+.react-app-shell .lakes-feedback .secondary-action {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.react-app-shell .cast-bar {
+  position: fixed;
+  left: calc(var(--app-safe-left) + 12px);
+  right: calc(var(--app-safe-right) + 12px);
+  bottom: calc(var(--tabbar-total-height) + var(--cta-gap));
+  z-index: 10;
+  display: grid;
+  gap: 8px 10px;
+  min-height: var(--cast-bar-h);
+  padding: 10px;
+  border: 1px solid rgba(214, 184, 106, 0.42);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 18, 13, 0.98), rgba(7, 8, 6, 0.99));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 24px 54px rgba(0, 0, 0, 0.64);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  pointer-events: auto;
+}
+
+.react-app-shell .cast-details {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.react-app-shell .cast-details-copy {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.react-app-shell .cast-details-title {
+  color: var(--gold);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .cast-details-copy strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app-shell .cast-details-after {
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app-shell .cast-risk {
+  display: grid;
+  flex: 0 0 47%;
+  align-content: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(214, 184, 106, 0.16);
+  border-radius: 6px;
+  background: rgba(13, 18, 13, 0.66);
+}
+
+.react-app-shell .cast-risk-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .cast-risk strong {
+  color: var(--ink);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.react-app-shell .cast-risk.risk-low .cast-risk-label { color: #8cefc0; }
+.react-app-shell .cast-risk.risk-moderate .cast-risk-label { color: #ffd685; }
+.react-app-shell .cast-risk.risk-high .cast-risk-label { color: #ffa79a; }
+
+.react-app-shell .cast-readiness {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.react-app-shell .readiness-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.react-app-shell .readiness-chip .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.react-app-shell .readiness-chip.is-ok { color: #9fe6c9; border-color: rgba(87, 224, 164, 0.28); background: rgba(61, 214, 140, 0.04); }
+.react-app-shell .readiness-chip.is-warn { color: #ffd685; border-color: rgba(255, 209, 102, 0.32); background: rgba(205, 149, 53, 0.05); }
+.react-app-shell .readiness-chip.is-bad { color: #ffa79a; border-color: rgba(255, 143, 125, 0.38); background: rgba(185, 66, 62, 0.06); animation: lakes-gear-alert 1.7s ease-in-out infinite; }
+
+.react-app-shell .cast-cta {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 10px 14px;
+  font-size: 0.77rem;
+}
+
+.react-app-shell .cast-cta .icon {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2;
+}
+
+.react-app-shell .cast-cta.is-restock {
+  color: #fff4e5;
+  background: linear-gradient(180deg, #8f2a40, #651829);
+}
+
+@media (min-width: 720px) {
+  .react-app-shell .locations-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow: visible;
+  }
+
+  .react-app-shell .recovery-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .react-app-shell .recovery-banner button {
+    width: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .react-app-shell .locations-list {
+    margin-top: calc(var(--tabbar-total-height) + var(--cast-bar-h) + var(--cta-gap) + var(--content-cast-gap));
+  }
+
+  .react-app-shell .boat-tile,
+  .react-app-shell .gear-tile {
+    min-height: 64px;
+    gap: 4px;
+    padding: 6px 4px 5px;
+  }
+
+  .react-app-shell .gear-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .react-app-shell .gear-icon .icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .react-app-shell .gear-name {
+    font-size: 0.62rem;
+  }
+
+  .react-app-shell .cast-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 54px;
+    min-height: 54px;
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+
+  .react-app-shell .cast-details {
+    flex: 0 0 auto;
+    align-items: center;
+    max-width: 142px;
+  }
+
+  .react-app-shell .cast-details-title,
+  .react-app-shell .cast-details-after,
+  .react-app-shell .cast-risk {
+    display: none;
+  }
+
+  .react-app-shell .cast-details-copy strong {
+    max-width: 142px;
+    font-size: 0.6rem;
+    white-space: normal;
+  }
+
+  .react-app-shell .cast-readiness {
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 5px;
+    overflow: hidden;
+  }
+
+  .react-app-shell .readiness-chip {
+    min-width: 0;
+    gap: 3px;
+    padding: 3px 7px;
+    font-size: 0.6rem;
+    white-space: nowrap;
+  }
+
+  .react-app-shell .readiness-chip .icon {
+    width: 11px;
+    height: 11px;
+  }
+
+  .react-app-shell .cast-cta {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 350px) {
+  .react-app-shell .location-card {
+    padding-inline: 13px;
+  }
+
+  .react-app-shell .location-top h2 {
+    font-size: 1.03rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .react-app-shell .equipment-options,
+  .react-app-shell .equipment-option,
+  .react-app-shell .cast-bar,
+  .react-app-shell .location-card {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .react-app-shell .equipment-option.is-active {
+    border-color: Highlight;
+    background: Canvas;
+  }
+
+  .react-app-shell .location-card.is-selected {
+    border-color: Highlight;
+    box-shadow: 0 0 0 1px Highlight;
+  }
+
+  .react-app-shell .location-card::before {
+    background: Highlight;
+    box-shadow: none;
+  }
+}

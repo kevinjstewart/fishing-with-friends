@@ -5,6 +5,12 @@
   pointer-events: none;
 }
 
+body.is-fighting #react-root {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .react-app-shell {
   position: fixed;
   inset: 0;

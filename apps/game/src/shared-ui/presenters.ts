@@ -72,6 +72,16 @@ export function speciesNamesForIds(state: GameStateResponse, ids: string[]): str
     .filter((name, index, names) => names.indexOf(name) === index);
 }
 
+export function eligibleFishForSetup(state: GameStateResponse, location: LocationAvailability, baitId?: string): FishSpecies[] {
+  if (!baitId) return [];
+  return state.catalog.fish.filter(
+    (species) =>
+      location.fishIds.includes(species.id) &&
+      species.availableLocationIds.includes(location.id) &&
+      species.acceptedBaitIds.includes(baitId),
+  );
+}
+
 export function locationNamesForBoat(state: GameStateResponse, ids: string[]): string[] {
   return ids.map((id) => state.catalog.locations.find((location) => location.id === id)?.name ?? id);
 }

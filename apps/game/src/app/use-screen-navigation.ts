@@ -36,6 +36,7 @@ export function useScreenNavigation(ready: boolean): ScreenNavigation {
 
   const navigate = useCallback((screen: ScreenId) => {
     if (!ready) return;
+    if (currentRequest.current?.screen === screen) return;
     if (state.phase === "ready" && state.navigation.status === "idle" && state.screen === screen) return;
 
     const previousScreen = currentRequest.current?.screen ?? state.navigation.target ?? state.screen;

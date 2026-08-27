@@ -5,13 +5,18 @@ import type {
   AuthResponse,
   CollectionResponse,
   FishJournalResponse,
+  FishingEncounterResponse,
   GameStateResponse,
   LeaderboardResponse,
   MeResponse,
   PlayerProfile,
   PurchaseRequest,
   PurchaseResponse,
+  RecoveryResponse,
+  SelectEquipmentRequest,
+  SelectEquipmentResponse,
   SellCatchResponse,
+  StartFishingRequest,
 } from "@fishing/shared/contracts";
 import { queryKeys } from "../api/query-keys";
 import { appReducer, initialAppState } from "./app-reducer";
@@ -28,6 +33,9 @@ export interface BootstrapApi {
   getCollection(signal?: AbortSignal): Promise<CollectionResponse>;
   purchase(input: PurchaseRequest): Promise<PurchaseResponse>;
   sellCatch(catchId: string): Promise<SellCatchResponse>;
+  selectEquipment(input: SelectEquipmentRequest): Promise<SelectEquipmentResponse>;
+  digForWorms(): Promise<RecoveryResponse>;
+  startFishing(input: StartFishingRequest): Promise<FishingEncounterResponse>;
 }
 
 export interface BootstrapOptions {

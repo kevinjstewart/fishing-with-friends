@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ActiveFishingEncounterResponse, AuthResponse, GameStateResponse, MeResponse, PlayerProfile } from "@fishing/shared/contracts";
+import type { ActiveFishingEncounterResponse, AuthResponse, FishingEncounterResponse, GameStateResponse, MeResponse, PlayerProfile } from "@fishing/shared/contracts";
 import { createAppQueryClient } from "../api/query-client";
 import { App } from "./App";
 import { AppProviders } from "./AppProviders";
@@ -19,6 +19,16 @@ const player: PlayerProfile = {
 
 const gameState = { coins: 123, activeEquipment: {}, inventory: {}, locations: [], catalog: {} } as unknown as GameStateResponse;
 const activeEncounter: ActiveFishingEncounterResponse = { encounter: null, expired: false };
+const liveEncounter = {
+  encounterId: "active-encounter",
+  difficultySeed: 1,
+  locationId: "beginner-lake",
+  locationName: "Beginner Lake",
+  species: {},
+  miniGame: { catchZoneSize: 0.3, catchMeterGainRate: 0.2, catchMeterLossRate: 0.1, durationSeconds: 5 },
+  rodRiskBand: "low",
+  expiresAt: "2026-01-01T12:05:00.000Z",
+} as FishingEncounterResponse;
 
 function createServices(overrides: Partial<ReactAppServices["api"]> = {}): ReactAppServices {
   const api = Object.assign({
@@ -98,6 +108,22 @@ describe("React migration shell", () => {
 
     expect(screen.getByText("123")).toBeInTheDocument();
     expect(services.api.getActiveEncounter).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes a server-reported active encounter and explains an expired one", async () => {
+    const services = createServices();
+    services.api.getActiveEncounter = vi.fn().mockResolvedValue({ encounter: liveEncounter, expired: false });
+    renderApp(services);
+    await waitFor(() => expect(services.runtime.startFight).toHaveBeenCalledWith(liveEncounter));
+    expect(document.body).toHaveClass("is-fighting");
+    expect(screen.getByRole("button", { name: "Lakes" })).toBeDisabled();
+
+    cleanup();
+    const expiredServices = createServices();
+    expiredServices.api.getActiveEncounter = vi.fn().mockResolvedValue({ encounter: null, expired: true });
+    renderApp(expiredServices);
+    await waitFor(() => expect(screen.getByText("Your previous fishing encounter expired. Your tackle is ready for a safe new cast.")).toBeInTheDocument());
+    expect(expiredServices.runtime.startFight).not.toHaveBeenCalled();
   });
 
   it("renders a recoverable bootstrap failure and retries only after user input", async () => {

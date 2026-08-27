@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { queryKeys } from "../../api/query-keys";
 import { LoadingPanel, RetryPanel } from "../chrome/ScreenStatus";
 import { ShopScreen } from "./ShopScreen";
+import type { ShopCategory } from "../../ui/types";
 
 export interface ShopRouteApi {
   getGameState(signal?: AbortSignal): Promise<GameStateResponse>;
@@ -12,12 +13,13 @@ export interface ShopRouteApi {
 
 export interface ShopRouteProps {
   api: ShopRouteApi;
+  initialCategory?: ShopCategory;
   navigationRequestId: number;
   onLoaded: (requestId: number) => void;
   onFailed: (requestId: number, message: string) => void;
 }
 
-export function ShopRoute({ api, navigationRequestId, onLoaded, onFailed }: ShopRouteProps) {
+export function ShopRoute({ api, initialCategory = "bait", navigationRequestId, onLoaded, onFailed }: ShopRouteProps) {
   const query = useQuery({
     queryKey: queryKeys.gameState,
     queryFn: ({ signal }) => api.getGameState(signal),
@@ -49,5 +51,5 @@ export function ShopRoute({ api, navigationRequestId, onLoaded, onFailed }: Shop
       />
     );
   }
-  return <ShopScreen state={query.data} api={api} />;
+  return <ShopScreen state={query.data} api={api} initialCategory={initialCategory} />;
 }

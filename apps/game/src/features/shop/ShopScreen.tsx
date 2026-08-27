@@ -24,6 +24,7 @@ interface ShopFeedback {
 export interface ShopScreenProps {
   state: GameStateResponse;
   api: PurchaseApi;
+  initialCategory?: ShopCategory;
 }
 
 function errorMessage(error: unknown): string {
@@ -37,8 +38,8 @@ function itemsForCategory(state: GameStateResponse, category: ShopCategory): Sho
   return state.catalog.boats;
 }
 
-export function ShopScreen({ state, api }: ShopScreenProps) {
-  const [category, setCategory] = useState<ShopCategory>("bait");
+export function ShopScreen({ state, api, initialCategory = "bait" }: ShopScreenProps) {
+  const [category, setCategory] = useState<ShopCategory>(initialCategory);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState<ShopFeedback>();
   const purchase = usePurchaseMutation(api);

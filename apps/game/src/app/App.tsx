@@ -1,5 +1,6 @@
+import type { FishingEncounterResponse } from "@fishing/shared/contracts";
 import type { ScreenId } from "./app-types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactAppServices } from "./react-services";
 import { useBootstrap, type BootstrapState } from "./use-bootstrap";
 import { useScreenNavigation } from "./use-screen-navigation";
@@ -11,6 +12,8 @@ import { FriendsRoute } from "../features/friends/FriendsRoute";
 import { JournalRoute } from "../features/journal/JournalRoute";
 import { CollectionRoute } from "../features/collection/CollectionRoute";
 import { ShopRoute } from "../features/shop/ShopRoute";
+import { LakesScreen } from "../features/lakes/LakesScreen";
+import type { ShopCategory } from "../ui/types";
 
 export interface AppProps {
   services: ReactAppServices;
@@ -43,18 +46,6 @@ function BootstrapContent({ bootstrap }: { bootstrap: BootstrapState }) {
   );
 }
 
-function UnmigratedScreen({ screen }: { screen: Extract<ScreenId, "lakes"> }) {
-  const heading = "Lakes";
-  return (
-    <section className="screen migration-placeholder" data-testid={`${screen}-screen`}>
-      <div className="dashboard-header">
-        <div><span className="eyebrow">React migration</span><h1>{heading}</h1></div>
-        <p className="muted">This read-only shell is ready. {heading} controls remain on the production entry until their migration phase.</p>
-      </div>
-    </section>
-  );
-}
-
 interface ScreenRouterProps {
   screen: ScreenId;
   api: ReactAppServices["api"];
@@ -64,9 +55,12 @@ interface ScreenRouterProps {
   onFailed: (requestId: number, message: string) => void;
   onShare: () => void;
   onGoFishing: () => void;
+  shopCategory: ShopCategory;
+  onOpenShop: (category: ShopCategory) => void;
+  onEncounterStarted: (encounter: FishingEncounterResponse) => void;
 }
 
-function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, onFailed, onShare, onGoFishing }: ScreenRouterProps) {
+function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, onFailed, onShare, onGoFishing, shopCategory, onOpenShop, onEncounterStarted }: ScreenRouterProps) {
   if (screen === "friends") {
     return <FriendsRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onShare={onShare} onGoFishing={onGoFishing} />;
   }
@@ -74,12 +68,12 @@ function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, o
     return <JournalRoute api={api} state={gameState} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onGoFishing={onGoFishing} />;
   }
   if (screen === "shop") {
-    return <ShopRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} />;
+    return <ShopRoute api={api} initialCategory={shopCategory} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} />;
   }
   if (screen === "collection") {
     return <CollectionRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onGoFishing={onGoFishing} />;
   }
-  return <UnmigratedScreen screen={screen} />;
+  return <LakesScreen state={gameState} api={api} onOpenShop={onOpenShop} onEncounterStarted={onEncounterStarted} />;
 }
 
 export function App({ services }: AppProps) {
@@ -90,6 +84,10 @@ export function App({ services }: AppProps) {
   });
   const navigation = useScreenNavigation(bootstrap.phase === "ready");
   const [status, setStatus] = useState<StatusSnapshot>();
+  const [shopCategory, setShopCategory] = useState<ShopCategory>("bait");
+  const [encounterActive, setEncounterActive] = useState(false);
+  const activeEncounterId = useRef<string | undefined>(undefined);
+  const expiredEncounterWasShown = useRef(false);
 
   useEffect(() => {
     services.telegram.initialize();
@@ -108,6 +106,10 @@ export function App({ services }: AppProps) {
     };
   }, [services.runtime]);
 
+  useEffect(() => () => {
+    document.body.classList.remove("is-fighting");
+  }, []);
+
   useEffect(() => {
     if (!status) return;
     const timeoutId = window.setTimeout(() => setStatus(undefined), status.state === "loading" ? 15_000 : 3_200);
@@ -115,11 +117,44 @@ export function App({ services }: AppProps) {
   }, [status]);
 
   const navigate = useCallback((screen: ScreenId) => {
+    if (encounterActive) return;
     setStatus(undefined);
     navigation.navigate(screen);
-  }, [navigation.navigate]);
+  }, [encounterActive, navigation.navigate]);
 
   const goFishing = useCallback(() => navigate("lakes"), [navigate]);
+
+  const openShop = useCallback((category: ShopCategory) => {
+    setShopCategory(category);
+    navigate("shop");
+  }, [navigate]);
+
+  const startEncounter = useCallback((encounter: FishingEncounterResponse, message = "Your line is ready. Fish on…") => {
+    if (activeEncounterId.current === encounter.encounterId && document.body.classList.contains("is-fighting")) return;
+    activeEncounterId.current = encounter.encounterId;
+    setEncounterActive(true);
+    setStatus({ message, state: "ready" });
+    document.body.classList.add("is-fighting");
+    services.runtime.startFight(encounter);
+  }, [services.runtime]);
+
+  useEffect(() => {
+    if (bootstrap.phase !== "ready") return;
+    const active = bootstrap.activeEncounter;
+    if (active?.encounter) {
+      expiredEncounterWasShown.current = false;
+      startEncounter(active.encounter, "Resuming your active encounter…");
+      return;
+    }
+    if (active?.expired && !expiredEncounterWasShown.current) {
+      expiredEncounterWasShown.current = true;
+      setStatus({ message: "Your previous fishing encounter expired. Your tackle is ready for a safe new cast.", state: "error" });
+      return;
+    }
+    if (services.isDevelopment && !services.telegram.isAvailable) {
+      setStatus({ message: "Local development mode", state: "ready" });
+    }
+  }, [bootstrap.activeEncounter, bootstrap.phase, services.isDevelopment, services.telegram.isAvailable, startEncounter]);
 
   const shareInvite = useCallback(() => {
     const webApp = window.Telegram?.WebApp;
@@ -160,12 +195,12 @@ export function App({ services }: AppProps) {
   const renderedScreen = isNavigationLoading ? navigation.state.navigation.target ?? navigation.state.screen : navigation.state.screen;
   const requestId = navigation.state.navigation.requestId;
   const hasToast = Boolean(status?.message);
-  const navEnabled = navigation.state.phase === "ready" || Boolean(navigationError);
+  const navEnabled = !encounterActive && (navigation.state.phase === "ready" || Boolean(navigationError));
 
   return (
     <div className="react-app-shell" data-testid="react-app-shell">
       <div className="app-frame" data-testid="app-frame" data-toast-visible={String(hasToast)} data-view="screen">
-        <GameTopbar coins={bootstrap.gameState.coins} disabled={!navEnabled} onShop={() => navigate("shop")} />
+        <GameTopbar coins={bootstrap.gameState.coins} disabled={!navEnabled} onShop={() => openShop("bait")} />
         <main className="app-content" data-testid="app-content" aria-busy={isNavigationLoading} data-pending={String(isNavigationLoading)} data-view="screen">
           {navigationError ? (
             <RetryPanel
@@ -185,6 +220,9 @@ export function App({ services }: AppProps) {
               onFailed={(nextRequestId, message) => navigation.markFailed(renderedScreen, nextRequestId, message)}
               onShare={shareInvite}
               onGoFishing={goFishing}
+              shopCategory={shopCategory}
+              onOpenShop={openShop}
+              onEncounterStarted={startEncounter}
             />
           )}
         </main>
