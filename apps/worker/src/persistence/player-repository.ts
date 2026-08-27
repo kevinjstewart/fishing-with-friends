@@ -1,5 +1,5 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { PlayerProfile } from "@fishing/shared";
+import type { PlayerProfile } from "@fishing/shared/contracts";
 
 interface PlayerRow {
   id: string;

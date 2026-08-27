@@ -19,7 +19,7 @@ import type {
   SelectEquipmentResponse,
   StartFishingRequest,
   TelegramAuthRequest,
-} from "@fishing/shared";
+} from "@fishing/shared/contracts";
 
 export class ApiClientError extends Error {
   constructor(

@@ -1,4 +1,4 @@
-import type { CollectionResponse, FishJournalResponse, GameStateResponse, LeaderboardResponse } from "@fishing/shared";
+import type { CollectionResponse, FishJournalResponse, GameStateResponse, LeaderboardResponse } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import type { ScreenId, RetryPanelRequest, ShopCategory, ToastState, CatchResultView, DecisionResultView } from "../types";
 import { uiFoundationStyles } from "../component-styles";

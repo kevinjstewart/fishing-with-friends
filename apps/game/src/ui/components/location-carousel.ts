@@ -1,4 +1,4 @@
-import type { GameStateResponse } from "@fishing/shared";
+import type { GameStateResponse } from "@fishing/shared/contracts";
 import { LitElement, html, css } from "lit";
 import { uiFoundationStyles } from "../component-styles";
 

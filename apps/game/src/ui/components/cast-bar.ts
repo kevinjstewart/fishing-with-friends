@@ -1,5 +1,5 @@
-import type { GameStateResponse, LocationAvailability, RiskBand } from "@fishing/shared";
-import { rodRiskBandForWeight } from "@fishing/shared";
+import type { GameStateResponse, LocationAvailability, RiskBand } from "@fishing/shared/contracts";
+import { rodRiskBandForWeight } from "@fishing/shared/risk";
 import { LitElement, html, css } from "lit";
 import { icon, type IconName } from "../icons";
 import { emitUiEvent } from "../types";

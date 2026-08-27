@@ -1,4 +1,4 @@
-import type { FishJournalResponse, GameStateResponse, JournalEntry } from "@fishing/shared";
+import type { FishJournalResponse, GameStateResponse, JournalEntry } from "@fishing/shared/contracts";
 import { LitElement, html, css } from "lit";
 import { icon } from "../icons";
 import { emitUiEvent, type JournalFilterMode } from "../types";

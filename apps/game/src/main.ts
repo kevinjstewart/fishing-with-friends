@@ -1,10 +1,11 @@
-import type { FishingEncounterResponse, GameStateResponse } from "@fishing/shared";
+import type { FishingEncounterResponse, GameStateResponse } from "@fishing/shared/contracts";
 import "./styles.css";
+import { AuthenticatedClient } from "./api/authenticated-client";
 import { ApiClient, ApiClientError } from "./api/client";
-import { createGame } from "./game/create-game";
+import { createMutationLock } from "./api/mutation-lock";
+import { createFishingRuntime, type FishingCompleteEvent } from "./game/phaser-runtime";
 import { AppShell, type EquipmentSelectionRequest, type ScreenId } from "./ui/app-shell";
-import { publishSafeArea, readSafeArea } from "./safe-area";
-import { createTelegramIntegration } from "./telegram/integration";
+import { createTelegramLifecycle } from "./telegram/lifecycle";
 import {
   activateTelegramViewportMock,
   resolveTelegramMockId,
@@ -18,8 +19,23 @@ if (!uiRoot || !gameRoot) {
 }
 
 const shell = new AppShell(uiRoot);
-const game = createGame(gameRoot);
-const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
+const runtime = createFishingRuntime(gameRoot);
+const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
+if (!safeAreaProbe) {
+  throw new Error("The safe-area probe is missing from the game shell.");
+}
+
+const telegram = createTelegramLifecycle({
+  target: document.documentElement,
+  safeAreaProbe,
+  onSafeAreaChanged: (insets) => runtime.setSafeArea(insets),
+});
+const api = new AuthenticatedClient({
+  api: new ApiClient(import.meta.env.VITE_API_BASE_URL ?? ""),
+  isDevelopment: import.meta.env.DEV,
+  getTelegramInitData: () => telegram.initData,
+  onSessionRecoveryStart: () => shell.setStatus("Your session expired. Reconnecting…"),
+});
 
 // Development-only seam for deterministic browser characterization. It is
 // activated only by the Phase 0 fixture URL and is removed from production by
@@ -30,87 +46,27 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get("phas
       emitFishingComplete: (event: { encounterId: string; performance: number }) => void;
     };
   }).__FISHING_PHASE0__ = {
-    emitFishingComplete: (event) => game.events.emit("fishing:complete", event),
+    emitFishingComplete: (event) => runtime.emitCompleteForTest(event),
   };
 }
 
 let currentGameState: GameStateResponse | undefined;
 let fishingActive = false;
 let fishingSceneSettled = true;
-let completionPending = false;
 let navigationSequence = 0;
 let navigationController: AbortController | undefined;
-let sessionRecoveryPromise: Promise<void> | undefined;
-
-const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
-
-function syncSafeArea(): void {
-  if (!safeAreaProbe) return;
-  const telegramMock = window.__FISHING_TELEGRAM_MOCK__;
-  if (telegramMock) {
-    publishSafeArea(document.documentElement, {
-      device: telegramMock.safeArea,
-      content: telegramMock.contentSafeArea,
-    });
-  } else {
-    const webApp = window.Telegram?.WebApp;
-    publishSafeArea(document.documentElement, {
-      device: webApp?.safeAreaInset,
-      content: webApp?.contentSafeAreaInset,
-    });
-  }
-  game.registry.set("safeArea", readSafeArea(safeAreaProbe));
-  game.events.emit("safearea:changed");
-}
-
-const telegram = createTelegramIntegration(syncSafeArea);
 telegram.initialize();
 
 const telegramMock = resolveTelegramMockId(new URLSearchParams(window.location.search).get("telegramMock"));
 if (telegramMock) activateTelegramViewportMock(telegramViewportPresets[telegramMock]);
-
-syncSafeArea();
-window.addEventListener("orientationchange", () => window.setTimeout(syncSafeArea, 120));
-window.visualViewport?.addEventListener("resize", syncSafeArea);
-window.addEventListener("resize", syncSafeArea);
 telegram.syncViewportInsets();
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
-async function recoverSession(): Promise<void> {
-  if (sessionRecoveryPromise) return sessionRecoveryPromise;
-  sessionRecoveryPromise = (async () => {
-    shell.setStatus("Your session expired. Reconnecting…");
-    api.clearSession();
-    if (telegram.initData) {
-      await api.authenticateWithTelegram(telegram.initData);
-      return;
-    }
-    if (import.meta.env.DEV) {
-      await api.authenticateForDevelopment();
-      return;
-    }
-    throw new Error("Your session expired. Reopen the game from Telegram to sign in again.");
-  })().finally(() => {
-    sessionRecoveryPromise = undefined;
-  });
-  return sessionRecoveryPromise;
-}
-
-async function withSessionRecovery<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (!(error instanceof ApiClientError) || error.status !== 401) throw error;
-    await recoverSession();
-    return operation();
-  }
-}
-
-async function refreshGameState(signal?: AbortSignal): Promise<void> {
-  currentGameState = await withSessionRecovery(() => api.getGameState(signal));
+async function refreshGameState(signal?: AbortSignal): Promise<GameStateResponse> {
+  return api.getGameState(signal);
 }
 
 async function reconcileCollectionAndWallet(): Promise<{
@@ -118,8 +74,8 @@ async function reconcileCollectionAndWallet(): Promise<{
   walletRefreshed: boolean;
 }> {
   const [stateResult, collectionResult] = await Promise.allSettled([
-    withSessionRecovery(() => api.getGameState()),
-    withSessionRecovery(() => api.getCollection()),
+    api.getGameState(),
+    api.getCollection(),
   ]);
 
   if (stateResult.status === "fulfilled") {
@@ -138,7 +94,7 @@ function renderLakes(): void {
   shell.setNavEnabled(true);
   shell.setGameState(currentGameState);
   shell.renderLakes();
-  game.events.emit("fishing:lobby");
+  void runtime.returnToLobby();
 }
 
 async function waitForFishingSceneToSettle(): Promise<void> {
@@ -147,13 +103,15 @@ async function waitForFishingSceneToSettle(): Promise<void> {
   await new Promise<void>((resolve) => {
     let settled = false;
     const timeout = { id: 0 };
+    let unsubscribe = (): void => {};
     const finish = (): void => {
       if (settled) return;
       settled = true;
       window.clearTimeout(timeout.id);
+      unsubscribe();
       resolve();
     };
-    game.events.once("fishing:ambient", finish);
+    unsubscribe = runtime.onAmbient(finish);
     timeout.id = window.setTimeout(finish, 2500);
   });
 }
@@ -169,7 +127,7 @@ async function returnToLakes(): Promise<boolean> {
   return openScreen("lakes");
 }
 
-game.events.on("fishing:ambient", () => {
+runtime.onAmbient(() => {
   fishingSceneSettled = true;
 });
 
@@ -201,32 +159,34 @@ async function openScreen(screen: ScreenId): Promise<boolean> {
   const navigation = beginNavigation(screen);
   try {
     if (screen === "shop") {
-      await refreshGameState(navigation.controller.signal);
+      const gameState = await refreshGameState(navigation.controller.signal);
       if (!isCurrentNavigation(navigation.id)) return false;
-      if (currentGameState) shell.setGameState(currentGameState);
+      currentGameState = gameState;
+      shell.setGameState(gameState);
       shell.renderShop();
       return true;
     }
     if (screen === "collection") {
-      const collection = await withSessionRecovery(() => api.getCollection(navigation.controller.signal));
+      const collection = await api.getCollection(navigation.controller.signal);
       if (!isCurrentNavigation(navigation.id)) return false;
       shell.showCollection(collection);
       return true;
     }
     if (screen === "journal") {
-      const journal = await withSessionRecovery(() => api.getJournal(navigation.controller.signal));
+      const journal = await api.getJournal(navigation.controller.signal);
       if (!isCurrentNavigation(navigation.id)) return false;
       shell.renderJournal(journal);
       return true;
     }
     if (screen === "friends") {
-      const leaderboard = await withSessionRecovery(() => api.getLeaderboard(navigation.controller.signal));
+      const leaderboard = await api.getLeaderboard(navigation.controller.signal);
       if (!isCurrentNavigation(navigation.id)) return false;
       shell.showLeaderboard(leaderboard);
       return true;
     }
-    await refreshGameState(navigation.controller.signal);
+    const gameState = await refreshGameState(navigation.controller.signal);
     if (!isCurrentNavigation(navigation.id)) return false;
+    currentGameState = gameState;
     renderLakes();
     return true;
   } catch (error) {
@@ -269,7 +229,7 @@ shell.setShareHandler(() => {
   void navigator.clipboard.writeText(`${text} ${url}`).then(() => shell.setStatus("Invite copied", "ready"), fallback);
 });
 
-let startPending = false;
+const startLock = createMutationLock();
 
 function resumeEncounter(encounter: FishingEncounterResponse, statusMessage = "Resuming your fishing attempt…"): void {
   fishingActive = true;
@@ -279,23 +239,22 @@ function resumeEncounter(encounter: FishingEncounterResponse, statusMessage = "R
   shell.setNavigationPending();
   shell.setStatus(statusMessage);
   document.body.classList.add("is-fighting");
-  game.events.emit("fight:start", encounter);
+  runtime.startFight(encounter);
 }
 
 function startFishing(locationId: string): void {
-  if (startPending || fishingActive) return;
-  startPending = true;
+  if (fishingActive || !startLock.tryAcquire()) return;
   shell.setActionPending(true);
   void (async () => {
     try {
       if (!currentGameState) throw new Error("Your fishing state is still loading. Try again in a moment.");
       shell.setStatus("Preparing your line…");
-      const encounter = await withSessionRecovery(() => api.startFishing({ locationId, ...currentGameState!.activeEquipment }));
+      const encounter = await api.startFishing({ locationId, ...currentGameState!.activeEquipment });
       resumeEncounter(encounter, "Your line is ready. Fish on…");
     } catch (error) {
       let active: Awaited<ReturnType<typeof api.getActiveEncounter>> | undefined;
       try {
-        active = await withSessionRecovery(() => api.getActiveEncounter());
+        active = await api.getActiveEncounter();
       } catch {
         // Keep the original cast error visible when recovery is unavailable too.
       }
@@ -314,7 +273,7 @@ function startFishing(locationId: string): void {
         () => void returnToLakes(),
       );
     } finally {
-      startPending = false;
+      startLock.release();
       if (!fishingActive) shell.setActionPending(false);
     }
   })();
@@ -323,29 +282,27 @@ function startFishing(locationId: string): void {
 shell.setStartFishingHandler(startFishing);
 
 async function resolveCompletion(event: { encounterId: string; performance: number }): Promise<void> {
-  if (completionPending) return;
-  completionPending = true;
+  if (!completionLock.tryAcquire()) return;
   fishingActive = true;
   shell.setNavEnabled(false);
   shell.setActionPending(true);
   shell.setStatus("Checking the catch…");
   try {
-    const result = await withSessionRecovery(() => api.completeFishing(event.encounterId, event.performance));
+    const result = await api.completeFishing(event.encounterId, event.performance);
     await waitForFishingSceneToSettle();
     revealAppShell();
     fishingActive = false;
     shell.setNavEnabled(true);
     shell.setActionPending(false);
-    completionPending = false;
-    let decisionPending = false;
+    const decisionLock = createMutationLock();
+    const catchId = result.catch?.id;
     const handleDecision = (decision: "keep" | "sell") => {
-      if (decisionPending || !result.catch) return;
-      decisionPending = true;
+      if (!catchId || !decisionLock.tryAcquire()) return;
       shell.setActionPending(true);
       void (async () => {
         shell.setStatus(decision === "sell" ? "Selling the fish…" : "Recording the fish…");
         try {
-          const decisionResult = await withSessionRecovery(() => api.decideCatch(result.catch!.id, decision));
+          const decisionResult = await api.decideCatch(catchId, decision);
           if (currentGameState) currentGameState = { ...currentGameState, coins: decisionResult.coins };
           shell.updateWallet(decisionResult.coins);
           const loaded = await returnToLakes();
@@ -366,14 +323,13 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
             () => void returnToLakes(),
           );
         } finally {
-          decisionPending = false;
+          decisionLock.release();
           shell.setActionPending(false);
         }
       })();
     };
     shell.showFishingResult(result, handleDecision, () => void returnToLakes());
   } catch (error) {
-    completionPending = false;
     await waitForFishingSceneToSettle();
     revealAppShell();
     fishingActive = false;
@@ -392,43 +348,45 @@ async function resolveCompletion(event: { encounterId: string; performance: numb
       () => void resolveCompletion(event),
       () => void returnToLakes(),
     );
+  } finally {
+    completionLock.release();
   }
 }
 
-game.events.on("fishing:complete", (event: { encounterId: string; performance: number }) => {
+const completionLock = createMutationLock();
+
+runtime.onComplete((event: FishingCompleteEvent) => {
   void resolveCompletion(event);
 });
 
-let purchasePending = false;
+const purchaseLock = createMutationLock();
 
 shell.setPurchaseHandler((itemId, quantity) => {
-  if (purchasePending) return;
-  purchasePending = true;
+  if (!purchaseLock.tryAcquire()) return;
   shell.setActionPending(true);
   void (async () => {
     try {
       shell.setStatus("Buying…");
-      const result = await withSessionRecovery(() => api.purchase({ itemId, quantity }));
+      const result = await api.purchase({ itemId, quantity });
       currentGameState = currentGameState
         ? { ...currentGameState, coins: result.coins, inventory: result.inventory, activeEquipment: result.activeEquipment }
-        : await withSessionRecovery(() => api.getGameState());
+        : await api.getGameState();
       if (currentGameState) shell.setGameState(currentGameState);
       if (shell.getActiveScreen() === "shop") shell.renderShop();
       shell.setStatus(`Purchased ${itemId.replace(/-/g, " ")}`, "ready");
     } catch (error) {
       shell.setStatus(error instanceof ApiClientError ? error.message : "Unable to complete that purchase.", "error");
     } finally {
-      purchasePending = false;
+      purchaseLock.release();
       shell.setActionPending(false);
     }
   })();
 });
 
-let sellPending = false;
+const sellLock = createMutationLock();
 
 shell.setSellAllHandler(() => {
-  if (sellPending) return;
-  sellPending = true;
+  if (!sellLock.tryAcquire()) return;
   shell.setActionPending(true);
   shell.resetSellAllConfirmation();
   void (async () => {
@@ -438,10 +396,10 @@ shell.setSellAllHandler(() => {
     try {
       if (!currentGameState) throw new Error("Your collection is still loading. Try again in a moment.");
       shell.setStatus("Selling all fish…");
-      before = await withSessionRecovery(() => api.getCollection());
+      before = await api.getCollection();
       for (const specimen of before.fish) {
         try {
-          await withSessionRecovery(() => api.sellCatch(specimen.id));
+          await api.sellCatch(specimen.id);
         } catch (error) {
           operationError = error;
           break;
@@ -473,22 +431,21 @@ shell.setSellAllHandler(() => {
         shell.setStatus("Unable to confirm the sale. Retry when your connection is stable.", "error");
       }
     } finally {
-      sellPending = false;
+      sellLock.release();
       shell.setActionPending(false);
     }
   })();
 });
 
 shell.setSellCatchHandler((catchId) => {
-  if (sellPending) return;
-  sellPending = true;
+  if (!sellLock.tryAcquire()) return;
   shell.setActionPending(true);
   void (async () => {
     let before: Awaited<ReturnType<typeof api.getCollection>> | undefined;
     try {
       shell.setStatus("Selling the fish…");
-      before = await withSessionRecovery(() => api.getCollection());
-      const result = await withSessionRecovery(() => api.sellCatch(catchId));
+      before = await api.getCollection();
+      const result = await api.sellCatch(catchId);
       const reconciliation = await reconcileCollectionAndWallet();
       const walletNote = reconciliation.walletRefreshed ? " Wallet and collection are up to date." : " Wallet updated; collection refresh failed, so retry shortly.";
       shell.setStatus(`Sold ${result.catch.species.commonName} for ${result.catch.saleValueCoins.toLocaleString()} coins.${walletNote}`, "ready");
@@ -506,22 +463,21 @@ shell.setSellCatchHandler((catchId) => {
       }
       shell.setStatus(error instanceof Error ? error.message : "Unable to sell that fish.", "error");
     } finally {
-      sellPending = false;
+      sellLock.release();
       shell.setActionPending(false);
     }
   })();
 });
 
-let selectPending = false;
+const selectLock = createMutationLock();
 
 shell.setSelectEquipmentHandler((request: EquipmentSelectionRequest) => {
-  if (selectPending) return;
-  selectPending = true;
+  if (!selectLock.tryAcquire()) return;
   shell.setActionPending(true);
   void (async () => {
     try {
       shell.setStatus("Swapping gear…");
-      const result = await withSessionRecovery(() => api.selectEquipment(request));
+      const result = await api.selectEquipment(request);
       if (currentGameState) {
         currentGameState = { ...currentGameState, activeEquipment: result.activeEquipment, inventory: result.inventory };
         shell.setGameState(currentGameState);
@@ -529,23 +485,22 @@ shell.setSelectEquipmentHandler((request: EquipmentSelectionRequest) => {
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Unable to swap that piece of equipment.", "error");
     } finally {
-      selectPending = false;
+      selectLock.release();
       shell.setActionPending(false);
     }
   })();
 });
 
-let recoveryPending = false;
+const recoveryLock = createMutationLock();
 
 shell.setRecoveryHandler(() => {
-  if (recoveryPending) return;
-  recoveryPending = true;
+  if (!recoveryLock.tryAcquire()) return;
   shell.setActionPending(true);
   void (async () => {
     try {
       shell.setStatus("Digging in the shallows…");
-      const result = await withSessionRecovery(() => api.digForWorms());
-      await refreshGameState();
+      const result = await api.digForWorms();
+      currentGameState = await refreshGameState();
       if (shell.getActiveScreen() === "lakes") renderLakes();
       const parts: string[] = [];
       if (result.wormsGranted > 0) parts.push(`+${result.wormsGranted} worms`);
@@ -554,7 +509,7 @@ shell.setRecoveryHandler(() => {
     } catch (error) {
       shell.setStatus(error instanceof Error ? error.message : "Nothing left to dig up right now.", "error");
     } finally {
-      recoveryPending = false;
+      recoveryLock.release();
       shell.setActionPending(false);
     }
   })();
@@ -566,7 +521,7 @@ async function bootstrap(): Promise<void> {
   try {
     let player;
     if (api.hasSession) {
-      player = (await withSessionRecovery(() => api.getMe())).player;
+      player = (await api.getMe()).player;
     }
 
     if (!player && telegram.initData) {
@@ -579,8 +534,8 @@ async function bootstrap(): Promise<void> {
       throw new Error("Open this game from Telegram to sign in.");
     }
 
-    currentGameState = await withSessionRecovery(() => api.getGameState());
-    const active = await withSessionRecovery(() => api.getActiveEncounter());
+    currentGameState = await api.getGameState();
+    const active = await api.getActiveEncounter();
     renderLakes();
     if (active.encounter) {
       resumeEncounter(active.encounter);

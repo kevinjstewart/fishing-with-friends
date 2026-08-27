@@ -2,7 +2,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { cors } from "hono/cors";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
-import type { ErrorResponse, HealthResponse, MeResponse } from "@fishing/shared";
+import type { ErrorResponse, HealthResponse, MeResponse } from "@fishing/shared/contracts";
 import type { AppVariables, Env } from "./env";
 import { requireAuth } from "./middleware/auth";
 import { ApiError, notFound } from "./lib/errors";

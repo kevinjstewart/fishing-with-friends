@@ -1,4 +1,4 @@
-import type { FishSpecimen } from "@fishing/shared";
+import type { FishSpecimen } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { getSpeciesSizeComparison } from "../specimen-size";
 import { capitalize, formatDate } from "../presenters";

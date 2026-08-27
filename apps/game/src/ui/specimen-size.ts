@@ -1,4 +1,4 @@
-import type { FishSpecimen } from "@fishing/shared";
+import type { FishSpecimen } from "@fishing/shared/contracts";
 
 export interface SpeciesSizeComparison {
   fillPercent: number;

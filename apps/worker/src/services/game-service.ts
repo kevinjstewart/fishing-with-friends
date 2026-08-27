@@ -1,4 +1,4 @@
-import type { GameStateResponse } from "@fishing/shared";
+import type { GameStateResponse } from "@fishing/shared/contracts";
 import type { Env } from "../env";
 import { GameRepository } from "../persistence/game-repository";
 

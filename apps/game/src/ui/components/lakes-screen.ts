@@ -1,4 +1,4 @@
-import type { GameStateResponse } from "@fishing/shared";
+import type { GameStateResponse } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { uiFoundationStyles, screenSurfaceStyles } from "../component-styles";
 import { formatCoins } from "../presenters";

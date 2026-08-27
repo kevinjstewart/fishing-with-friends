@@ -1,4 +1,4 @@
-import type { BaitDefinition, BoatDefinition, GameStateResponse, LureDefinition, RodDefinition } from "@fishing/shared";
+import type { BaitDefinition, BoatDefinition, GameStateResponse, LureDefinition, RodDefinition } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { icon, type IconName } from "../icons";
 import { emitUiEvent } from "../types";

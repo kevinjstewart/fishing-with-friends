@@ -5,7 +5,7 @@ import type {
   FishJournalResponse,
   GameStateResponse,
   LeaderboardResponse,
-} from "@fishing/shared";
+} from "@fishing/shared/contracts";
 import "./components/game-app";
 import type { GameAppElement } from "./components/game-app";
 import type {

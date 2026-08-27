@@ -1,4 +1,4 @@
-import type { GameStateResponse, LocationAvailability } from "@fishing/shared";
+import type { GameStateResponse, LocationAvailability } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { icon } from "../icons";
 import { emitUiEvent, type ShopCategory } from "../types";

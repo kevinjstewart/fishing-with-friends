@@ -1,4 +1,4 @@
-import type { FishingEncounterResponse } from "@fishing/shared";
+import type { FishingEncounterResponse } from "@fishing/shared/contracts";
 import Phaser from "phaser";
 import { createFishingState, performanceFor, seededRandom, stepFishing, type FishingState } from "../fishing-mechanics";
 

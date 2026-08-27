@@ -11,8 +11,8 @@ import type {
   RecoveryResponse,
   SelectEquipmentRequest,
   SelectEquipmentResponse,
-} from "@fishing/shared";
-import { GAME_CATALOG } from "@fishing/shared";
+} from "@fishing/shared/contracts";
+import { GAME_CATALOG } from "@fishing/shared/catalog";
 import type { Env } from "../env";
 import { badRequest, conflict, notFound } from "../lib/errors";
 import { GameRepository } from "../persistence/game-repository";

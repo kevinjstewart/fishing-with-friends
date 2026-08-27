@@ -1,4 +1,4 @@
-import type { FishSpecies } from "@fishing/shared";
+import type { FishSpecies } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { uiFoundationStyles } from "./component-styles";
 

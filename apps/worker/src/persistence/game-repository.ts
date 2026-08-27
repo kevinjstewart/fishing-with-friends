@@ -1,6 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { ActiveEquipment, EquipmentType, GameStateResponse, OwnedEquipment, PlayerInventory } from "@fishing/shared";
-import { GAME_CATALOG } from "@fishing/shared";
+import type { ActiveEquipment, EquipmentType, GameStateResponse, OwnedEquipment, PlayerInventory } from "@fishing/shared/contracts";
+import { GAME_CATALOG } from "@fishing/shared/catalog";
 
 interface GameStateRow {
   player_id: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAME_CATALOG } from "@fishing/shared";
+import { GAME_CATALOG } from "@fishing/shared/catalog";
 import { minimumFightSeconds, rodBreakChancePercent, speciesSelectionWeight } from "./fishing-service";
 
 const starterRod = { maxFishWeightKg: 2.5, breakResistance: 0.995 };

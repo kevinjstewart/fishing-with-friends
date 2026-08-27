@@ -1,4 +1,4 @@
-import type { CollectionResponse, FishSpecimen } from "@fishing/shared";
+import type { CollectionResponse, FishSpecimen } from "@fishing/shared/contracts";
 import { LitElement, html, css, nothing } from "lit";
 import { icon } from "../icons";
 import { emitUiEvent, type CollectionSortMode } from "../types";

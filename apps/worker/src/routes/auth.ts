@@ -1,4 +1,4 @@
-import type { AuthResponse, DevAuthRequest, TelegramAuthRequest } from "@fishing/shared";
+import type { AuthResponse, DevAuthRequest, TelegramAuthRequest } from "@fishing/shared/contracts";
 import type { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppVariables, Env } from "../env";

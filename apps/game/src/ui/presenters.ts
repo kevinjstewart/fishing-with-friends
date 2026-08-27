@@ -4,7 +4,7 @@ import type {
   GameStateResponse,
   LocationAvailability,
   RiskBand,
-} from "@fishing/shared";
+} from "@fishing/shared/contracts";
 import type { CollectionSortMode } from "./types";
 
 export const BAIT_QUANTITY_CHOICES = [1, 5, 10, 25] as const;

@@ -1,4 +1,4 @@
-import type { PlayerProfile } from "@fishing/shared";
+import type { PlayerProfile } from "@fishing/shared/contracts";
 import type { Env } from "../env";
 import { displayNameForUser, type TelegramUser } from "../lib/telegram";
 import { PlayerRepository } from "../persistence/player-repository";

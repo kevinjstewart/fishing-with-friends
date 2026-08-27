@@ -56,6 +56,12 @@ const applicationRoleFiles = applicationFiles.length > 0 ? applicationFiles : ja
 const phaserRoleFiles = phaserFiles.length > 0 ? phaserFiles : applicationRoleFiles;
 const total = sumSizes(assets);
 const totalGzipOfConcatenated = sizeFor(Buffer.concat(await Promise.all(files.map(async (file) => readFile(join(distDirectory, file.file))))));
+const catalogueMarkers = [
+  "Wind-driven current funnels baitfish",
+  "A vast northern reach of cold open water",
+  "Trophy fish and open-water runs",
+];
+const catalogueMarkersFound = catalogueMarkers.filter((marker) => files.some((file) => file.content.includes(marker)));
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -83,6 +89,11 @@ const report = {
         : "Phaser is inlined in the application chunk; this role intentionally overlaps applicationChunk for baseline attribution.",
     },
   },
+  sharedPackage: {
+    catalogueIncluded: catalogueMarkersFound.length > 0,
+    catalogueMarkers,
+    catalogueMarkersFound,
+  },
 };
 
 await stat(distDirectory);
@@ -91,7 +102,7 @@ await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} KiB`;
 const markdown = [
-  "# Phase 0 game bundle report",
+  "# Game bundle report",
   "",
   `Generated from \`${distDirectory}\`.`,
   "",
@@ -101,6 +112,12 @@ const markdown = [
   `| Total concatenated gzip reference | ${kb(totalGzipOfConcatenated.minifiedBytes)} | ${kb(totalGzipOfConcatenated.gzipBytes)} |`,
   `| Application chunk role | ${kb(report.roles.applicationChunk.minifiedBytes)} | ${kb(report.roles.applicationChunk.gzipBytes)} |`,
   `| Phaser chunk role | ${kb(report.roles.phaserChunk.minifiedBytes)} | ${kb(report.roles.phaserChunk.gzipBytes)} |`,
+  "",
+  "## Shared package scope",
+  "",
+  `Catalogue included in production bundle: **${report.sharedPackage.catalogueIncluded ? "yes" : "no"}**.`,
+  `Markers scanned: ${catalogueMarkers.join(", ")}.`,
+  report.sharedPackage.catalogueIncluded ? `Markers found: ${catalogueMarkersFound.join(", ")}.` : "No catalogue markers found.",
   "",
   "## Emitted chunks",
   "",

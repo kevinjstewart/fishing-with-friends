@@ -1,37 +1,6 @@
-export interface TelegramIntegration {
-  readonly isAvailable: boolean;
-  readonly initData: string;
-  initialize(onInsetsChanged?: () => void): void;
-  syncViewportInsets(): void;
-}
-
-export function createTelegramIntegration(onInsetsChanged?: () => void): TelegramIntegration {
-  const webApp = window.Telegram?.WebApp;
-
-  const publishInsets = (): void => {
-    onInsetsChanged?.();
-  };
-
-  const applyStableInsets = (payload?: { isStateStable?: boolean }): void => {
-    if (payload?.isStateStable === false) return;
-    publishInsets();
-  };
-
-  return {
-    isAvailable: Boolean(webApp?.initData),
-    initData: webApp?.initData ?? "",
-    initialize() {
-      webApp?.ready();
-      webApp?.expand();
-      webApp?.setHeaderColor?.("#041220");
-      webApp?.setBackgroundColor?.("#041220");
-      webApp?.disableVerticalSwipes?.();
-      webApp?.onEvent?.("viewportChanged", applyStableInsets);
-      webApp?.onEvent?.("safeAreaChanged", applyStableInsets);
-      webApp?.onEvent?.("contentSafeAreaChanged", applyStableInsets);
-      webApp?.onEvent?.("fullscreenChanged", applyStableInsets);
-      this.syncViewportInsets();
-    },
-    syncViewportInsets: applyStableInsets,
-  };
-}
+/**
+ * Compatibility name for callers that have not moved to the lifecycle name.
+ * New orchestration code should import createTelegramLifecycle directly.
+ */
+export { createTelegramLifecycle as createTelegramIntegration } from "./lifecycle";
+export type { TelegramLifecycle as TelegramIntegration, TelegramLifecycleOptions } from "./lifecycle";

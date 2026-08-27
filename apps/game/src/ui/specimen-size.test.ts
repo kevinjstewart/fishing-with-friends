@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAME_CATALOG } from "@fishing/shared";
+import { GAME_CATALOG } from "@fishing/shared/catalog";
 import { getSpeciesSizeComparison } from "./specimen-size";
 
 describe("species size comparison", () => {

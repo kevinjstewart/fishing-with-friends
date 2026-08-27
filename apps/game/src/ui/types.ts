@@ -6,9 +6,10 @@ import type {
   FishJournalResponse,
   GameStateResponse,
   LeaderboardResponse,
-} from "@fishing/shared";
+} from "@fishing/shared/contracts";
+import type { ScreenId as AppScreenId } from "../app/app-types";
 
-export type ScreenId = "lakes" | "friends" | "shop" | "collection" | "journal";
+export type ScreenId = AppScreenId;
 export type ShopCategory = "boats" | "rods" | "lures" | "bait";
 export type CollectionSortMode = "newest" | "heaviest" | "value" | "species";
 export type JournalFilterMode = "all" | "discovered" | "undiscovered";

@@ -1,4 +1,4 @@
-import type { FishSpecimen } from "@fishing/shared";
+import type { FishSpecimen } from "@fishing/shared/contracts";
 import { LitElement, html, css } from "lit";
 import { icon } from "../icons";
 import { emitUiEvent } from "../types";

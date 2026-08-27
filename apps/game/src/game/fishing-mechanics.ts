@@ -1,4 +1,4 @@
-import type { FishingMiniGameConfig, MovementProfile } from "@fishing/shared";
+import type { FishingMiniGameConfig, MovementProfile } from "@fishing/shared/contracts";
 
 export interface FishingState {
   elapsed: number;
