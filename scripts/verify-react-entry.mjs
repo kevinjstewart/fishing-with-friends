@@ -37,16 +37,21 @@ const reactDistFiles = await collectFiles(reactDistDirectory);
 const defaultDistFiles = await collectFiles(defaultDistDirectory);
 const reactDistText = await Promise.all(reactDistFiles.map((file) => readFile(file, "utf8"))).then((parts) => parts.join("\n"));
 const defaultDistText = await Promise.all(defaultDistFiles.map((file) => readFile(file, "utf8"))).then((parts) => parts.join("\n"));
-const reactSourceFiles = (await collectFiles(join(repoRoot, "apps/game/src/app"))).filter((file) => !/\.test\.[^.]+$/.test(file)).concat(join(repoRoot, "apps/game/src/main.tsx"));
+const reactSourceDirectories = ["app", "features", "shared-ui"];
+const reactSourceFiles = (await Promise.all(reactSourceDirectories.map((directory) => collectFiles(join(repoRoot, "apps/game/src", directory)))))
+  .flat()
+  .filter((file) => !/\.test\.[^.]+$/.test(file))
+  .concat(join(repoRoot, "apps/game/src/main.tsx"));
 const reactSourceText = await Promise.all(reactSourceFiles.map((file) => readFile(file, "utf8"))).then((parts) => parts.join("\n"));
 assert(!/@fishing\/shared["']/.test(reactSourceText), "React source imports the shared root barrel.");
 assert(!/@fishing\/shared\/catalog["']/.test(reactSourceText), "React source imports the catalogue outside a deliberate catalogue feature.");
-assert(reactDistText.includes("React migration scaffold"), "The React migration bundle does not contain the React shell marker.");
+assert(reactDistText.includes("react-app-shell"), "The React migration bundle does not contain the React app-shell marker.");
+assert(!/(emitUiEvent|new CustomEvent|customElements\.define|AppShell|ui:)/.test(reactSourceText), "React source contains a legacy UI event or AppShell bridge.");
 assert(!reactDistText.includes('customElements.define("game-app"'), "The React migration bundle contains the Lit application root.");
 assert(!reactDistText.includes("customElements.define"), "The React migration bundle contains a custom-element registration.");
 assert(!reactDistText.includes("LitElement"), "The React migration bundle contains LitElement code.");
 assert(!reactDistText.includes("AppShell"), "The React migration bundle contains the Lit AppShell.");
-assert(!defaultDistText.includes("React migration scaffold"), "The default Lit bundle contains the React shell marker.");
+assert(!defaultDistText.includes("react-app-shell"), "The default Lit bundle contains the React shell marker.");
 assert(!defaultDistFiles.some((file) => file.endsWith("/index.react.html")), "The default Lit output contains the React HTML entry.");
 
 await mkdir(artifactDirectory, { recursive: true });
@@ -86,30 +91,32 @@ for (const scenario of scenarios) {
   });
 
   await page.goto(`${base}/index.react.html?telegramMock=${scenario.mock}`, { waitUntil: "networkidle" });
-  await page.waitForSelector("[data-testid=react-bootstrap-success]", { timeout: 20_000 });
+  await page.waitForSelector("[data-testid=react-app-shell]", { timeout: 20_000 });
   const initialGeometry = await page.evaluate(() => {
     const root = document.querySelector("#react-root");
-    const scaffold = document.querySelector("[data-testid=react-scaffold]");
-    const panel = document.querySelector("[data-testid=react-bootstrap-success]");
+    const shell = document.querySelector("[data-testid=react-app-shell]");
+    const appFrame = document.querySelector("[data-testid=app-frame]");
+    const content = document.querySelector("[data-testid=app-content]");
     const rect = (element) => {
       const bounds = element?.getBoundingClientRect();
       return bounds ? { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom, width: bounds.width, height: bounds.height } : null;
     };
-    const scrollable = document.querySelector(".react-scaffold");
+    const scrollable = document.querySelector("[data-testid=app-content]");
     return {
       reactRoots: document.querySelectorAll("#react-root").length,
       phaserCanvases: document.querySelectorAll("#game-root canvas").length,
       litRoots: document.querySelectorAll("game-app").length,
       root: rect(root),
-      scaffold: rect(scaffold),
-      successPanel: rect(panel),
+      shell: rect(shell),
+      appFrame: rect(appFrame),
+      content: rect(content),
       scrollRange: scrollable ? scrollable.scrollHeight - scrollable.clientHeight : null,
       scrollTop: scrollable?.scrollTop ?? null,
     };
   });
-  await page.locator(".react-scaffold").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, element.scrollHeight));
   await page.waitForTimeout(50);
-  const scrolledGeometry = await page.locator(".react-scaffold").evaluate((element) => ({
+  const scrolledGeometry = await page.locator("[data-testid=app-content]").evaluate((element) => ({
     scrollRange: element.scrollHeight - element.clientHeight,
     scrollTop: element.scrollTop,
   }));

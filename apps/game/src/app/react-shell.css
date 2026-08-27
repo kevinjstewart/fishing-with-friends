@@ -5,6 +5,1193 @@
   pointer-events: none;
 }
 
+.react-app-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: none;
+}
+
+.react-app-shell *,
+.react-app-shell *::before,
+.react-app-shell *::after {
+  box-sizing: border-box;
+}
+
+.react-app-shell button,
+.react-app-shell select {
+  color: inherit;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.react-app-shell button:disabled,
+.react-app-shell select:disabled {
+  cursor: not-allowed;
+}
+
+.react-app-shell button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.react-app-shell :focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.react-app-shell .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.react-app-shell .icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.react-app-shell h1,
+.react-app-shell h2,
+.react-app-shell p {
+  margin: 0;
+}
+
+.react-app-shell h1,
+.react-app-shell h2 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.react-app-shell h1 {
+  font-size: clamp(1.38rem, 5.5vw, 1.95rem);
+  line-height: 1.02;
+  background: linear-gradient(105deg, #f8f1e4 12%, #e4cf97 92%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.react-app-shell h2 {
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+
+.react-app-shell .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--gold);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .muted {
+  color: var(--ink-dim);
+}
+
+.react-app-shell .primary-action,
+.react-app-shell .secondary-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid rgba(244, 219, 151, 0.5);
+  border-radius: 6px;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.18s var(--ease-spring), box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.react-app-shell .primary-action {
+  width: 100%;
+  overflow: hidden;
+  color: #fff4e5;
+  background: linear-gradient(180deg, #a53449, #721a2d);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.14), 0 9px 22px rgba(79, 10, 27, 0.35);
+}
+
+.react-app-shell .primary-action::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  left: -30%;
+  width: 34%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg) translateX(-160%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+.react-app-shell .secondary-action {
+  color: #e8dfd1;
+  background: rgba(214, 184, 106, 0.06);
+}
+
+.react-app-shell .primary-action:disabled,
+.react-app-shell .secondary-action:disabled {
+  border-color: var(--line);
+  color: var(--ink-faint);
+  background: rgba(151, 201, 227, 0.08);
+  box-shadow: none;
+}
+
+.react-app-shell .result-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (hover: hover) {
+  .react-app-shell .primary-action:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.06);
+  }
+
+  .react-app-shell .primary-action:not(:disabled):hover::after {
+    transform: skewX(-20deg) translateX(420%);
+  }
+}
+
+.react-app-shell .primary-action:not(:disabled):active,
+.react-app-shell .secondary-action:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.react-app-shell .app-frame {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: var(--app-safe-top) var(--app-safe-right) 0 var(--app-safe-left);
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.react-app-shell .app-frame[data-toast-visible="true"] {
+  --toast-reserve-h: 64px;
+}
+
+.react-app-shell .app-frame::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--app-safe-top));
+  right: calc(-1 * var(--app-safe-right));
+  left: calc(-1 * var(--app-safe-left));
+  height: calc(var(--app-safe-top) + var(--topbar-h));
+  background: linear-gradient(180deg, rgba(7, 8, 6, 0.99), rgba(7, 8, 6, 0.8) 76%, transparent);
+  pointer-events: none;
+}
+
+.react-app-shell .app-topbar,
+.react-app-shell .tabbar,
+.react-app-shell .status-toast-host {
+  pointer-events: auto;
+}
+
+.react-app-shell .app-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  padding: calc(4px + var(--toast-reserve-h)) 12px calc(var(--tabbar-total-height) + var(--cta-gap) + var(--cast-bar-h) + var(--content-cast-gap)) 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: calc(4px + var(--toast-reserve-h));
+  scroll-padding-bottom: calc(var(--tabbar-total-height) + var(--cta-gap) + var(--cast-bar-h) + var(--content-cast-gap));
+  scrollbar-gutter: stable;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.react-app-shell .fishing-status {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  min-height: 120px;
+  padding: 17px;
+  border: 1px solid rgba(214, 184, 106, 0.24);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 38px rgba(0, 0, 0, 0.34);
+  animation: react-screen-pop 0.28s ease-out both;
+}
+
+.react-app-shell .fishing-status.is-loading {
+  justify-items: start;
+}
+
+.react-app-shell .fishing-status.is-loading::after {
+  content: "";
+  width: 26px;
+  aspect-ratio: 1;
+  margin-top: 10px;
+  border: 3px solid rgba(214, 184, 106, 0.22);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: react-spin 0.85s linear infinite;
+}
+
+.react-app-shell .retry-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.react-app-shell .retry-actions:not(:has(.secondary-action)) {
+  grid-template-columns: 1fr;
+}
+
+@keyframes react-screen-pop {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes react-spin {
+  to { transform: rotate(360deg); }
+}
+
+.react-app-shell .screen {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  animation: react-screen-pop 0.28s ease-out both;
+}
+
+.react-app-shell .dashboard-header {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 17px;
+  border: 1px solid rgba(214, 184, 106, 0.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(214, 184, 106, 0.07) 0 1px, transparent 1px calc(100% - 1px), rgba(214, 184, 106, 0.07) calc(100% - 1px)),
+    linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 38px rgba(0, 0, 0, 0.34);
+}
+
+.react-app-shell .dashboard-header::before {
+  content: "";
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(214, 184, 106, 0.18);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.react-app-shell .dashboard-header::after {
+  content: "";
+  position: absolute;
+  right: 31px;
+  bottom: 27px;
+  width: 38px;
+  height: 1px;
+  background: rgba(214, 184, 106, 0.18);
+  pointer-events: none;
+}
+
+.react-app-shell .dashboard-header p {
+  margin-top: 6px;
+  max-width: 46ch;
+  font-size: 0.8rem;
+}
+
+.react-app-shell .empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(19, 22, 17, 0.96), rgba(9, 10, 8, 0.98));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.react-app-shell .empty-message {
+  width: 100%;
+  padding: 26px 20px;
+  border: 1px dashed rgba(214, 184, 106, 0.34);
+  border-radius: var(--radius-md);
+  color: var(--ink-dim);
+  background: rgba(214, 184, 106, 0.03);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.react-app-shell .empty-state-action {
+  width: min(100%, 220px);
+}
+
+.react-app-shell .sort-select {
+  min-height: 42px;
+  padding: 8px 34px 8px 12px;
+  border: 1px solid rgba(214, 184, 106, 0.34);
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(8, 10, 7, 0.96);
+  appearance: none;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.react-app-shell .sort-select:hover {
+  border-color: rgba(214, 184, 106, 0.55);
+}
+
+.react-app-shell .migration-placeholder .dashboard-header {
+  min-height: 120px;
+}
+
+.react-app-shell .app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--topbar-h);
+  padding: 6px 16px;
+}
+
+.react-app-shell .app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.react-app-shell .app-brand > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.react-app-shell .brand-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(214, 184, 106, 0.72);
+  border-radius: 50%;
+  color: var(--gold);
+  background: radial-gradient(circle at 38% 30%, #25352a, #101510 70%);
+  box-shadow: inset 0 0 0 3px #0b0d0a, inset 0 0 0 4px rgba(214, 184, 106, 0.28), 0 8px 24px rgba(0, 0, 0, 0.38);
+}
+
+.react-app-shell .brand-mark .icon {
+  width: 19px;
+  height: 19px;
+  stroke: var(--gold);
+  stroke-width: 1.7;
+}
+
+.react-app-shell .wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  margin-left: auto;
+  padding: 7px 13px 7px 11px;
+  border: 1px solid rgba(214, 184, 106, 0.48);
+  border-radius: 6px;
+  color: #ead28d;
+  background: linear-gradient(180deg, rgba(48, 40, 20, 0.92), rgba(25, 21, 12, 0.96));
+  box-shadow: inset 0 1px rgba(255, 239, 186, 0.09), 0 8px 22px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.react-app-shell .wallet-chip:active {
+  transform: scale(0.96);
+}
+
+.react-app-shell .wallet-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.react-app-shell .wallet-chip .icon {
+  width: 16px;
+  height: 16px;
+  stroke: var(--gold);
+}
+
+.react-app-shell .wallet-chip strong {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.react-app-shell .tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: calc(var(--tabbar-h) + var(--app-safe-bottom));
+  padding: 0 var(--app-safe-right) var(--app-safe-bottom) var(--app-safe-left);
+  border-top: 1px solid rgba(214, 184, 106, 0.2);
+  background: rgba(7, 8, 6, 0.97);
+  box-shadow: 0 -16px 36px rgba(0, 0, 0, 0.34);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  pointer-events: auto;
+}
+
+.react-app-shell .tabbar[data-disabled="true"] {
+  pointer-events: none;
+  filter: saturate(0.55);
+  opacity: 0.5;
+}
+
+.react-app-shell .tabbar[data-pending="true"] {
+  filter: saturate(0.82);
+}
+
+.react-app-shell .tab-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 6px 4px;
+  border: 0;
+  color: #7d7b70;
+  background: none;
+  font-size: 0.57rem;
+  font-weight: 550;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s var(--ease-spring);
+}
+
+.react-app-shell .tab-button .icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.25s var(--ease-spring);
+}
+
+.react-app-shell .tab-button:active .icon {
+  transform: scale(0.88);
+}
+
+.react-app-shell .tab-button.is-active {
+  color: #e4cc8c;
+}
+
+.react-app-shell .tab-button.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 28px;
+  height: 1px;
+  border-radius: 0;
+  background: var(--gold);
+  box-shadow: 0 0 12px rgba(214, 184, 106, 0.42);
+}
+
+.react-app-shell .tab-button.is-active .icon {
+  stroke-width: 2.1;
+  filter: drop-shadow(0 0 8px rgba(214, 184, 106, 0.18));
+}
+
+.react-app-shell .tab-button[data-loading]::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: react-pulse-dot 1.1s ease-in-out infinite;
+}
+
+@keyframes react-pulse-dot {
+  0%, 100% { transform: scale(0.75); opacity: 0.55; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.react-app-shell .status-toast-host {
+  position: fixed;
+  top: calc(var(--app-safe-top) + var(--topbar-h) + 6px);
+  left: calc(var(--app-safe-left) + 12px);
+  right: calc(var(--app-safe-right) + 12px);
+  z-index: 30;
+  display: block;
+  width: auto;
+  max-width: 460px;
+  max-height: min(30vh, 180px);
+  margin-inline: auto;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.react-app-shell .status-toast-host[hidden] {
+  display: none;
+}
+
+.react-app-shell .toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 15px;
+  overflow: hidden;
+  border: 1px solid rgba(214, 184, 106, 0.32);
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(9, 10, 8, 0.97);
+  box-shadow: var(--shadow-card);
+  font-size: 0.84rem;
+  font-weight: 550;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.24s var(--ease-spring), transform 0.24s var(--ease-spring);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.react-app-shell .toast.is-shown {
+  opacity: 1;
+  transform: none;
+}
+
+.react-app-shell .toast::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px rgba(56, 205, 236, 0.8);
+}
+
+.react-app-shell .toast[data-state="loading"]::before {
+  animation: react-pulse-dot 1.2s ease-in-out infinite;
+}
+
+.react-app-shell .toast[data-state="ready"]::before {
+  background: #57e0a4;
+  box-shadow: 0 0 10px rgba(87, 224, 164, 0.75);
+}
+
+.react-app-shell .toast[data-state="error"]::before {
+  background: var(--coral);
+  box-shadow: 0 0 10px rgba(255, 143, 125, 0.8);
+}
+
+.react-app-shell .friends-screen {
+  gap: 14px;
+}
+
+.react-app-shell .invite-action {
+  width: 100%;
+  min-height: 50px;
+}
+
+.react-app-shell .crew-board {
+  display: grid;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(19, 22, 17, 0.96), rgba(9, 10, 8, 0.98));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.react-app-shell .crew-self {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(214, 184, 106, 0.32);
+  border-radius: 9px;
+  background: rgba(214, 184, 106, 0.055);
+}
+
+.react-app-shell .crew-self-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.react-app-shell .crew-self-copy .eyebrow {
+  margin-bottom: 1px;
+}
+
+.react-app-shell .crew-self-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app-shell .crew-self-rank {
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.react-app-shell .crew-self > .muted {
+  grid-column: 1 / -1;
+  font-size: 0.74rem;
+}
+
+.react-app-shell .crew-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 7px 10px;
+}
+
+.react-app-shell .crew-row + .crew-row {
+  border-top: 1px solid rgba(214, 184, 106, 0.09);
+}
+
+.react-app-shell .crew-row.is-self {
+  border-radius: 6px;
+  background: rgba(214, 184, 106, 0.055);
+  box-shadow: inset 2px 0 var(--gold);
+}
+
+.react-app-shell .crew-rank {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink-faint);
+  background: rgba(214, 184, 106, 0.08);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.react-app-shell .crew-row.is-leader .crew-rank {
+  color: #15120a;
+  background: linear-gradient(135deg, #e1c97f, #ad8d3e);
+}
+
+.react-app-shell .crew-name {
+  display: grid;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.react-app-shell .crew-name small {
+  overflow: hidden;
+  color: var(--ink-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app-shell .crew-you {
+  width: fit-content;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: #15120a;
+  background: var(--gold);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .journal-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 6px;
+  background: rgba(8, 10, 7, 0.96);
+  font-size: 0.78rem;
+}
+
+.react-app-shell .journal-controls label {
+  flex: 0 0 auto;
+}
+
+.react-app-shell .journal-controls .sort-select {
+  min-width: 150px;
+  min-height: 38px;
+}
+
+.react-app-shell .journal-controls > .muted {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.react-app-shell .journal-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.react-app-shell .journal-card {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid rgba(214, 184, 106, 0.19);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(19, 22, 17, 0.96), rgba(9, 10, 8, 0.98));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.react-app-shell .journal-card.is-undiscovered {
+  gap: 7px;
+  opacity: 0.78;
+  border-style: dashed;
+}
+
+.react-app-shell .journal-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.react-app-shell .journal-card h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.react-app-shell .rarity-badge {
+  flex: 0 0 auto;
+  padding: 2px 0 2px 7px;
+  border-left: 2px solid currentColor;
+  color: #cfe3ef;
+  font-size: 0.58rem;
+  font-weight: 550;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .rarity-uncommon { color: #8cefc0; }
+.react-app-shell .rarity-rare { color: #a5cdff; }
+.react-app-shell .rarity-legendary { color: #ffe9ad; }
+
+.react-app-shell .journal-unknown-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(214, 184, 106, 0.28);
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(214, 184, 106, 0.05);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.react-app-shell .journal-discovery-state,
+.react-app-shell .journal-source {
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.react-app-shell .journal-discovery-state {
+  color: var(--gold);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.react-app-shell .journal-hint {
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.react-app-shell .journal-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 5px 4px;
+  list-style: none;
+  border: 1px solid rgba(214, 184, 106, 0.16);
+  border-radius: 6px;
+  background: rgba(214, 184, 106, 0.035);
+}
+
+.react-app-shell .journal-stats li {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-right: 1px solid rgba(214, 184, 106, 0.09);
+  color: var(--ink-dim);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.react-app-shell .journal-stats li:last-child {
+  border-right: 0;
+}
+
+.react-app-shell .journal-stats strong {
+  color: #fff;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.react-app-shell .journal-field-notes {
+  overflow: hidden;
+  border: 1px solid rgba(214, 184, 106, 0.17);
+  border-radius: 6px;
+  background: rgba(8, 10, 7, 0.96);
+}
+
+.react-app-shell .journal-field-notes summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+
+.react-app-shell .journal-field-notes summary::-webkit-details-marker { display: none; }
+.react-app-shell .journal-field-notes summary::after { content: "+"; margin-left: auto; color: var(--gold); font-size: 1rem; }
+.react-app-shell .journal-field-notes[open] summary::after { content: "–"; }
+
+.react-app-shell .journal-field-notes-body {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border-top: 1px solid rgba(214, 184, 106, 0.14);
+}
+
+.react-app-shell .journal-field-notes-body em {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+
+.react-app-shell .journal-bio {
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.react-app-shell .journal-facts,
+.react-app-shell .journal-record-dates {
+  display: grid;
+  gap: 7px;
+}
+
+.react-app-shell .journal-record-dates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 2px;
+}
+
+.react-app-shell .species-fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.react-app-shell .species-fact > span {
+  color: var(--ink-faint);
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .species-fact > p {
+  color: var(--ink);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.react-app-shell .journal-source {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.react-app-shell .journal-source a {
+  color: var(--gold);
+}
+
+.react-app-shell .fish-image {
+  position: relative;
+  display: block;
+  min-height: 168px;
+  margin: 0;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(214, 184, 106, 0.16);
+  background: rgba(5, 16, 28, 0.5);
+}
+
+.react-app-shell .fish-image-placeholder {
+  display: grid;
+  min-height: 168px;
+  align-content: center;
+  padding: 12px;
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.react-app-shell .fish-image img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.react-app-shell .fish-image.is-loaded .fish-image-placeholder {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.react-app-shell .fish-image.is-loaded img {
+  opacity: 1;
+}
+
+.react-app-shell .fish-image figcaption {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  z-index: 1;
+  display: block;
+  max-width: calc(100% - 20px);
+  padding: 12px 0 7px 18px;
+  background: linear-gradient(90deg, transparent, rgba(4, 18, 32, 0.78) 32%);
+  text-align: right;
+  font-size: 0.68rem;
+}
+
+.react-app-shell .fish-image figcaption a {
+  color: var(--aqua);
+}
+
+.react-app-shell .fish-image.catch-hero-image {
+  min-height: 220px;
+  height: 220px;
+  border: 0;
+}
+
+.react-app-shell .fish-image.catch-hero-image img {
+  height: 220px;
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.react-app-shell .fish-image.catch-hero-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, transparent 50%, rgba(3, 17, 22, 0.88));
+  pointer-events: none;
+}
+
+.react-app-shell .specimen-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.react-app-shell .specimen-details > strong {
+  grid-column: 1 / -1;
+  color: #a9f5e8;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+}
+
+.react-app-shell .stat-chip {
+  display: grid;
+  gap: 2px;
+  padding: 9px 6px;
+  border: 1px solid rgba(214, 184, 106, 0.16);
+  border-radius: 5px;
+  background: rgba(214, 184, 106, 0.045);
+  font-family: var(--font-display);
+  text-align: center;
+}
+
+.react-app-shell .stat-chip b {
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+.react-app-shell .stat-chip small {
+  color: var(--gold);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+}
+
+.react-app-shell .specimen-caught-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 2px 1px 0;
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+}
+
+.react-app-shell .specimen-caught-meta span {
+  overflow-wrap: anywhere;
+}
+
+.react-app-shell .species-size {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px 8px;
+  border: 1px solid rgba(214, 184, 106, 0.16);
+  border-radius: 6px;
+  background: rgba(214, 184, 106, 0.035);
+}
+
+.react-app-shell .species-size-heading,
+.react-app-shell .species-size-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.react-app-shell .species-size-heading {
+  color: var(--ink-faint);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.react-app-shell .species-size-value {
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.react-app-shell .species-size-track {
+  position: relative;
+  height: 8px;
+  overflow: visible;
+  border-radius: 999px;
+  background: rgba(151, 201, 227, 0.14);
+}
+
+.react-app-shell .species-size-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 3px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--aqua));
+  box-shadow: 0 0 12px rgba(94, 234, 212, 0.32);
+}
+
+.react-app-shell .species-size-fill::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  border: 2px solid var(--aqua);
+  border-radius: 50%;
+  background: var(--bg-mid);
+  box-shadow: 0 0 10px rgba(94, 234, 212, 0.55);
+}
+
+.react-app-shell .species-size-typical {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  transform: translateX(-1px);
+  border-radius: 2px;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.65);
+}
+
+.react-app-shell .species-size-scale {
+  color: var(--ink-faint);
+  font-size: 0.65rem;
+  line-height: 1.3;
+}
+
+.react-app-shell .species-size-status {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.react-app-shell .species-size-typical-label::before {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  margin-right: 5px;
+  transform: translateY(1px);
+  border-radius: 2px;
+  background: var(--gold);
+}
+
 .react-scaffold {
   position: fixed;
   inset: 0;
@@ -74,7 +1261,7 @@
   border-radius: var(--radius-lg);
   background: linear-gradient(145deg, rgba(24, 31, 24, 0.97), rgba(11, 13, 10, 0.97));
   box-shadow: var(--shadow-lg);
-  animation: react-scaffold-pop 0.28s ease-out both;
+  animation: react-screen-pop 0.28s ease-out both;
 }
 
 .react-bootstrap-panel h1 {
@@ -114,34 +1301,6 @@
   outline-offset: 3px;
 }
 
-.react-bootstrap-facts {
-  display: grid;
-  gap: 8px;
-  margin: 4px 0 0;
-}
-
-.react-bootstrap-facts div {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
-}
-
-.react-bootstrap-facts dt {
-  color: var(--ink-faint);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.react-bootstrap-facts dd {
-  margin: 0;
-  color: var(--ink);
-  font-weight: 650;
-  text-align: right;
-}
-
 .react-bootstrap-spinner {
   width: 26px;
   height: 26px;
@@ -149,37 +1308,146 @@
   border: 3px solid rgba(214, 184, 106, 0.22);
   border-top-color: var(--gold);
   border-radius: 50%;
-  animation: react-scaffold-spin 0.85s linear infinite;
+  animation: react-spin 0.85s linear infinite;
 }
 
-@keyframes react-scaffold-pop {
-  from { opacity: 0; transform: translateY(7px); }
-  to { opacity: 1; transform: none; }
+@media (min-width: 720px) {
+  .react-app-shell .journal-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
 }
 
-@keyframes react-scaffold-spin {
-  to { transform: rotate(360deg); }
+@media (max-width: 350px) {
+  .react-app-shell .species-size-scale {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-height: 640px) {
+  .react-app-shell .app-frame[data-toast-visible="true"] {
+    --toast-reserve-h: 56px;
+  }
+
+  .react-app-shell .app-content {
+    padding-top: calc(4px + var(--toast-reserve-h));
+  }
+
+  .react-app-shell .app-topbar {
+    padding-inline: 12px;
+  }
+
+  .react-app-shell .app-brand {
+    font-size: 0.68rem;
+  }
+
+  .react-app-shell .brand-mark {
+    width: 29px;
+    height: 29px;
+  }
+
+  .react-app-shell .wallet-chip {
+    min-height: 32px;
+    padding-block: 4px;
+  }
+
+  .react-app-shell .fish-image.catch-hero-image,
+  .react-app-shell .fish-image.catch-hero-image img {
+    min-height: 176px;
+    height: 176px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .react-app-shell .app-frame {
+    --topbar-h: 50px;
+    --tabbar-h: 52px;
+    --cast-bar-h: 54px;
+    --cta-gap: 2px;
+    --content-cast-gap: 6px;
+  }
+
+  .react-app-shell .app-frame[data-toast-visible="true"] {
+    --toast-reserve-h: 48px;
+  }
+
+  .react-app-shell .app-content {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .react-app-shell .tab-button {
+    min-height: 48px;
+    padding: 4px 2px;
+    font-size: 0.6rem;
+  }
+
+  .react-app-shell .tab-button .icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .react-app-shell .status-toast-host {
+    top: calc(var(--app-safe-top) + var(--topbar-h) + 4px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .react-bootstrap-panel,
-  .react-bootstrap-spinner {
-    animation: none;
+  .react-app-shell *,
+  .react-app-shell *::before,
+  .react-app-shell *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .react-app-shell .screen,
+  .react-app-shell .fishing-status,
+  .react-app-shell .fishing-status.is-loading::after,
+  .react-app-shell .toast {
+    animation: none !important;
   }
 }
 
 @media (forced-colors: active) {
-  .react-scaffold-header,
-  .react-bootstrap-panel {
+  .react-app-shell .primary-action,
+  .react-app-shell .secondary-action,
+  .react-app-shell .crew-board,
+  .react-app-shell .crew-self,
+  .react-app-shell .dashboard-header,
+  .react-app-shell .empty-state,
+  .react-app-shell .fishing-status,
+  .react-app-shell .journal-card,
+  .react-app-shell .journal-controls,
+  .react-app-shell .journal-field-notes,
+  .react-app-shell .sort-select,
+  .react-app-shell .toast {
     forced-color-adjust: none;
-    border-color: CanvasText;
+    border-color: ButtonText;
+    color: ButtonText;
     background: Canvas;
     box-shadow: none;
   }
 
-  .react-bootstrap-action {
+  .react-app-shell .primary-action:disabled,
+  .react-app-shell .secondary-action:disabled {
+    border-color: GrayText;
+    color: GrayText;
+    background: Canvas;
+  }
+
+  .react-app-shell .toast::before {
+    background: currentColor;
+    box-shadow: none;
+  }
+
+  .react-app-shell .fish-image {
+    forced-color-adjust: none;
     border-color: ButtonText;
-    color: ButtonText;
-    background: ButtonFace;
+    background: Canvas;
+  }
+
+  .react-app-shell .fish-image img {
+    forced-color-adjust: none;
   }
 }

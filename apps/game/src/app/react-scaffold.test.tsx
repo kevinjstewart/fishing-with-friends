@@ -63,7 +63,7 @@ function renderApp(services: ReactAppServices) {
   );
 }
 
-describe("React migration scaffold", () => {
+describe("React migration shell", () => {
   it("renders a deterministic loading state and passes query abort signals to the transport", async () => {
     let resolveAuth: ((response: AuthResponse) => void) | undefined;
     const services = createServices();
@@ -83,7 +83,7 @@ describe("React migration scaffold", () => {
     expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
 
     resolveAuth?.({ accessToken: "token", expiresAt: "2026-01-02T00:00:00.000Z", player });
-    await waitFor(() => expect(screen.getByTestId("react-bootstrap-success")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("react-app-shell")).toBeInTheDocument());
     expect(gameStateSignal).toBeInstanceOf(AbortSignal);
     expect(services.api.getActiveEncounter).toHaveBeenCalledWith(expect.any(AbortSignal));
     expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "false");
@@ -94,11 +94,10 @@ describe("React migration scaffold", () => {
     services.api.getActiveEncounter = vi.fn(async () => ({ encounter: null, expired: true }));
 
     renderApp(services);
-    await waitFor(() => expect(screen.getByTestId("react-bootstrap-success")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("react-app-shell")).toBeInTheDocument());
 
-    expect(screen.getByText("Signed in as Local developer.")).toBeInTheDocument();
-    expect(screen.getByText("123 coins")).toBeInTheDocument();
-    expect(screen.getByText("Expired encounter reported")).toBeInTheDocument();
+    expect(screen.getByText("123")).toBeInTheDocument();
+    expect(services.api.getActiveEncounter).toHaveBeenCalledTimes(1);
   });
 
   it("renders a recoverable bootstrap failure and retries only after user input", async () => {
@@ -115,7 +114,7 @@ describe("React migration scaffold", () => {
     expect(authenticateForDevelopment).toHaveBeenCalledTimes(1);
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await waitFor(() => expect(screen.getByTestId("react-bootstrap-success")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("react-app-shell")).toBeInTheDocument());
     expect(authenticateForDevelopment).toHaveBeenCalledTimes(2);
   });
 
@@ -133,7 +132,7 @@ describe("React migration scaffold", () => {
     expect(gameStateAttempts).toBe(1);
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await waitFor(() => expect(screen.getByTestId("react-bootstrap-success")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("react-app-shell")).toBeInTheDocument());
     expect(gameStateAttempts).toBe(2);
   });
 
@@ -146,9 +145,9 @@ describe("React migration scaffold", () => {
   it("cleans up Telegram and Phaser listeners on unmount and does not create duplicate React content", async () => {
     const services = createServices();
     const { unmount } = renderApp(services);
-    await waitFor(() => expect(screen.getByTestId("react-bootstrap-success")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("react-app-shell")).toBeInTheDocument());
 
-    expect(document.querySelectorAll("[data-testid=react-scaffold]")).toHaveLength(1);
+    expect(document.querySelectorAll("[data-testid=react-app-shell]")).toHaveLength(1);
     expect(services.telegram.initialize).toHaveBeenCalledTimes(1);
     expect(services.runtime.onComplete).toHaveBeenCalledTimes(1);
     expect(services.runtime.onAmbient).toHaveBeenCalledTimes(1);
@@ -165,20 +164,20 @@ describe("React migration scaffold", () => {
     const firstMount = mountReactApp(host, firstServices);
 
     expect(mountReactApp(host, firstServices)).toBe(firstMount);
-    await waitFor(() => expect(host.querySelector("[data-testid=react-scaffold]")).toBeInTheDocument());
-    expect(host.querySelectorAll("[data-testid=react-scaffold]")).toHaveLength(1);
+    await waitFor(() => expect(host.querySelector("[data-testid=react-app-shell]")).toBeInTheDocument());
+    expect(host.querySelectorAll("[data-testid=react-app-shell]")).toHaveLength(1);
     expect(firstServices.telegram.initialize).toHaveBeenCalledTimes(1);
     expect(firstServices.runtime.onComplete).toHaveBeenCalledTimes(1);
 
     firstMount.unmount();
-    expect(host.querySelectorAll("[data-testid=react-scaffold]")).toHaveLength(0);
+    expect(host.querySelectorAll("[data-testid=react-app-shell]")).toHaveLength(0);
     expect(firstServices.telegram.dispose).toHaveBeenCalledTimes(1);
     expect(firstServices.runtime.destroy).toHaveBeenCalledTimes(1);
 
     const secondServices = createServices();
     const secondMount = mountReactApp(host, secondServices);
-    await waitFor(() => expect(host.querySelector("[data-testid=react-scaffold]")).toBeInTheDocument());
-    expect(host.querySelectorAll("[data-testid=react-scaffold]")).toHaveLength(1);
+    await waitFor(() => expect(host.querySelector("[data-testid=react-app-shell]")).toBeInTheDocument());
+    expect(host.querySelectorAll("[data-testid=react-app-shell]")).toHaveLength(1);
     expect(secondServices.telegram.initialize).toHaveBeenCalledTimes(1);
     expect(secondServices.runtime.onAmbient).toHaveBeenCalledTimes(1);
 

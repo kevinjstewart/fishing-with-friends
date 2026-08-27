@@ -3,7 +3,9 @@ import { useCallback, useEffect, useReducer, useState } from "react";
 import type {
   ActiveFishingEncounterResponse,
   AuthResponse,
+  FishJournalResponse,
   GameStateResponse,
+  LeaderboardResponse,
   MeResponse,
   PlayerProfile,
 } from "@fishing/shared/contracts";
@@ -17,6 +19,8 @@ export interface BootstrapApi {
   authenticateForDevelopment(): Promise<AuthResponse>;
   getGameState(signal?: AbortSignal): Promise<GameStateResponse>;
   getActiveEncounter(signal?: AbortSignal): Promise<ActiveFishingEncounterResponse>;
+  getJournal(signal?: AbortSignal): Promise<FishJournalResponse>;
+  getLeaderboard(signal?: AbortSignal): Promise<LeaderboardResponse>;
 }
 
 export interface BootstrapOptions {

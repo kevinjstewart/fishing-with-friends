@@ -23,6 +23,7 @@
     "lint": "eslint . --max-warnings=0",
     "verify:layout": "node scripts/verify-layout.mjs",
     "verify:react": "node scripts/verify-react-entry.mjs",
+    "verify:react:readonly": "node scripts/verify-react-readonly.mjs",
     "verify:shared-bundle": "node scripts/verify-shared-bundle.mjs",
     "report:bundle": "node scripts/report-bundle.mjs",
     "db:create": "wrangler d1 create fishing-with-friends",
