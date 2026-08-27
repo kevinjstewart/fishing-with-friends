@@ -3,12 +3,18 @@
 // Covers iPhone portrait, Android portrait, landscape, and short-height mobile
 // viewports with deterministic external-image and accessibility fixtures.
 import { chromium } from "playwright";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { verifyAsyncFlows } from "./verify-async.mjs";
+import { completionResultFromState, decisionResultFromState, installDeterministicReadFixtures } from "./fixtures/browser-fixtures.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
+const ARTIFACT_DIR = resolve(process.env.PHASE0_ARTIFACT_DIR ?? "/tmp/fishing-with-friends-phase0");
+await mkdir(ARTIFACT_DIR, { recursive: true });
 const failures = [];
 const report = [];
+const measurements = [];
+const viewportBaselines = [];
 const stylesSource = await readFile(new URL("../apps/game/src/styles.css", import.meta.url), "utf8");
 const viewportScenarios = [
   { name: "iPhone portrait", mock: "ios", viewport: { width: 393, height: 852 }, expectedGap: 10 },
@@ -16,10 +22,26 @@ const viewportScenarios = [
   { name: "iPhone landscape", mock: "landscape", viewport: { width: 852, height: 393 }, expectedGap: 2 },
   { name: "short-height portrait", mock: "ios", viewport: { width: 393, height: 640 }, expectedGap: 10 },
 ];
+const screenBaselines = [
+  { id: "lakes", label: "Lakes", selector: "[data-testid=lakes-screen]", lastSelector: ".locations-list .location-card" },
+  { id: "shop", label: "Shop", selector: "[data-testid=shop-screen]", lastSelector: ".shop-list .shop-item" },
+  { id: "collection", label: "Collection", selector: "[data-testid=collection-screen]", lastSelector: ".collection-grid .collection-card" },
+  { id: "journal", label: "Journal", selector: "[data-testid=journal-screen]", lastSelector: ".journal-grid .journal-card" },
+  { id: "friends", label: "Friends", selector: "[data-testid=friends-screen]", lastSelector: ".crew-row" },
+];
 
 function check(label, condition, detail) {
   report.push(`${condition ? "PASS" : "FAIL"}  ${label}  ${detail}`);
   if (!condition) failures.push(`${label}: ${detail}`);
+}
+
+function recordMeasurement(label, value) {
+  measurements.push({ label, value });
+  report.push(`MEASURE  ${label}  ${typeof value === "string" ? value : JSON.stringify(value)}`);
+}
+
+function screenshotPath(name) {
+  return join(ARTIFACT_DIR, `${name}.png`);
 }
 
 function rectsOverlap(a, b) {
@@ -49,36 +71,67 @@ async function verifyViewportChrome({ browser, base, check, recordConsoleError }
       hasTouch: true,
     });
     attachConsoleListeners(page, recordConsoleError);
+    await installDeterministicReadFixtures(page);
     await page.goto(`${base}/?telegramMock=${scenario.mock}`, { waitUntil: "networkidle" });
     await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
 
     const viewport = page.viewportSize();
-    const tabbar = await rectOf(page, ".tabbar");
-    const castBar = await rectOf(page, ".cast-bar");
-    check(
-      `${scenario.name}: tabbar stays inside viewport`,
-      Boolean(viewport && tabbar.bottom <= viewport.height + 1),
-      `tabbar bottom ${tabbar.bottom.toFixed(1)} vs viewport ${viewport?.height ?? 0}`,
-    );
-    check(
-      `${scenario.name}: cast bar clears tabbar`,
-      Math.abs(tabbar.top - castBar.bottom - scenario.expectedGap) < 3,
-      `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected ${scenario.expectedGap})`,
-    );
-    check(
-      `${scenario.name}: cast bar stays within safe horizontal bounds`,
-      Boolean(viewport && castBar.left >= 0 && castBar.right <= viewport.width),
-      `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)} of ${viewport?.width ?? 0}`,
-    );
+    for (const screen of screenBaselines) {
+      if (screen.id !== "lakes") {
+        await page.getByRole("button", { name: screen.label, exact: true }).tap();
+        await page.waitForSelector(screen.selector, { timeout: 15_000 });
+      }
+      await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, 0));
+      await page.waitForTimeout(80);
 
-    await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
-    await page.waitForTimeout(180);
-    const lastCard = await rectOf(page, ".locations-list .location-card >> nth=-1");
-    check(
-      `${scenario.name}: scrolled content clears cast bar`,
-      lastCard.bottom <= castBar.top + 2,
-      `last card bottom ${lastCard.bottom.toFixed(1)} vs cast bar top ${castBar.top.toFixed(1)}`,
-    );
+      const topbar = await rectOf(page, ".app-topbar");
+      const firstControl = await rectOf(page, screen.id === "lakes" || screen.id === "shop" ? ".screen-hero" : ".dashboard-header");
+      const tabbar = await rectOf(page, ".tabbar");
+      const scrollRange = await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollHeight - element.clientHeight);
+      await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+      await page.waitForTimeout(180);
+      const lastContent = await rectOf(page, `${screen.lastSelector} >> nth=-1`);
+      const castBar = screen.id === "lakes" ? await rectOf(page, ".cast-bar") : undefined;
+      const gapToFixedChrome = castBar ? castBar.top - lastContent.bottom : tabbar.top - lastContent.bottom;
+      const heroGap = firstControl.top - topbar.bottom;
+
+      check(
+        `${scenario.name} ${screen.label}: tabbar stays inside viewport`,
+        Boolean(viewport && tabbar.bottom <= viewport.height + 1),
+        `tabbar bottom ${tabbar.bottom.toFixed(1)} vs viewport ${viewport?.height ?? 0}`,
+      );
+      check(
+        `${scenario.name} ${screen.label}: full-range scroll clears fixed chrome`,
+        gapToFixedChrome >= -2,
+        `last content bottom ${lastContent.bottom.toFixed(1)} vs ${castBar ? "cast bar" : "tabbar"} top ${(castBar ?? tabbar).top.toFixed(1)}`,
+      );
+      if (castBar) {
+        check(
+          `${scenario.name}: cast bar clears tabbar`,
+          Math.abs(tabbar.top - castBar.bottom - scenario.expectedGap) < 3,
+          `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected ${scenario.expectedGap})`,
+        );
+        check(
+          `${scenario.name}: cast bar stays within safe horizontal bounds`,
+          Boolean(viewport && castBar.left >= 0 && castBar.right <= viewport.width),
+          `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)} of ${viewport?.width ?? 0}`,
+        );
+      }
+      recordMeasurement(`${scenario.name} ${screen.label} baseline`, {
+        viewport,
+        scrollRange,
+        topbar,
+        firstControl,
+        castBar,
+        tabbar,
+        lastContent,
+        gaps: {
+          topbarToFirstControl: heroGap,
+          lastContentToFixedChrome: gapToFixedChrome,
+          castBarToTabbar: castBar ? tabbar.top - castBar.bottom : null,
+        },
+      });
+    }
     await page.close();
   }
 }
@@ -372,7 +425,12 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
   const catchVisual = await rectOf(page, ".catch-visual");
   const sellValueBadge = await rectOf(page, "[data-testid=catch-sale-value]");
   const catchQuality = await rectOf(page, ".catch-quality");
-  report.push(`MEASURE  sell value badge  ${sellValueBadge.width.toFixed(1)}×${sellValueBadge.height.toFixed(1)} at ${sellValueBadge.left.toFixed(1)},${sellValueBadge.top.toFixed(1)}`);
+  recordMeasurement("catch result sell value badge", {
+    width: sellValueBadge.width,
+    height: sellValueBadge.height,
+    left: sellValueBadge.left,
+    top: sellValueBadge.top,
+  });
   check("sell value badge stays inside catch image", sellValueBadge.left >= catchVisual.left && sellValueBadge.right <= catchVisual.right && sellValueBadge.top >= catchVisual.top && sellValueBadge.bottom <= catchVisual.bottom, `badge ${sellValueBadge.left.toFixed(1)}–${sellValueBadge.right.toFixed(1)} × ${sellValueBadge.top.toFixed(1)}–${sellValueBadge.bottom.toFixed(1)} inside image`);
   check("sell value badge clears quality badge", !rectsOverlap(sellValueBadge, catchQuality), "top-right payout badge does not overlap bottom-left quality badge");
   check("catch result presents keep and sell equally", (await page.locator(".catch-choice").count()) === 2, "two decision cards rendered");
@@ -388,14 +446,14 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
       parentAnimation: host instanceof Element ? getComputedStyle(host).animationName : "none",
     };
   });
-  report.push(`MEASURE  catch decision to tabbar  ${(catchTabbar.top - initialDecision.bottom).toFixed(1)}px`);
+  recordMeasurement("catch result decision to tabbar", catchTabbar.top - initialDecision.bottom);
   check("catch decision is immediately visible", initialDecision.top >= 0 && initialDecision.bottom <= catchTabbar.top + 2, `decision ${initialDecision.top.toFixed(1)}–${initialDecision.bottom.toFixed(1)} vs tabbar top ${catchTabbar.top.toFixed(1)}; ${JSON.stringify(decisionStyles)}`);
-  await page.screenshot({ path: "/tmp/layout-catch-result-top.png" });
+  await page.screenshot({ path: screenshotPath("layout-catch-result-top") });
   await page.locator(".app-content").evaluate((element) => element.scrollTo(0, element.scrollHeight));
   await page.waitForTimeout(180);
   const sellChoice = await rectOf(page, ".sell-choice");
   check("catch decisions clear bottom chrome", sellChoice.bottom <= catchTabbar.top + 2, `decision bottom ${sellChoice.bottom.toFixed(1)} vs tabbar top ${catchTabbar.top.toFixed(1)}`);
-  await page.screenshot({ path: "/tmp/layout-catch-result.png" });
+  await page.screenshot({ path: screenshotPath("layout-catch-result") });
 
   await renderResult({ rodBroke: true });
   check("broken rod report opens automatically", (await page.locator(".result-risk").getAttribute("open")) !== null, "action-needed report expanded");
@@ -404,6 +462,172 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
   await renderResult({ outcome: "lost" });
   check("lost result has a focused retry state", (await page.locator(".lost-reveal").count()) === 1 && (await page.locator(".retry-cast").count()) === 1, "lost reveal and retry rendered");
   await page.close();
+}
+
+async function verifyResultViewportBaselines({ browser, base, check, recordConsoleError }) {
+  for (const scenario of viewportScenarios) {
+    const page = await browser.newPage({
+      viewport: scenario.viewport,
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+    });
+    attachConsoleListeners(page, recordConsoleError);
+    const fixtures = await installDeterministicReadFixtures(page);
+    await page.goto(`${base}/?telegramMock=${scenario.mock}&phase0=results`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+    const state = fixtures.getState();
+    if (!state) throw new Error("The deterministic result fixture did not initialize.");
+
+    const showFishingResult = async (result) => {
+      await page.evaluate(async ({ gameState, result }) => {
+        const { AppShell } = await import("/src/ui/app-shell.ts");
+        const root = document.querySelector("#ui-root");
+        if (!root) throw new Error("UI root is missing.");
+        const shell = new AppShell(root);
+        shell.setGameState(gameState);
+        shell.showFishingResult(result, () => {}, () => {});
+      }, { gameState: state, result });
+      await page.waitForSelector("[data-testid=catch-result]", { timeout: 10_000 });
+    };
+
+    await showFishingResult(completionResultFromState(state));
+    const topbar = await rectOf(page, ".app-topbar");
+    const tabbar = await rectOf(page, ".tabbar");
+    const catchResultTop = await rectOf(page, "[data-testid=catch-result]");
+    const catchVisual = await rectOf(page, ".catch-visual");
+    const saleValue = await rectOf(page, "[data-testid=catch-sale-value]");
+    const catchQuality = await rectOf(page, ".catch-quality");
+    const catchDecision = await rectOf(page, "[data-testid=catch-decision]");
+    const resultScrollRange = await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollHeight - element.clientHeight);
+    check(
+      `${scenario.name}: catch decision keeps the expected dock gap`,
+      Math.abs(tabbar.top - catchDecision.bottom - 10) < 3,
+      `gap ${(tabbar.top - catchDecision.bottom).toFixed(1)}px (expected 10)`,
+    );
+    check(
+      `${scenario.name}: result payout badges stay inside the visual`,
+      saleValue.left >= catchVisual.left && saleValue.right <= catchVisual.right && !rectsOverlap(saleValue, catchQuality),
+      `payout ${saleValue.left.toFixed(1)}–${saleValue.right.toFixed(1)}; visual ${catchVisual.left.toFixed(1)}–${catchVisual.right.toFixed(1)}`,
+    );
+    await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await page.waitForTimeout(120);
+    const catchResultBottom = await rectOf(page, "[data-testid=catch-result]");
+    check(
+      `${scenario.name}: scrolled catch result clears bottom chrome`,
+      catchResultBottom.bottom <= tabbar.top + 2,
+      `result bottom ${catchResultBottom.bottom.toFixed(1)} vs tabbar top ${tabbar.top.toFixed(1)}`,
+    );
+    const catchBaseline = {
+      viewport: scenario.viewport,
+      topbar,
+      tabbar,
+      result: catchResultTop,
+      catchDecision,
+      catchVisual,
+      saleValue,
+      catchQuality,
+      scrollRange: resultScrollRange,
+      scrolledResult: catchResultBottom,
+      gaps: {
+        decisionToTabbar: tabbar.top - catchDecision.bottom,
+        scrolledResultToTabbar: tabbar.top - catchResultBottom.bottom,
+      },
+    };
+    recordMeasurement(`${scenario.name} catch result baseline`, catchBaseline);
+
+    await showFishingResult(completionResultFromState(state, { outcome: "lost" }));
+    await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, 0));
+    const lostRetryAtTop = await rectOf(page, ".retry-cast");
+    const lostResultAtTop = await rectOf(page, "[data-testid=catch-result]");
+    await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await page.waitForTimeout(120);
+    const lostRetry = await rectOf(page, ".retry-cast");
+    const lostResult = await rectOf(page, "[data-testid=catch-result]");
+    check(
+      `${scenario.name}: loss retry action clears bottom chrome`,
+      lostRetry.bottom <= tabbar.top + 2,
+      `retry bottom ${lostRetry.bottom.toFixed(1)} vs tabbar top ${tabbar.top.toFixed(1)}`,
+    );
+    recordMeasurement(`${scenario.name} loss result baseline`, {
+      resultAtTop: lostResultAtTop,
+      retryAtTop: lostRetryAtTop,
+      resultAtFullScroll: lostResult,
+      retryAtFullScroll: lostRetry,
+      tabbar,
+      gaps: {
+        initialRetryToTabbar: tabbar.top - lostRetryAtTop.bottom,
+        fullScrollRetryToTabbar: tabbar.top - lostRetry.bottom,
+      },
+    });
+
+    await page.evaluate(async ({ gameState, result }) => {
+      const { AppShell } = await import("/src/ui/app-shell.ts");
+      const root = document.querySelector("#ui-root");
+      if (!root) throw new Error("UI root is missing.");
+      const shell = new AppShell(root);
+      shell.setGameState(gameState);
+      shell.showDecisionResult(result, () => {});
+    }, { gameState: state, result: decisionResultFromState(state, "keep") });
+    await page.waitForSelector("[data-testid=decision-result]", { timeout: 10_000 });
+    await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, 0));
+    const decisionResultAtTop = await rectOf(page, "[data-testid=decision-result]");
+    const continueActionAtTop = await rectOf(page, ".decision-continue");
+    await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await page.waitForTimeout(120);
+    const decisionResult = await rectOf(page, "[data-testid=decision-result]");
+    const continueAction = await rectOf(page, ".decision-continue");
+    check(
+      `${scenario.name}: decision receipt action clears bottom chrome`,
+      continueAction.bottom <= tabbar.top + 2,
+      `continue bottom ${continueAction.bottom.toFixed(1)} vs tabbar top ${tabbar.top.toFixed(1)}`,
+    );
+    recordMeasurement(`${scenario.name} decision result baseline`, {
+      resultAtTop: decisionResultAtTop,
+      continueActionAtTop: continueActionAtTop,
+      resultAtFullScroll: decisionResult,
+      continueActionAtFullScroll: continueAction,
+      tabbar,
+      gaps: {
+        initialContinueToTabbar: tabbar.top - continueActionAtTop.bottom,
+        fullScrollContinueToTabbar: tabbar.top - continueAction.bottom,
+      },
+    });
+
+    await page.evaluate(async () => {
+      const { AppShell } = await import("/src/ui/app-shell.ts");
+      const root = document.querySelector("#ui-root");
+      if (!root) throw new Error("UI root is missing.");
+      const shell = new AppShell(root);
+      shell.showRetryPanel("Catch choice not saved", "Your connection dropped. Your catch is still waiting for a Keep or Sell choice.", "Retry choice", () => {}, () => {});
+    });
+    await page.waitForSelector("[data-testid=retry-panel]", { timeout: 10_000 });
+    const retryPanel = await rectOf(page, "[data-testid=retry-panel]");
+    check(
+      `${scenario.name}: retry panel clears fixed chrome`,
+      retryPanel.top >= topbar.bottom - 1 && retryPanel.bottom <= tabbar.top + 2,
+      `retry ${retryPanel.top.toFixed(1)}–${retryPanel.bottom.toFixed(1)} between ${topbar.bottom.toFixed(1)} and ${tabbar.top.toFixed(1)}`,
+    );
+    recordMeasurement(`${scenario.name} retry panel baseline`, {
+      retryPanel,
+      topbar,
+      tabbar,
+      gaps: {
+        topbarToRetry: retryPanel.top - topbar.bottom,
+        retryToTabbar: tabbar.top - retryPanel.bottom,
+      },
+    });
+
+    viewportBaselines.push({
+      scenario: scenario.name,
+      viewport: scenario.viewport,
+      catch: catchBaseline,
+      loss: { result: lostResult, retry: lostRetry, resultAtTop: lostResultAtTop, retryAtTop: lostRetryAtTop },
+      decision: { result: decisionResult, continueAction, resultAtTop: decisionResultAtTop, continueActionAtTop },
+      retryPanel,
+    });
+    await page.close();
+  }
 }
 
 const browser = await chromium.launch();
@@ -450,9 +674,9 @@ const tabbar = await rectOf(page, ".tabbar");
 check("topbar above hero", topbar.bottom <= hero.top + 1, `topbar bottom ${topbar.bottom.toFixed(1)} vs hero top ${hero.top.toFixed(1)}`);
 check("hero above gear dock", hero.bottom <= gearDock.top + 1, `hero bottom ${hero.bottom.toFixed(1)} vs dock top ${gearDock.top.toFixed(1)}`);
 check("cast bar clears tabbar with CTA gap", Math.abs(tabbar.top - castBar.bottom - 10) < 2, `gap ${(tabbar.top - castBar.bottom).toFixed(1)}px (expected 10)`);
-report.push(`MEASURE  topbar to hero  ${(hero.top - topbar.bottom).toFixed(1)}px`);
-report.push(`MEASURE  hero to first control  ${(gearDock.top - hero.bottom).toFixed(1)}px`);
-report.push(`MEASURE  cast bar to tabbar  ${(tabbar.top - castBar.bottom).toFixed(1)}px`);
+recordMeasurement("iPhone portrait topbar to hero", hero.top - topbar.bottom);
+recordMeasurement("iPhone portrait hero to first control", gearDock.top - hero.bottom);
+recordMeasurement("iPhone portrait cast bar to tabbar", tabbar.top - castBar.bottom);
 check("hero-to-first-control spacing stays compact", gearDock.top - hero.bottom >= 0 && gearDock.top - hero.bottom <= 20, `gap ${(gearDock.top - hero.bottom).toFixed(1)}px (expected 0–20)`);
 check("tabbar reaches viewport bottom", Math.abs(tabbar.bottom - 852) < 1, `tabbar bottom ${tabbar.bottom.toFixed(1)} vs 852`);
 check("cast bar within viewport", castBar.left >= 0 && castBar.right <= 393, `cast bar spans ${castBar.left.toFixed(1)}–${castBar.right.toFixed(1)}`);
@@ -513,8 +737,8 @@ await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeig
 await page.waitForTimeout(350);
 const lastCard = await rectOf(page, ".locations-list .location-card >> nth=-1");
 check("last location card fully visible above cast bar", lastCard.bottom <= castBar.top + 2, `card bottom ${lastCard.bottom.toFixed(1)} vs cast bar top ${castBar.top.toFixed(1)}`);
-report.push(`MEASURE  last scrollable element to cast bar  ${(castBar.top - lastCard.bottom).toFixed(1)}px`);
-await page.screenshot({ path: "/tmp/layout-main-scrolled.png" });
+recordMeasurement("iPhone portrait last location card to cast bar", castBar.top - lastCard.bottom);
+await page.screenshot({ path: screenshotPath("layout-main-scrolled") });
 
 // Select a different location card — selection ring + hero should update.
 await page.locator(".app-content").evaluate((el) => el.scrollTo(0, 0));
@@ -546,7 +770,7 @@ if ((await lockedCard.count()) > 0) {
   report.push("SKIP  locked card deep-link  (no locked locations in dev state)");
 }
 
-await page.screenshot({ path: "/tmp/layout-main.png" });
+await page.screenshot({ path: screenshotPath("layout-main") });
 
 // ---------- Shop ----------
 await page.locator(".tabbar .tab-button").nth(2).tap();
@@ -572,7 +796,7 @@ if (scrollRange > 40) {
 }
 check("sticky tabs do not overlap tabbar", !rectsOverlap(tabsSticky, tabbarRect), `tabs bottom ${tabsSticky.bottom.toFixed(1)} vs tabbar top ${tabbarRect.top.toFixed(1)}`);
 check("sticky tabs do not overlap topbar", !rectsOverlap(tabsSticky, topbar2), `tabs top ${tabsSticky.top.toFixed(1)} vs topbar bottom ${topbar2.bottom.toFixed(1)}`);
-await page.screenshot({ path: "/tmp/layout-shop-bait.png" });
+await page.screenshot({ path: screenshotPath("layout-shop-bait") });
 
 // Bottom of shop list clears the tabbar.
 await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -591,7 +815,7 @@ for (const tabName of ["Rods", "Lures", "Boats"]) {
   const actionLabels = await page.locator(".shop-list .buy-btn").allTextContents();
   check(`${tabName} actions use explicit labels`, actionLabels.every((label) => /Buy|Claim/.test(label)), actionLabels.join(" | ") || "all items owned");
 }
-await page.screenshot({ path: "/tmp/layout-shop-boats.png" });
+await page.screenshot({ path: screenshotPath("layout-shop-boats") });
 
 // Quantity chips update the bait buy total.
 await page.locator(".shop-tab", { hasText: "Bait" }).tap();
@@ -604,10 +828,11 @@ check("bait ×10 chip updates buy total", /\d+/.test(buyText ?? ""), `buy button
 const activeChip = await firstBait.locator(".qty-chip.is-active").textContent();
 check("active quantity chip is ×10", activeChip?.trim() === "×10", `active chip "${activeChip?.trim()}"`);
 check("bait cards explain attraction", (await page.locator(".shop-species").count()) === (await page.locator(".shop-list .shop-item").count()), "attracted species visible");
-await page.screenshot({ path: "/tmp/layout-shop-bait-qty.png" });
+await page.screenshot({ path: screenshotPath("layout-shop-bait-qty") });
 
 await verifyGearSelector({ browser, base: BASE, check, recordConsoleError });
 await verifyCatchResults({ browser, base: BASE, check, recordConsoleError });
+await verifyResultViewportBaselines({ browser, base: BASE, check, recordConsoleError });
 
 // ---------- Chunk 3 economy confirmation ----------
 const stateForCollection = await page.evaluate(async () => {
@@ -727,6 +952,20 @@ await verifyAsyncFlows({ browser, base: BASE, check, recordConsoleError });
 check("no browser console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | ") || "clean");
 
 await browser.close();
+
+const browserReportPath = resolve(process.env.PHASE0_BROWSER_REPORT_PATH ?? join(ARTIFACT_DIR, "browser-report.json"));
+await mkdir(resolve(browserReportPath, ".."), { recursive: true });
+await writeFile(browserReportPath, `${JSON.stringify({
+  generatedAt: new Date().toISOString(),
+  base: BASE,
+  viewportScenarios,
+  viewportBaselines,
+  measurements,
+  checks: report,
+  failures,
+  consoleErrors,
+}, null, 2)}\n`);
+console.log(`Browser report: ${browserReportPath}`);
 
 console.log("\n===== LAYOUT VERIFICATION =====");
 for (const line of report) console.log(line);

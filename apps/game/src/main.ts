@@ -20,6 +20,20 @@ if (!uiRoot || !gameRoot) {
 const shell = new AppShell(uiRoot);
 const game = createGame(gameRoot);
 const api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "");
+
+// Development-only seam for deterministic browser characterization. It is
+// activated only by the Phase 0 fixture URL and is removed from production by
+// Vite's import.meta.env.DEV replacement/tree-shaking.
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get("phase0") === "results") {
+  (window as Window & {
+    __FISHING_PHASE0__?: {
+      emitFishingComplete: (event: { encounterId: string; performance: number }) => void;
+    };
+  }).__FISHING_PHASE0__ = {
+    emitFishingComplete: (event) => game.events.emit("fishing:complete", event),
+  };
+}
+
 let currentGameState: GameStateResponse | undefined;
 let fishingActive = false;
 let fishingSceneSettled = true;

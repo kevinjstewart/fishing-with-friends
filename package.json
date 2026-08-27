@@ -20,6 +20,7 @@
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0",
     "verify:layout": "node scripts/verify-layout.mjs",
+    "report:bundle": "node scripts/report-bundle.mjs",
     "db:create": "wrangler d1 create fishing-with-friends",
     "db:migrate:local": "wrangler d1 migrations apply fishing-with-friends --local --env development",
     "db:migrate:remote": "wrangler d1 migrations apply fishing-with-friends --remote --env production",

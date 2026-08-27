@@ -245,9 +245,9 @@ export class GameAppElement extends LitElement {
     const hasToast = Boolean(this.status?.message);
     const view = this.catchResult || this.decisionResult ? "catch" : "screen";
     return html`
-      <div class="app-frame" data-toast-visible=${String(hasToast)} data-view=${view}>
+      <div class="app-frame" data-testid="app-frame" data-toast-visible=${String(hasToast)} data-view=${view}>
         <game-topbar .coins=${this.coins} ?disabled=${!this.navEnabled}></game-topbar>
-        <main class="app-content" aria-busy=${String(this.actionPending)} data-pending=${String(this.actionPending)} data-view=${view}>
+        <main class="app-content" data-testid="app-content" aria-busy=${String(this.actionPending)} data-pending=${String(this.actionPending)} data-view=${view}>
           ${this.renderContent()}
         </main>
         <game-tabbar .activeScreen=${this.screen} ?navEnabled=${this.navEnabled} .pendingNavigation=${this.pendingNavigation}></game-tabbar>
@@ -262,7 +262,7 @@ export class GameAppElement extends LitElement {
     }
     if (this.retryPanel) {
       const panel = this.retryPanel;
-      return html`<section class="fishing-status" aria-live="assertive"><span class="eyebrow">${panel.eyebrow}</span><p class="muted">${panel.message}</p><div class="retry-actions"><button class="primary-action" type="button" ?disabled=${this.actionPending} @click=${panel.onRetry}>${panel.retryLabel}</button>${panel.onBack ? html`<button class="secondary-action" type="button" ?disabled=${this.actionPending} @click=${panel.onBack}>Back to lakes</button>` : nothing}</div></section>`;
+      return html`<section class="fishing-status" data-testid="retry-panel" aria-live="assertive"><span class="eyebrow">${panel.eyebrow}</span><p class="muted">${panel.message}</p><div class="retry-actions"><button class="primary-action" type="button" ?disabled=${this.actionPending} @click=${panel.onRetry}>${panel.retryLabel}</button>${panel.onBack ? html`<button class="secondary-action" type="button" ?disabled=${this.actionPending} @click=${panel.onBack}>Back to lakes</button>` : nothing}</div></section>`;
     }
     if (this.catchResult) {
       return html`<catch-result .result=${this.catchResult.result} .gameState=${this.gameState} ?actionPending=${this.actionPending}></catch-result>`;
