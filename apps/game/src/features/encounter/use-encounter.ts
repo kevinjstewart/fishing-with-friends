@@ -179,7 +179,7 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
           activeRuntimeEncounterId.current = undefined;
           ambientEncounterRef.current = undefined;
           dispatch({ type: "ACTIVE_ENCOUNTER_RECONCILED_LIVE", encounter: reconciled.active.encounter });
-          activateRuntimeEncounter(reconciled.active.encounter, "Your encounter is still live. Fish on…");
+          activateRuntimeEncounter(reconciled.active.encounter, "Your encounter is still live.");
           return;
         }
         if (reconciled.active?.expired || alreadyResolved(error)) {
@@ -339,7 +339,7 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
     setEncounterStatus("Starting your fishing attempt…", "loading");
   }, [setEncounterStatus]);
 
-  const startSucceeded = useCallback((encounter: FishingEncounterResponse, message = "Your line is ready. Fish on…") => {
+  const startSucceeded = useCallback((encounter: FishingEncounterResponse, message = "Your line is ready.") => {
     const current = stateRef.current;
     if (activeRuntimeEncounterId.current === encounter.encounterId && document.body.classList.contains("is-fighting")) return;
     if (current.phase !== "starting" && !(current.phase === "recoverable-error" && current.error?.operation === "start") && current.phase !== "lobby") return;
@@ -375,7 +375,7 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
       window.setTimeout(() => {
         if (!mountedRef.current) return;
         dispatch({ type: "START_SUCCEEDED", encounter });
-        activateRuntimeEncounter(encounter, "Your line is ready. Fish on…");
+        activateRuntimeEncounter(encounter, "Your line is ready.");
       }, 0);
       return;
     }

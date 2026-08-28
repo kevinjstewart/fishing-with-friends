@@ -110,7 +110,7 @@ export class OceanScene extends Phaser.Scene {
     this.drawing.scatterMotes();
     if (this.mode !== "fight" || !this.encounter) return;
     this.box = computeFightLayout(this.scale.width, this.scale.height, this.safe);
-    this.drawing.resizeFight(this.box, this.encounter);
+    this.drawing.resizeFight(this.box);
     this.renderFrame(true);
   }
 
@@ -153,7 +153,7 @@ export class OceanScene extends Phaser.Scene {
     this.fishingState = createFishingState(this.random);
     this.mode = "fight";
 
-    this.drawing.createFightView(encounter);
+    this.drawing.createFightView();
     this.handleResize();
     this.effects.playIntroSequence(() => {
       this.controlLocked = false;

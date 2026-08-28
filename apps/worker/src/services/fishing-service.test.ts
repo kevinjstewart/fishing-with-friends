@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GAME_CATALOG } from "@fishing/shared/catalog";
-import { minimumFightSeconds, rodBreakChancePercent, speciesSelectionWeight } from "./fishing-service";
+import { fightDurationSecondsFor, FIGHT_DURATION_MULTIPLIER, minimumFightSeconds, rodBreakChancePercent, speciesSelectionWeight } from "./fishing-service";
 
 const starterRod = { maxFishWeightKg: 2.5, breakResistance: 0.995 };
 const heavyRod = { maxFishWeightKg: 18, breakResistance: 0.985 };
@@ -48,6 +48,14 @@ describe("minimumFightSeconds", () => {
     expect(minimumFightSeconds(1)).toBeGreaterThanOrEqual(0.5);
     expect(minimumFightSeconds(1)).toBeLessThan(3);
     expect(minimumFightSeconds(1.32)).toBeLessThan(3);
+  });
+});
+
+describe("fight duration balance", () => {
+  it("keeps the two-times mobile tuning in one multiplier", () => {
+    expect(FIGHT_DURATION_MULTIPLIER).toBe(2);
+    expect(fightDurationSecondsFor(20)).toBe(22);
+    expect(fightDurationSecondsFor(45)).toBe(48);
   });
 });
 

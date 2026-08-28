@@ -15,11 +15,6 @@ export interface OceanFightView {
   fishBodyArt: Phaser.GameObjects.Graphics;
   fishTailArt: Phaser.GameObjects.Graphics;
   fishShadowArt: Phaser.GameObjects.Graphics;
-  hudCard: Phaser.GameObjects.Graphics;
-  hudEyebrow: Phaser.GameObjects.Text;
-  hudSpecies: Phaser.GameObjects.Text;
-  rarityPill: Phaser.GameObjects.Graphics;
-  rarityLabel: Phaser.GameObjects.Text;
   timerRing: Phaser.GameObjects.Graphics;
   timerText: Phaser.GameObjects.Text;
   bottomCard: Phaser.GameObjects.Graphics;
@@ -46,13 +41,6 @@ export const COLORS = {
   ink: 0xf4eddf,
   dim: 0xaaa28f,
   glass: 0x0b0e0b,
-};
-
-const RARITY_COLORS: Record<string, number> = {
-  common: 0xc5bdad,
-  uncommon: 0x65aa88,
-  rare: 0x8e789d,
-  legendary: 0xd6b86a,
 };
 
 export const DISPLAY_FONT = '"Sora", "Avenir Next", sans-serif';
@@ -186,7 +174,7 @@ export class OceanDrawing {
     }
   }
 
-  createFightView(encounter: FishingEncounterResponse): OceanFightView {
+  createFightView(): OceanFightView {
     const dimmer = this.track(this.scene.add.rectangle(0, 0, 1, 1, COLORS.abyss, 0.34).setOrigin(0).setDepth(5));
     const lane = this.track(this.scene.add.graphics().setDepth(6));
     const fishShadowArt = this.track(this.scene.add.graphics().setDepth(7));
@@ -201,24 +189,7 @@ export class OceanDrawing {
       fishBodyArt,
       fishTailArt,
       fishShadowArt,
-      hudCard: this.track(this.scene.add.graphics().setDepth(12)),
       timerRing: this.track(this.scene.add.graphics().setDepth(13)),
-      hudEyebrow: this.track(
-        this.scene.add.text(0, 0, `${encounter.locationName.toUpperCase()} · FISH ON`, {
-          fontFamily: BODY_FONT,
-          fontSize: "10px",
-          fontStyle: "bold",
-          color: hex(COLORS.netActive),
-          letterSpacing: 2,
-        }).setDepth(13),
-      ),
-      hudSpecies: this.track(
-        this.scene.add.text(0, 0, "", { fontFamily: DISPLAY_FONT, fontSize: "20px", fontStyle: "bold", color: "#fff4d6", stroke: "#04101c", strokeThickness: 3 }).setDepth(13),
-      ),
-      rarityPill: this.track(this.scene.add.graphics().setDepth(13)),
-      rarityLabel: this.track(
-        this.scene.add.text(0, 0, encounter.species.rarity.toUpperCase(), { fontFamily: BODY_FONT, fontSize: "9px", fontStyle: "bold", color: hex(RARITY_COLORS[encounter.species.rarity] ?? COLORS.dim), letterSpacing: 1.5 }).setDepth(14),
-      ),
       timerText: this.track(this.scene.add.text(0, 0, "", { fontFamily: DISPLAY_FONT, fontSize: "13px", fontStyle: "bold", color: "#fff4d6" }).setOrigin(0.5).setDepth(14)),
       bottomCard: this.track(this.scene.add.graphics().setDepth(12)),
       meterTitle: this.track(
@@ -255,12 +226,12 @@ export class OceanDrawing {
     return fightView;
   }
 
-  resizeFight(layout: FightLayout, encounter: FishingEncounterResponse): void {
+  resizeFight(layout: FightLayout): void {
     const view = this.fightView;
     if (!view) return;
     view.dimmer.setSize(this.scene.scale.width, this.scene.scale.height).setPosition(0, 0);
     this.drawLane(view.lane, layout);
-    this.layoutHud(view, layout, encounter);
+    this.layoutHud(view, layout);
     this.drawFishArt(view, layout);
   }
 
@@ -347,36 +318,18 @@ export class OceanDrawing {
     }
   }
 
-  private layoutHud(view: OceanFightView, layout: FightLayout, encounter: FishingEncounterResponse): void {
+  private layoutHud(view: OceanFightView, layout: FightLayout): void {
     const { headerX, headerY, headerW, headerH, bottomX, bottomY, bottomW, bottomH } = layout;
-    const radius = Math.min(18, headerH / 2);
-    view.hudCard.clear();
-    view.hudCard.fillStyle(COLORS.glass, 0.66).fillRoundedRect(headerX, headerY, headerW, headerH, radius);
-    view.hudCard.lineStyle(1, COLORS.foam, 0.22).strokeRoundedRect(headerX, headerY, headerW, headerH, radius);
-    view.hudCard.fillStyle(COLORS.glass, 0.66).fillRoundedRect(bottomX, bottomY, bottomW, bottomH, radius);
-    view.hudCard.lineStyle(1, COLORS.foam, 0.22).strokeRoundedRect(bottomX, bottomY, bottomW, bottomH, radius);
+    const radius = Math.min(18, bottomH / 2);
+    view.bottomCard.clear();
+    view.bottomCard.fillStyle(COLORS.glass, 0.66).fillRoundedRect(bottomX, bottomY, bottomW, bottomH, radius);
+    view.bottomCard.lineStyle(1, COLORS.foam, 0.22).strokeRoundedRect(bottomX, bottomY, bottomW, bottomH, radius);
 
-    const padX = headerX + 16;
-    const showHudEyebrow = headerH > 70;
-    view.hudEyebrow.setVisible(showHudEyebrow);
-    if (showHudEyebrow) view.hudEyebrow.setPosition(padX, headerY + 11);
-    this.ringRadius = headerH > 70 ? 21 : 18;
+    this.ringRadius = headerH >= 56 ? 21 : 18;
     const ringX = headerX + headerW - this.ringRadius - 16;
     const ringY = headerY + headerH / 2;
     view.timerRing.setPosition(ringX, ringY);
     view.timerText.setPosition(ringX, ringY);
-    const maxNameWidth = ringX - 14 - padX;
-    const nameSize = Math.max(15, Math.min(headerH > 70 ? 20 : 17, Math.floor(maxNameWidth / Math.max(8, encounter.species.commonName.length) / 0.58)));
-    view.hudSpecies.setFontSize(nameSize).setText(encounter.species.commonName).setPosition(padX, headerY + (showHudEyebrow ? 28 : 12));
-    const rarityColor = RARITY_COLORS[encounter.species.rarity] ?? COLORS.dim;
-    view.rarityLabel.setColor(hex(rarityColor));
-    const pillHeight = 16;
-    const pillWidth = view.rarityLabel.width + 16;
-    const pillY = Math.min(view.hudSpecies.y + view.hudSpecies.height + 4, headerY + headerH - pillHeight - 7);
-    view.rarityLabel.setPosition(padX + 2, pillY + (pillHeight - view.rarityLabel.height) / 2 - 1);
-    view.rarityPill.clear();
-    view.rarityPill.fillStyle(rarityColor, 0.14).fillRoundedRect(padX - 6, pillY, pillWidth, pillHeight, pillHeight / 2);
-    view.rarityPill.lineStyle(1, rarityColor, 0.45).strokeRoundedRect(padX - 6, pillY, pillWidth, pillHeight, pillHeight / 2);
 
     const meterX = bottomX + 16;
     const meterW = bottomW - 32;
@@ -434,6 +387,9 @@ export class OceanDrawing {
     const remaining = Math.max(0, total - state.elapsed);
     const fraction = controlLocked ? 1 : remaining / total;
     view.timerRing.clear();
+    const timerPlateRadius = this.ringRadius + 8;
+    view.timerRing.fillStyle(COLORS.glass, 0.86).fillCircle(0, 0, timerPlateRadius);
+    view.timerRing.lineStyle(1, COLORS.foam, 0.28).strokeCircle(0, 0, timerPlateRadius);
     view.timerRing.lineStyle(4, COLORS.foam, 0.14).strokeCircle(0, 0, this.ringRadius);
     const hue = fraction > 0.5 ? mix(COLORS.netActive, 0xffd166, (1 - fraction) * 2) : mix(0xffd166, COLORS.danger, (0.5 - fraction) * 2);
     if (fraction > 0.001) {
