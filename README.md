@@ -10,7 +10,7 @@ The browser is responsible for rendering, local UI state, and network requests. 
 Telegram Mini App / desktop browser
   apps/game
     Phaser scenes and rendering
-    DOM UI shell
+    React SPA and feature screens
     Telegram adapter
     API client
           │ typed HTTP contracts
@@ -166,7 +166,7 @@ MINIFLARE_REGISTRY_PATH=/private/tmp/fishing-with-friends-miniflare-registry \
 npm run dev
 ```
 
-The Phaser shell currently proves initialization, responsive canvas sizing, scene lifecycle, and future asset-loading placement. It deliberately contains no fishing mechanics or game state.
+Phaser owns the frame-by-frame fishing challenge, responsive canvas layout, input, and visual effects. React owns the surrounding application UI and encounter lifecycle, while the Worker remains authoritative for encounters, inventory, progression, and rewards. Phaser is lazy-loaded behind the React runtime adapter and does not own persistent game state.
 
 ## Telegram authentication flow
 
