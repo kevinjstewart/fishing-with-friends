@@ -142,6 +142,14 @@ npm run verify:lazy-loading
 node scripts/shots.mjs
 ```
 
+CI checks the production game bundle after the build with `bundle-budget.json`. The check measures total emitted game gzip, the separate Phaser chunk gzip, and the application chunk gzip through the stable roles in `scripts/report-bundle.mjs`; hashed asset filenames are not budget configuration. Run the same check locally with:
+
+```bash
+npm run build:game
+npm run report:bundle
+npm run check:bundle-budget
+```
+
 With the Worker running, use `npm run dev:game` and open `http://127.0.0.1:5173/`. The browser checks exercise the production React entry across the supported mobile viewports and encounter flows.
 
 In managed environments where Wrangler cannot write its default preferences or logs, provide writable task-local paths before starting the stack or applying local migrations:

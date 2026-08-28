@@ -25,6 +25,8 @@
     "verify:shared-bundle": "node scripts/verify-shared-bundle.mjs",
     "measure:telegram-cold-start": "node scripts/measure-telegram-cold-start.mjs",
     "report:bundle": "node scripts/report-bundle.mjs",
+    "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
+    "test:bundle-budget": "node --test scripts/check-bundle-budget.test.mjs",
     "db:create": "wrangler d1 create fishing-with-friends",
     "db:migrate:local": "wrangler d1 migrations apply fishing-with-friends --local --env development",
     "db:migrate:remote": "wrangler d1 migrations apply fishing-with-friends --remote --env production",
