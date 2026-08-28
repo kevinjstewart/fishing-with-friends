@@ -26,7 +26,10 @@ async function capture(name) {
 }
 
 async function dismissToasts() {
-  await page.locator("game-app").evaluate((element) => element.dismissStatus());
+  await page.locator(".status-toast-host").evaluateAll((elements) => elements.forEach((element) => {
+    element.querySelectorAll(".toast").forEach((toast) => toast.remove());
+    element.hidden = true;
+  }));
   await page.waitForTimeout(250);
 }
 
@@ -74,36 +77,8 @@ await page.waitForSelector("[data-testid=lakes-screen]", { timeout: 10_000 });
 
 async function renderCatchResult(options = {}) {
   await page.evaluate(async ({ gameState, resultOptions }) => {
-    const { AppShell } = await import("/src/ui/app-shell.ts");
-    const root = document.querySelector("#ui-root");
-    if (!root) throw new Error("UI root is missing.");
-    const shell = new AppShell(root);
-    shell.setGameState(gameState);
-    const species = gameState.catalog.fish[0];
-    const location = gameState.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
-    const specimen = {
-      id: "phase0-screenshot-catch",
-      speciesId: species.id,
-      species,
-      weightKg: species.typicalWeightKg * 1.35,
-      lengthCm: Math.round(species.typicalLengthCm * 1.2),
-      quality: "trophy",
-      saleValueCoins: 184,
-      caughtAt: "2026-01-01T12:00:00.000Z",
-      locationId: location.id,
-      locationName: location.name,
-    };
-    shell.showFishingResult({
-      outcome: resultOptions.outcome ?? "caught",
-      message: resultOptions.outcome === "lost" ? "One last run shook the hook free." : "A clean fight and a beautiful fish.",
-      species,
-      rodId: gameState.activeEquipment.rodId,
-      rodRiskBand: resultOptions.rodBroke ? "high" : "low",
-      rodBreakChancePercent: resultOptions.rodBroke ? 27.5 : 0.25,
-      catch: resultOptions.outcome === "lost" ? null : specimen,
-      rodBroke: Boolean(resultOptions.rodBroke),
-      replacementRodId: resultOptions.rodBroke ? gameState.catalog.rods[1]?.id ?? null : null,
-    }, () => {}, () => {});
+    const fixture = await import("/src/test/render-fixture.tsx");
+    fixture.renderEncounterFixture({ gameState, view: resultOptions.outcome === "lost" ? "lost" : resultOptions.rodBroke ? "broken-rod" : "catch" });
   }, { gameState: state, resultOptions: options });
   await page.waitForSelector("[data-testid=catch-result]", { timeout: 10_000 });
   if (options.outcome !== "lost") await page.waitForSelector('.catch-hero-image[data-image-state="loaded"]', { timeout: 10_000 });
@@ -119,29 +94,8 @@ await capture("shot-result-broken-rod");
 
 async function renderDecisionResult(decision) {
   await page.evaluate(async ({ gameState, decision }) => {
-    const { AppShell } = await import("/src/ui/app-shell.ts");
-    const root = document.querySelector("#ui-root");
-    if (!root) throw new Error("UI root is missing.");
-    const shell = new AppShell(root);
-    shell.setGameState(gameState);
-    const species = gameState.catalog.fish[0];
-    const location = gameState.locations[0];
-    shell.showDecisionResult({
-      decision,
-      coins: decision === "sell" ? gameState.coins + 184 : gameState.coins,
-      catch: {
-        id: `phase0-${decision}-result`,
-        speciesId: species.id,
-        species,
-        weightKg: species.typicalWeightKg,
-        lengthCm: species.typicalLengthCm,
-        quality: "good",
-        saleValueCoins: 184,
-        caughtAt: "2026-01-01T12:00:00.000Z",
-        locationId: location.id,
-        locationName: location.name,
-      },
-    }, () => {});
+    const fixture = await import("/src/test/render-fixture.tsx");
+    fixture.renderEncounterFixture({ gameState, view: decision === "sell" ? "decision-sell" : "decision-keep" });
   }, { gameState: state, decision });
   await page.waitForSelector("[data-testid=decision-result]", { timeout: 10_000 });
   await page.waitForTimeout(350);
@@ -153,18 +107,8 @@ await renderDecisionResult("sell");
 await capture("shot-result-sell");
 
 await page.evaluate(async ({ gameState }) => {
-  const { AppShell } = await import("/src/ui/app-shell.ts");
-  const root = document.querySelector("#ui-root");
-  if (!root) throw new Error("UI root is missing.");
-  const shell = new AppShell(root);
-  shell.setGameState(gameState);
-  shell.showRetryPanel(
-    "Catch choice not saved",
-    "Your connection dropped. Your catch is still waiting for a Keep or Sell choice.",
-    "Retry choice",
-    () => {},
-    () => {},
-  );
+  const fixture = await import("/src/test/render-fixture.tsx");
+  fixture.renderEncounterFixture({ gameState, view: "retry" });
 }, { gameState: state });
 await page.waitForSelector("[data-testid=retry-panel]", { timeout: 10_000 });
 await page.waitForTimeout(350);

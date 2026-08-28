@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompleteFishingResponse, FishingEncounterResponse } from "@fishing/shared/contracts";
+import type { CatchDecisionResponse, CompleteFishingResponse, FishingEncounterResponse } from "@fishing/shared/contracts";
 import { encounterReducer, initialEncounterState } from "./encounter-reducer";
 
 const encounter: FishingEncounterResponse = {
@@ -57,6 +57,12 @@ const completeResult: CompleteFishingResponse = {
   replacementRodId: null,
 };
 
+const decisionResult: CatchDecisionResponse = {
+  decision: "keep",
+  coins: 100,
+  catch: completeResult.catch!,
+};
+
 describe("encounterReducer", () => {
   it("covers boot, active encounter resume, expiry, empty lobby, and start failure/retry", () => {
     expect(encounterReducer(initialEncounterState, { type: "ACTIVE_ENCOUNTER_LIVE", encounter })).toMatchObject({ phase: "fighting", encounter, ambientReady: false });
@@ -91,7 +97,7 @@ describe("encounterReducer", () => {
       catchId: "catch-1",
       result: { decision: "keep", coins: 100, catch: completeResult.catch! },
     });
-    const recoverable = encounterReducer(deciding, { type: "DECISION_FAILED", message: "offline" });
+    const recoverable = encounterReducer(deciding, { type: "DECISION_FAILED", catchId: "catch-1", message: "offline" });
 
     for (const state of [fighting, resolving, result, deciding, decisionResult, recoverable]) {
       expect(encounterReducer(state, { type: "RETURN_TO_LOBBY" })).toMatchObject({ phase: "lobby", expired: false, encounter: null });
@@ -109,16 +115,17 @@ describe("encounterReducer", () => {
   it("covers completion failure/retry and catch decision success/failure/retry", () => {
     const fighting = encounterReducer(initialEncounterState, { type: "ACTIVE_ENCOUNTER_LIVE", encounter });
     const resolving = encounterReducer(fighting, { type: "COMPLETE_REQUESTED", encounterId: "encounter-1", performance: 0.8 });
-    const failedCompletion = encounterReducer(resolving, { type: "COMPLETE_FAILED", message: "timeout" });
+    const failedCompletion = encounterReducer(resolving, { type: "COMPLETE_FAILED", encounterId: "encounter-1", message: "timeout" });
     expect(failedCompletion.error?.operation).toBe("completion");
     const retrying = encounterReducer(failedCompletion, { type: "RETRY" });
+    expect(encounterReducer(failedCompletion, { type: "RETRY", ambientReady: true })).toMatchObject({ phase: "resolving", ambientReady: true });
     const result = encounterReducer(
       encounterReducer(retrying, { type: "COMPLETE_SUCCEEDED", encounterId: "encounter-1", result: completeResult }),
       { type: "PHASER_AMBIENT" },
     );
     const deciding = encounterReducer(result, { type: "DECISION_REQUESTED", decision: "keep" });
     expect(deciding).toMatchObject({ phase: "deciding", pendingDecision: "keep" });
-    const failedDecision = encounterReducer(deciding, { type: "DECISION_FAILED", message: "offline" });
+    const failedDecision = encounterReducer(deciding, { type: "DECISION_FAILED", catchId: "catch-1", message: "offline" });
     expect(failedDecision.error?.operation).toBe("decision");
     const decisionRetry = encounterReducer(failedDecision, { type: "RETRY" });
     expect(decisionRetry.phase).toBe("deciding");
@@ -156,5 +163,34 @@ describe("encounterReducer", () => {
     expect(encounterReducer(lobby, { type: "RETURN_TO_LOBBY" })).toBe(lobby);
     expect(encounterReducer(initialEncounterState, { type: "PHASER_AMBIENT" })).toBe(initialEncounterState);
     expect(encounterReducer(initialEncounterState, { type: "BOOT_RETRY" })).toBe(initialEncounterState);
+  });
+
+  it("restores result and decision receipt snapshots without inventing completion data", () => {
+    const restored = encounterReducer(initialEncounterState, { type: "RESULT_RESTORED", encounter, result: completeResult });
+    expect(restored).toMatchObject({ phase: "result", encounter, result: completeResult, ambientReady: true });
+    const receipt = encounterReducer(initialEncounterState, { type: "DECISION_RESULT_RESTORED", encounter, result: completeResult, decision: decisionResult });
+    expect(receipt).toMatchObject({ phase: "decision-result", encounter, result: completeResult, decision: decisionResult, ambientReady: true });
+    expect(receipt.result?.rodId).toBe("starter-rod");
+  });
+
+  it("reconciles a failed completion back to a live encounter and rejects stale failure/ambient events", () => {
+    const fighting = encounterReducer(initialEncounterState, { type: "ACTIVE_ENCOUNTER_LIVE", encounter });
+    const resolving = encounterReducer(fighting, { type: "COMPLETE_REQUESTED", encounterId: encounter.encounterId, performance: 0.7 });
+    expect(encounterReducer(resolving, { type: "COMPLETE_FAILED", encounterId: "stale", message: "wrong attempt" })).toBe(resolving);
+    const liveAgain = encounterReducer(resolving, { type: "ACTIVE_ENCOUNTER_RECONCILED_LIVE", encounter });
+    expect(liveAgain).toMatchObject({ phase: "fighting", encounter, result: null, ambientReady: false });
+    expect(encounterReducer(liveAgain, { type: "PHASER_AMBIENT", encounterId: encounter.encounterId })).toBe(liveAgain);
+  });
+
+  it("keeps independent completion and decision state transitions exact and stale-safe", () => {
+    const fighting = encounterReducer(initialEncounterState, { type: "ACTIVE_ENCOUNTER_LIVE", encounter });
+    const resolving = encounterReducer(fighting, { type: "COMPLETE_REQUESTED", encounterId: encounter.encounterId, performance: 0.8 });
+    const completed = encounterReducer(resolving, { type: "COMPLETE_SUCCEEDED", encounterId: encounter.encounterId, result: completeResult });
+    expect(encounterReducer(completed, { type: "COMPLETE_SUCCEEDED", encounterId: "stale", result: completeResult })).toBe(completed);
+    const result = encounterReducer(completed, { type: "PHASER_AMBIENT", encounterId: encounter.encounterId });
+    const deciding = encounterReducer(result, { type: "DECISION_REQUESTED", decision: "keep" });
+    expect(encounterReducer(deciding, { type: "DECISION_FAILED", catchId: "stale", message: "wrong catch" })).toBe(deciding);
+    expect(encounterReducer(deciding, { type: "DECISION_SUCCEEDED", catchId: "stale", result: decisionResult })).toBe(deciding);
+    expect(encounterReducer(deciding, { type: "DECISION_SUCCEEDED", catchId: "catch-1", result: decisionResult })).toMatchObject({ phase: "decision-result", decision: decisionResult });
   });
 });

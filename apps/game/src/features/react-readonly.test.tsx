@@ -144,7 +144,7 @@ function createServices(overrides: Partial<ReactAppServices["api"]> = {}): React
     isDevelopment: true,
     telegram: { isAvailable: false, initData: "", initialize: vi.fn(), syncViewportInsets: vi.fn(), dispose: vi.fn() },
     runtime: {
-      setSafeArea: vi.fn(), startFight: vi.fn(), returnToLobby: vi.fn(async () => {}), onComplete: vi.fn(() => () => {}), onAmbient: vi.fn(() => () => {}), destroy: vi.fn(), emitCompleteForTest: vi.fn(),
+      setSafeArea: vi.fn(), startFight: vi.fn(), returnToLobby: vi.fn(async () => {}), onComplete: vi.fn(() => () => {}), onAmbient: vi.fn(() => () => {}), destroy: vi.fn(), emitCompleteForTest: vi.fn(), emitAmbientForTest: vi.fn(),
     },
   } as ReactAppServices;
 }

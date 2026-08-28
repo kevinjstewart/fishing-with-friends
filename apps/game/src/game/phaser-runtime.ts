@@ -13,10 +13,12 @@ export interface FishingRuntime {
   startFight(encounter: FishingEncounterResponse): void;
   returnToLobby(): Promise<void>;
   onComplete(handler: (event: FishingCompleteEvent) => void): () => void;
-  onAmbient(handler: () => void): () => void;
+  onAmbient(handler: (encounterId?: string) => void): () => void;
   destroy(): void;
   /** Development/test seam for the existing Phase 0 deterministic fixtures. */
   emitCompleteForTest(event: FishingCompleteEvent): void;
+  /** Development/test seam for verifying the ambient-result gate. */
+  emitAmbientForTest(encounterId?: string): void;
 }
 
 interface RuntimeGame {
@@ -38,15 +40,16 @@ type GameFactory = (parent: HTMLElement) => Phaser.Game;
 export function createFishingRuntime(parent: HTMLElement, gameFactory: GameFactory = createGame): FishingRuntime {
   const game = gameFactory(parent) as unknown as RuntimeGame;
   const completeHandlers = new Set<(event: FishingCompleteEvent) => void>();
-  const ambientHandlers = new Set<() => void>();
+  const ambientHandlers = new Set<(encounterId?: string) => void>();
   let destroyed = false;
 
   const completeListener = (...args: unknown[]): void => {
     const event = args[0] as FishingCompleteEvent;
     for (const handler of completeHandlers) handler(event);
   };
-  const ambientListener = (): void => {
-    for (const handler of ambientHandlers) handler();
+  const ambientListener = (...args: unknown[]): void => {
+    const encounterId = typeof args[0] === "string" ? args[0] : undefined;
+    for (const handler of ambientHandlers) handler(encounterId);
   };
 
   game.events.on("fishing:complete", completeListener);
@@ -87,6 +90,9 @@ export function createFishingRuntime(parent: HTMLElement, gameFactory: GameFacto
     },
     emitCompleteForTest(event) {
       if (!destroyed) game.events.emit("fishing:complete", event);
+    },
+    emitAmbientForTest(encounterId) {
+      if (!destroyed) game.events.emit("fishing:ambient", encounterId);
     },
   };
 }

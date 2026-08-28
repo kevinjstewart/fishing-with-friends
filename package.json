@@ -26,6 +26,7 @@
     "verify:react:readonly": "node scripts/verify-react-readonly.mjs",
     "verify:react:phase4": "node scripts/verify-react-phase4.mjs",
     "verify:react:phase5": "node scripts/verify-react-phase5.mjs",
+    "verify:react:phase6": "node scripts/verify-react-phase6.mjs",
     "verify:shared-bundle": "node scripts/verify-shared-bundle.mjs",
     "report:bundle": "node scripts/report-bundle.mjs",
     "db:create": "wrangler d1 create fishing-with-friends",

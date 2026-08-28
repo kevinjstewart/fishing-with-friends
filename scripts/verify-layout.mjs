@@ -385,35 +385,8 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
 
   const renderResult = async ({ outcome = "caught", rodBroke = false } = {}) => {
     await page.evaluate(async ({ state, outcome, rodBroke }) => {
-      const { AppShell } = await import("/src/ui/app-shell.ts");
-      const root = document.querySelector("#ui-root");
-      const shell = new AppShell(root);
-      shell.setGameState(state);
-      const species = state.catalog.fish[0];
-      const location = state.catalog.locations.find((candidate) => candidate.id === species.availableLocationIds[0]);
-      const specimen = {
-        id: "catch-result-fixture",
-        speciesId: species.id,
-        species,
-        weightKg: species.typicalWeightKg * 1.35,
-        lengthCm: Math.round(species.typicalLengthCm * 1.2),
-        quality: "trophy",
-        saleValueCoins: 184,
-        caughtAt: new Date().toISOString(),
-        locationId: location.id,
-        locationName: location.name,
-      };
-      shell.showFishingResult({
-        outcome,
-        message: outcome === "caught" ? "A clean fight and a beautiful fish." : "One last run shook the hook free.",
-        species,
-        rodId: state.activeEquipment.rodId,
-        rodRiskBand: rodBroke ? "high" : "low",
-        rodBreakChancePercent: rodBroke ? 27.5 : 0.25,
-        catch: outcome === "caught" ? specimen : null,
-        rodBroke,
-        replacementRodId: rodBroke ? state.catalog.rods[1]?.id ?? null : null,
-      }, () => {}, () => {});
+      const fixture = await import("/src/test/render-fixture.tsx");
+      fixture.renderEncounterFixture({ gameState: state, view: outcome === "lost" ? "lost" : rodBroke ? "broken-rod" : "catch", resultOptions: { outcome, rodBroke } });
     }, { state, outcome, rodBroke });
   };
 
@@ -481,12 +454,8 @@ async function verifyResultViewportBaselines({ browser, base, check, recordConso
 
     const showFishingResult = async (result) => {
       await page.evaluate(async ({ gameState, result }) => {
-        const { AppShell } = await import("/src/ui/app-shell.ts");
-        const root = document.querySelector("#ui-root");
-        if (!root) throw new Error("UI root is missing.");
-        const shell = new AppShell(root);
-        shell.setGameState(gameState);
-        shell.showFishingResult(result, () => {}, () => {});
+        const fixture = await import("/src/test/render-fixture.tsx");
+        fixture.renderEncounterFixture({ gameState, view: result.catch ? "catch" : "lost", result });
       }, { gameState: state, result });
       await page.waitForSelector("[data-testid=catch-result]", { timeout: 10_000 });
     };
@@ -562,12 +531,8 @@ async function verifyResultViewportBaselines({ browser, base, check, recordConso
     });
 
     await page.evaluate(async ({ gameState, result }) => {
-      const { AppShell } = await import("/src/ui/app-shell.ts");
-      const root = document.querySelector("#ui-root");
-      if (!root) throw new Error("UI root is missing.");
-      const shell = new AppShell(root);
-      shell.setGameState(gameState);
-      shell.showDecisionResult(result, () => {});
+      const fixture = await import("/src/test/render-fixture.tsx");
+      fixture.renderEncounterFixture({ gameState, view: result.decision === "sell" ? "decision-sell" : "decision-keep", decision: result });
     }, { gameState: state, result: decisionResultFromState(state, "keep") });
     await page.waitForSelector("[data-testid=decision-result]", { timeout: 10_000 });
     await page.locator("[data-testid=app-content]").evaluate((element) => element.scrollTo(0, 0));
@@ -594,13 +559,10 @@ async function verifyResultViewportBaselines({ browser, base, check, recordConso
       },
     });
 
-    await page.evaluate(async () => {
-      const { AppShell } = await import("/src/ui/app-shell.ts");
-      const root = document.querySelector("#ui-root");
-      if (!root) throw new Error("UI root is missing.");
-      const shell = new AppShell(root);
-      shell.showRetryPanel("Catch choice not saved", "Your connection dropped. Your catch is still waiting for a Keep or Sell choice.", "Retry choice", () => {}, () => {});
-    });
+    await page.evaluate(async (gameState) => {
+      const fixture = await import("/src/test/render-fixture.tsx");
+      fixture.renderEncounterFixture({ gameState, view: "retry" });
+    }, state);
     await page.waitForSelector("[data-testid=retry-panel]", { timeout: 10_000 });
     const retryPanel = await rectOf(page, "[data-testid=retry-panel]");
     check(

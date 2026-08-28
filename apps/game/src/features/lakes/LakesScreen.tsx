@@ -20,6 +20,8 @@ export interface LakesScreenProps {
   api: LakesMutationApi;
   onOpenShop: (category: ShopCategory) => void;
   onEncounterStarted: (encounter: NonNullable<Awaited<ReturnType<LakesMutationApi["startFishing"]>>>) => void;
+  onEncounterStartRequested?: () => void;
+  onEncounterStartFailed?: (message: string) => void;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -30,7 +32,7 @@ function firstLocation(state: GameStateResponse): LocationAvailability | undefin
   return state.locations.find((location) => location.unlocked) ?? state.locations[0];
 }
 
-export function LakesScreen({ state, api, onOpenShop, onEncounterStarted }: LakesScreenProps) {
+export function LakesScreen({ state, api, onOpenShop, onEncounterStarted, onEncounterStartRequested, onEncounterStartFailed }: LakesScreenProps) {
   const [selectedLocationId, setSelectedLocationId] = useState(() => firstLocation(state)?.id ?? "");
   const [feedback, setFeedback] = useState<LakesFeedback>();
   const mutations = useLakesMutations(api);
@@ -93,6 +95,7 @@ export function LakesScreen({ state, api, onOpenShop, onEncounterStarted }: Lake
   const runCast = useCallback((locationId: string) => {
     const request = mutations.executeCast(locationId, state.activeEquipment);
     if (!request) return;
+    onEncounterStartRequested?.();
     setFeedback({ state: "loading", message: "Sending your cast…" });
     void request.then((outcome) => {
       if (outcome.encounter) {
@@ -110,9 +113,10 @@ export function LakesScreen({ state, api, onOpenShop, onEncounterStarted }: Lake
         : outcome.reconciliationError
           ? "The cast was not confirmed. Your account was refreshed; try casting again."
           : errorMessage(outcome.operationError, "The cast was not sent. Try casting again.");
+      onEncounterStartFailed?.(message);
       setFeedback({ state: "error", message, retry: () => runCast(locationId), retryLabel: "Try casting again" });
     });
-  }, [mutations, onEncounterStarted, state.activeEquipment]);
+  }, [mutations, onEncounterStarted, onEncounterStartFailed, onEncounterStartRequested, state.activeEquipment]);
 
   if (!selected) return null;
 

@@ -17,16 +17,17 @@ export interface RetryPanelProps {
   retryLabel: string;
   onRetry: () => void;
   onBack?: () => void;
+  actionPending?: boolean;
 }
 
-export function RetryPanel({ eyebrow, message, retryLabel, onRetry, onBack }: RetryPanelProps) {
+export function RetryPanel({ eyebrow, message, retryLabel, onRetry, onBack, actionPending = false }: RetryPanelProps) {
   return (
     <section className="fishing-status" data-testid="retry-panel" role="alert" aria-live="assertive">
       <span className="eyebrow">{eyebrow}</span>
       <p className="muted">{message}</p>
       <div className="retry-actions">
-        <button className="primary-action" type="button" onClick={onRetry}>{retryLabel}</button>
-        {onBack ? <button className="secondary-action" type="button" onClick={onBack}>Back to lakes</button> : null}
+        <button className="primary-action" type="button" disabled={actionPending} aria-disabled={actionPending} onClick={onRetry}>{retryLabel}</button>
+        {onBack ? <button className="secondary-action" type="button" disabled={actionPending} aria-disabled={actionPending} onClick={onBack}>Back to lakes</button> : null}
       </div>
     </section>
   );

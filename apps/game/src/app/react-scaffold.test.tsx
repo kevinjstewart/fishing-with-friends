@@ -61,6 +61,7 @@ function createServices(overrides: Partial<ReactAppServices["api"]> = {}): React
       onAmbient: vi.fn(() => () => {}),
       destroy: vi.fn(),
       emitCompleteForTest: vi.fn(),
+      emitAmbientForTest: vi.fn(),
     },
   } as ReactAppServices;
 }

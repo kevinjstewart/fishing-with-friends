@@ -6,13 +6,15 @@ import { useBootstrap, type BootstrapState } from "./use-bootstrap";
 import { useScreenNavigation } from "./use-screen-navigation";
 import { GameTabbar } from "../features/chrome/GameTabbar";
 import { GameTopbar } from "../features/chrome/GameTopbar";
-import { RetryPanel } from "../features/chrome/ScreenStatus";
+import { LoadingPanel, RetryPanel } from "../features/chrome/ScreenStatus";
 import { StatusToast } from "../features/chrome/StatusToast";
 import { FriendsRoute } from "../features/friends/FriendsRoute";
 import { JournalRoute } from "../features/journal/JournalRoute";
 import { CollectionRoute } from "../features/collection/CollectionRoute";
 import { ShopRoute } from "../features/shop/ShopRoute";
 import { LakesScreen } from "../features/lakes/LakesScreen";
+import { CatchResult, DecisionResult } from "../features/encounter/CatchResult";
+import { useEncounter } from "../features/encounter/use-encounter";
 import type { ShopCategory } from "../ui/types";
 
 export interface AppProps {
@@ -58,9 +60,11 @@ interface ScreenRouterProps {
   shopCategory: ShopCategory;
   onOpenShop: (category: ShopCategory) => void;
   onEncounterStarted: (encounter: FishingEncounterResponse) => void;
+  onEncounterStartRequested: () => void;
+  onEncounterStartFailed: (message: string) => void;
 }
 
-function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, onFailed, onShare, onGoFishing, shopCategory, onOpenShop, onEncounterStarted }: ScreenRouterProps) {
+function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, onFailed, onShare, onGoFishing, shopCategory, onOpenShop, onEncounterStarted, onEncounterStartRequested, onEncounterStartFailed }: ScreenRouterProps) {
   if (screen === "friends") {
     return <FriendsRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onShare={onShare} onGoFishing={onGoFishing} />;
   }
@@ -73,7 +77,7 @@ function ScreenRouter({ screen, api, gameState, navigationRequestId, onLoaded, o
   if (screen === "collection") {
     return <CollectionRoute api={api} navigationRequestId={navigationRequestId} onLoaded={onLoaded} onFailed={onFailed} onGoFishing={onGoFishing} />;
   }
-  return <LakesScreen state={gameState} api={api} onOpenShop={onOpenShop} onEncounterStarted={onEncounterStarted} />;
+  return <LakesScreen state={gameState} api={api} onOpenShop={onOpenShop} onEncounterStarted={onEncounterStarted} onEncounterStartRequested={onEncounterStartRequested} onEncounterStartFailed={onEncounterStartFailed} />;
 }
 
 export function App({ services }: AppProps) {
@@ -83,11 +87,18 @@ export function App({ services }: AppProps) {
     isDevelopment: services.isDevelopment,
   });
   const navigation = useScreenNavigation(bootstrap.phase === "ready");
+  const encounter = useEncounter({
+    api: services.api,
+    runtime: services.runtime,
+    bootstrapPhase: bootstrap.phase,
+    bootstrapError: bootstrap.error,
+    activeEncounter: bootstrap.activeEncounter,
+    isDevelopment: services.isDevelopment,
+    telegramAvailable: services.telegram.isAvailable,
+  });
   const [status, setStatus] = useState<StatusSnapshot>();
   const [shopCategory, setShopCategory] = useState<ShopCategory>("bait");
-  const [encounterActive, setEncounterActive] = useState(false);
-  const activeEncounterId = useRef<string | undefined>(undefined);
-  const expiredEncounterWasShown = useRef(false);
+  const leavingEncounterRef = useRef(false);
 
   useEffect(() => {
     services.telegram.initialize();
@@ -95,16 +106,7 @@ export function App({ services }: AppProps) {
     return () => services.telegram.dispose();
   }, [services.telegram]);
 
-  useEffect(() => {
-    const runtime = services.runtime;
-    const removeCompleteListener = runtime.onComplete(() => {});
-    const removeAmbientListener = runtime.onAmbient(() => {});
-    return () => {
-      removeCompleteListener();
-      removeAmbientListener();
-      runtime.destroy();
-    };
-  }, [services.runtime]);
+  useEffect(() => () => services.runtime.destroy(), [services.runtime]);
 
   useEffect(() => () => {
     document.body.classList.remove("is-fighting");
@@ -117,10 +119,23 @@ export function App({ services }: AppProps) {
   }, [status]);
 
   const navigate = useCallback((screen: ScreenId) => {
-    if (encounterActive) return;
+    const phase = encounter.state.phase;
+    const resultOwned = phase === "result" || phase === "decision-result" || (phase === "recoverable-error" && (encounter.state.error?.operation === "completion" || encounter.state.error?.operation === "decision"));
+    const activeOwned = phase === "starting" || phase === "fighting" || phase === "resolving" || phase === "deciding";
+    if (activeOwned) return;
+    if (resultOwned) {
+      if (leavingEncounterRef.current) return;
+      leavingEncounterRef.current = true;
+      void encounter.returnToLakes().then(() => {
+        leavingEncounterRef.current = false;
+        setStatus(undefined);
+        navigation.navigate(screen);
+      });
+      return;
+    }
     setStatus(undefined);
     navigation.navigate(screen);
-  }, [encounterActive, navigation.navigate]);
+  }, [encounter.returnToLakes, encounter.state.error?.operation, encounter.state.phase, navigation.navigate]);
 
   const goFishing = useCallback(() => navigate("lakes"), [navigate]);
 
@@ -128,33 +143,6 @@ export function App({ services }: AppProps) {
     setShopCategory(category);
     navigate("shop");
   }, [navigate]);
-
-  const startEncounter = useCallback((encounter: FishingEncounterResponse, message = "Your line is ready. Fish on…") => {
-    if (activeEncounterId.current === encounter.encounterId && document.body.classList.contains("is-fighting")) return;
-    activeEncounterId.current = encounter.encounterId;
-    setEncounterActive(true);
-    setStatus({ message, state: "ready" });
-    document.body.classList.add("is-fighting");
-    services.runtime.startFight(encounter);
-  }, [services.runtime]);
-
-  useEffect(() => {
-    if (bootstrap.phase !== "ready") return;
-    const active = bootstrap.activeEncounter;
-    if (active?.encounter) {
-      expiredEncounterWasShown.current = false;
-      startEncounter(active.encounter, "Resuming your active encounter…");
-      return;
-    }
-    if (active?.expired && !expiredEncounterWasShown.current) {
-      expiredEncounterWasShown.current = true;
-      setStatus({ message: "Your previous fishing encounter expired. Your tackle is ready for a safe new cast.", state: "error" });
-      return;
-    }
-    if (services.isDevelopment && !services.telegram.isAvailable) {
-      setStatus({ message: "Local development mode", state: "ready" });
-    }
-  }, [bootstrap.activeEncounter, bootstrap.phase, services.isDevelopment, services.telegram.isAvailable, startEncounter]);
 
   const shareInvite = useCallback(() => {
     const webApp = window.Telegram?.WebApp;
@@ -194,15 +182,32 @@ export function App({ services }: AppProps) {
   const isNavigationLoading = navigation.state.navigation.status === "loading";
   const renderedScreen = isNavigationLoading ? navigation.state.navigation.target ?? navigation.state.screen : navigation.state.screen;
   const requestId = navigation.state.navigation.requestId;
-  const hasToast = Boolean(status?.message);
-  const navEnabled = !encounterActive && (navigation.state.phase === "ready" || Boolean(navigationError));
+  const encounterStatus = encounter.status;
+  const displayStatus = encounterStatus ?? status;
+  const hasToast = Boolean(displayStatus?.message);
+  const encounterBusy = encounter.state.phase === "starting" || encounter.state.phase === "fighting" || encounter.state.phase === "resolving" || encounter.state.phase === "deciding";
+  const navEnabled = !encounterBusy && (navigation.state.phase === "ready" || Boolean(navigationError));
+  const encounterView = encounter.state.phase === "resolving" || encounter.state.phase === "result" || encounter.state.phase === "deciding" || encounter.state.phase === "decision-result" || (encounter.state.phase === "recoverable-error" && (encounter.state.error?.operation === "completion" || encounter.state.error?.operation === "decision"));
+  const encounterContent = encounter.state.phase === "result" || encounter.state.phase === "deciding"
+    ? encounter.state.result
+      ? <CatchResult result={encounter.state.result} gameState={bootstrap.gameState} actionPending={encounter.state.phase === "deciding"} onDecision={encounter.chooseDecision} onBack={() => navigate("lakes")} />
+      : null
+    : encounter.state.phase === "decision-result" && encounter.state.decision
+      ? <DecisionResult decision={encounter.state.decision} onBack={() => navigate("lakes")} />
+      : encounter.state.phase === "resolving"
+        ? <LoadingPanel message="Checking the catch…" />
+        : encounter.state.phase === "recoverable-error" && encounter.state.error?.operation === "completion"
+          ? <RetryPanel eyebrow="Rough connection" message={`${encounter.state.error.message} Your catch is still waiting on the line — nothing is lost.`} retryLabel="Retry catch resolution" actionPending={encounter.status?.state === "loading"} onRetry={encounter.retry} onBack={() => navigate("lakes")} />
+          : encounter.state.phase === "recoverable-error" && encounter.state.error?.operation === "decision"
+            ? <RetryPanel eyebrow="Catch choice not saved" message={`${encounter.state.error.message} Your catch is still waiting for a Keep or Sell choice.`} retryLabel="Retry choice" actionPending={encounter.status?.state === "loading"} onRetry={encounter.retry} onBack={() => navigate("lakes")} />
+            : null;
 
   return (
     <div className="react-app-shell" data-testid="react-app-shell">
-      <div className="app-frame" data-testid="app-frame" data-toast-visible={String(hasToast)} data-view="screen">
+      <div className="app-frame" data-testid="app-frame" data-toast-visible={String(hasToast)} data-view={encounterView ? "catch" : "screen"}>
         <GameTopbar coins={bootstrap.gameState.coins} disabled={!navEnabled} onShop={() => openShop("bait")} />
-        <main className="app-content" data-testid="app-content" aria-busy={isNavigationLoading} data-pending={String(isNavigationLoading)} data-view="screen">
-          {navigationError ? (
+        <main className="app-content" data-testid="app-content" aria-busy={isNavigationLoading || encounter.state.phase === "resolving" || encounter.state.phase === "deciding"} data-pending={String(isNavigationLoading)} data-view={encounterView ? "catch" : "screen"}>
+          {encounterView ? encounterContent : navigationError ? (
             <RetryPanel
               eyebrow="Could not load that screen"
               message={navigationError.message}
@@ -222,12 +227,14 @@ export function App({ services }: AppProps) {
               onGoFishing={goFishing}
               shopCategory={shopCategory}
               onOpenShop={openShop}
-              onEncounterStarted={startEncounter}
+              onEncounterStarted={encounter.startSucceeded}
+              onEncounterStartRequested={encounter.requestStart}
+              onEncounterStartFailed={encounter.startFailed}
             />
           )}
         </main>
         <GameTabbar activeScreen={navigation.state.screen} navEnabled={navEnabled} pendingNavigation={isNavigationLoading ? navigation.state.navigation.target : undefined} onNavigate={navigate} />
-        <StatusToast message={status?.message} state={status?.state} />
+        <StatusToast message={displayStatus?.message} state={displayStatus?.state} />
       </div>
     </div>
   );

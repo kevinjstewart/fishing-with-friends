@@ -10,4 +10,13 @@ if (!rootElement) throw new Error("The React migration shell is missing its root
 const telegramMock = resolveTelegramMockId(new URLSearchParams(window.location.search).get("telegramMock"));
 if (telegramMock) activateTelegramViewportMock(telegramViewportPresets[telegramMock]);
 
-mountReactApp(rootElement, createReactAppServices());
+const services = createReactAppServices();
+if (import.meta.env.DEV) {
+  (window as Window & {
+    __FISHING_REACT__?: { emitFishingComplete: typeof services.runtime.emitCompleteForTest; emitFishingAmbient: typeof services.runtime.emitAmbientForTest };
+  }).__FISHING_REACT__ = {
+    emitFishingComplete: (event) => services.runtime.emitCompleteForTest(event),
+    emitFishingAmbient: (encounterId) => services.runtime.emitAmbientForTest(encounterId),
+  };
+}
+mountReactApp(rootElement, services);

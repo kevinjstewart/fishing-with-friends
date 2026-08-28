@@ -3,7 +3,10 @@ import { useCallback, useEffect, useReducer, useState } from "react";
 import type {
   ActiveFishingEncounterResponse,
   AuthResponse,
+  CatchDecision,
+  CatchDecisionResponse,
   CollectionResponse,
+  CompleteFishingResponse,
   FishJournalResponse,
   FishingEncounterResponse,
   GameStateResponse,
@@ -31,6 +34,8 @@ export interface BootstrapApi {
   getJournal(signal?: AbortSignal): Promise<FishJournalResponse>;
   getLeaderboard(signal?: AbortSignal): Promise<LeaderboardResponse>;
   getCollection(signal?: AbortSignal): Promise<CollectionResponse>;
+  completeFishing(encounterId: string, performance: number): Promise<CompleteFishingResponse>;
+  decideCatch(catchId: string, decision: CatchDecision): Promise<CatchDecisionResponse>;
   purchase(input: PurchaseRequest): Promise<PurchaseResponse>;
   sellCatch(catchId: string): Promise<SellCatchResponse>;
   selectEquipment(input: SelectEquipmentRequest): Promise<SelectEquipmentResponse>;
