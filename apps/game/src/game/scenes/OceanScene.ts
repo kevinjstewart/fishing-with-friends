@@ -1,4 +1,4 @@
-import type { FishingEncounterResponse } from "@fishing/shared";
+import type { FishingEncounterResponse } from "@fishing/shared/contracts";
 import Phaser from "phaser";
 import { createFishingState, performanceFor, seededRandom, stepFishing, type FishingState } from "../fishing-mechanics";
 
@@ -259,6 +259,7 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private enterAmbientMode(): void {
+    const encounterId = this.encounter?.encounterId;
     this.destroyFightObjects();
     this.mode = "ambient";
     this.encounter = undefined;
@@ -268,7 +269,7 @@ export class OceanScene extends Phaser.Scene {
     this.controlLocked = true;
     this.heldPointers.clear();
     this.keyboardHeld = false;
-    this.game.events.emit("fishing:ambient");
+    this.game.events.emit("fishing:ambient", encounterId);
   }
 
   private enterFightMode(encounter: FishingEncounterResponse): void {

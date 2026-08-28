@@ -43,7 +43,7 @@ wrangler.jsonc          Worker, assets, and D1 configuration
 Future gameplay belongs in these existing boundaries:
 
 - Phaser scenes and rendering in `apps/game/src/game`.
-- Browser-facing screens and controls in `apps/game/src/ui`.
+- Browser-facing screens and controls in `apps/game/src/features` and `apps/game/src/shared-ui`.
 - Client-side request methods in `apps/game/src/api`.
 - Authoritative gameplay services in `apps/worker/src/services`.
 - D1 reads/writes in `apps/worker/src/persistence`.
@@ -127,6 +127,21 @@ To run only one side:
 npm run dev:game
 npm run dev:worker
 ```
+
+The browser game uses the React application through `apps/game/index.html`. The standard checks build the production client and Worker from the same application path:
+
+```bash
+npm run typecheck
+npm test
+npm run lint
+npm run build:game
+npm run build:worker
+npm run verify:layout
+npm run verify:encounter
+node scripts/shots.mjs
+```
+
+With the Worker running, use `npm run dev:game` and open `http://127.0.0.1:5173/`. The browser checks exercise the production React entry across the supported mobile viewports and encounter flows.
 
 In managed environments where Wrangler cannot write its default preferences or logs, provide writable task-local paths before starting the stack or applying local migrations:
 

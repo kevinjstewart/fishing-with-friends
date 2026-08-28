@@ -1,5 +1,5 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { CompleteFishingResponse, FishingEncounterResponse, GameStateResponse } from "@fishing/shared";
+import type { CompleteFishingResponse, FishingEncounterResponse, GameStateResponse } from "@fishing/shared/contracts";
 import type { Env } from "./env";
 import { app } from "./index";
 import { resetRateLimits } from "./lib/rate-limit";

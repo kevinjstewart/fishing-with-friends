@@ -13,8 +13,9 @@ import type {
   RiskBand,
   SellCatchResponse,
   StartFishingRequest,
-} from "@fishing/shared";
-import { GAME_CATALOG, rodRiskBandForWeight } from "@fishing/shared";
+} from "@fishing/shared/contracts";
+import { GAME_CATALOG } from "@fishing/shared/catalog";
+import { rodRiskBandForWeight } from "@fishing/shared/risk";
 import type { Env } from "../env";
 import { conflict, badRequest, notFound } from "../lib/errors";
 import { GameRepository } from "../persistence/game-repository";

@@ -9,7 +9,7 @@ import type {
   PurchaseRequest,
   SelectEquipmentRequest,
   StartFishingRequest,
-} from "@fishing/shared";
+} from "@fishing/shared/contracts";
 import type { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppVariables, Env } from "../env";
