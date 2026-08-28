@@ -8,14 +8,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names game,worker --prefix-colors cyan,magenta \"npm run dev --workspace @fishing/game\" \"npm run dev --workspace @fishing/worker\"",
+    "dev": "npm run dev --workspace @fishing/game",
     "dev:game": "npm run dev --workspace @fishing/game",
     "dev:worker": "npm run dev --workspace @fishing/worker",
     "build": "npm run build:game && npm run build:worker",
-    "build:staging": "npm run build:game && npm run build:worker:staging",
+    "build:staging": "npm run staging:config && CLOUDFLARE_ENV=staging CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=./.wrangler.staging.jsonc npm run build:game && npm run build:worker:staging",
     "build:game": "npm run build --workspace @fishing/game",
-    "build:worker": "npm run build --workspace @fishing/worker",
-    "build:worker:staging": "npm run staging:config && wrangler deploy --dry-run --env staging --config .wrangler.staging.jsonc",
+    "build:worker": "npm run build:worker --workspace @fishing/game",
+    "build:worker:staging": "npm run build:worker --workspace @fishing/game",
+    "preview": "npm run preview --workspace @fishing/game --",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0",
@@ -33,8 +34,8 @@
     "db:migrations": "wrangler d1 migrations list fishing-with-friends --remote --env production",
     "db:migrate:staging": "npm run staging:config && wrangler d1 migrations apply fishing-with-friends-staging --remote --env staging --config .wrangler.staging.jsonc",
     "db:migrations:staging": "npm run staging:config && wrangler d1 migrations list fishing-with-friends-staging --remote --env staging --config .wrangler.staging.jsonc",
-    "deploy": "npm run build:game && wrangler deploy --env production",
-    "deploy:staging": "npm run build:game && npm run staging:config && wrangler deploy --env staging --config .wrangler.staging.jsonc",
+    "deploy": "CLOUDFLARE_ENV=production npm run build:game && npm run deploy --workspace @fishing/game",
+    "deploy:staging": "npm run staging:config && CLOUDFLARE_ENV=staging CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=./.wrangler.staging.jsonc npm run build:game && npm run deploy --workspace @fishing/game",
     "staging:config": "node scripts/create-staging-config.mjs",
     "secret:set:telegram": "node scripts/set-worker-secret.mjs TELEGRAM_BOT_TOKEN production TELEGRAM_BOT_TOKEN",
     "secret:set:telegram:staging": "npm run staging:config && node scripts/set-worker-secret.mjs TELEGRAM_BOT_TOKEN staging STAGING_TELEGRAM_BOT_TOKEN .wrangler.staging.jsonc"
@@ -42,7 +43,6 @@
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@types/node": "^24.3.0",
-    "concurrently": "^9.2.0",
     "eslint": "^9.33.0",
     "globals": "^16.3.0",
     "playwright": "^1.62.1",

@@ -109,7 +109,7 @@ Optional public frontend configuration:
 VITE_API_BASE_URL=https://your-api.example.com
 ```
 
-Leave it unset for the default same-origin production deployment and the Vite development proxy.
+Leave it unset for the default same-origin production deployment and the Vite + Cloudflare Worker development server.
 
 ## Local development
 
@@ -119,7 +119,7 @@ After adding the local flags above:
 npm run dev
 ```
 
-This starts Vite at `http://127.0.0.1:5173` and Wrangler at `http://localhost:8787`. Vite proxies `/api` requests to the Worker. Open the Vite URL in a normal browser; it uses the explicitly gated local development auth route. In Telegram, the same frontend sends Telegram `initData` to the Telegram auth route instead.
+This starts one Vite server at `http://127.0.0.1:5173`. The official Cloudflare Vite plugin runs the Worker in the local Workers runtime and serves `/api` from the same origin, so no second proxy or Worker port is needed. Open the Vite URL in a normal browser; it uses the explicitly gated local development auth route. In Telegram, the same frontend sends Telegram `initData` to the Telegram auth route instead.
 
 To run only one side:
 
@@ -127,6 +127,8 @@ To run only one side:
 npm run dev:game
 npm run dev:worker
 ```
+
+`dev:game` is the standard full-stack Vite development server. `dev:worker` remains a standalone Wrangler CLI fallback for Worker-only work and is not part of the default development workflow.
 
 The browser game uses the React application through `apps/game/index.html`. The standard checks build the production client and Worker from the same application path:
 
@@ -136,11 +138,14 @@ npm test
 npm run lint
 npm run build:game
 npm run build:worker
+npm run preview
 npm run verify:layout
 npm run verify:encounter
 npm run verify:lazy-loading
 node scripts/shots.mjs
 ```
+
+`build:game` builds the client and the Worker through the Cloudflare Vite plugin. Run it before `build:worker`; the latter performs Wrangler's non-destructive dry run against the generated Worker configuration. `npm run build` runs both commands in that order. After a build, `npm run preview` serves the generated client and Worker together on the Vite preview port.
 
 CI checks the production game bundle after the build with `bundle-budget.json`. The check measures total emitted game gzip, the separate Phaser chunk gzip, and the application chunk gzip through the stable roles in `scripts/report-bundle.mjs`; hashed asset filenames are not budget configuration. Run the same check locally with:
 
@@ -152,11 +157,12 @@ npm run check:bundle-budget
 
 With the Worker running, use `npm run dev:game` and open `http://127.0.0.1:5173/`. The browser checks exercise the production React entry across the supported mobile viewports and encounter flows.
 
-In managed environments where Wrangler cannot write its default preferences or logs, provide writable task-local paths before starting the stack or applying local migrations:
+In managed environments where Wrangler or Miniflare cannot write their default preferences, logs, or registries, provide writable task-local paths before starting the stack or applying local migrations:
 
 ```bash
 WRANGLER_LOG_PATH=/private/tmp/fishing-with-friends-wrangler.log \
 WRANGLER_REGISTRY_PATH=/private/tmp/fishing-with-friends-wrangler-home/registry \
+MINIFLARE_REGISTRY_PATH=/private/tmp/fishing-with-friends-miniflare-registry \
 npm run dev
 ```
 
@@ -230,7 +236,7 @@ npm run secret:set:telegram
 npm run deploy
 ```
 
-`npm run deploy` builds the Vite frontend and deploys the Worker with the static assets directory. Update `APP_ORIGIN` in `wrangler.jsonc` if the frontend will be served from a separate origin. The initial deployment does not configure KV or R2.
+`npm run deploy` builds the Vite client and Worker through the Cloudflare Vite plugin, then deploys the generated Worker configuration with its static assets directory. Update `APP_ORIGIN` in `wrangler.jsonc` if the frontend will be served from a separate origin. The initial deployment does not configure KV or R2.
 
 ## Staging
 
@@ -301,7 +307,7 @@ npm run dev
 npm run verify:layout
 ```
 
-`verify:layout` uses an iPhone-class viewport and checks fixed-chrome geometry, complete scrolling, loading/retry states, stale navigation cancellation, duplicate-submit protection, pending control semantics, one-time session recovery, and active/expired encounter startup behavior. The checked-in verifier currently covers iPhone portrait; Android portrait, landscape, and short-height viewport coverage remains part of the verification backlog.
+`verify:layout` uses iPhone-class mobile viewports and checks fixed-chrome geometry, complete scrolling, loading/retry states, stale navigation cancellation, duplicate-submit protection, pending control semantics, one-time session recovery, and active/expired encounter startup behavior. The checked-in verifier covers iPhone portrait, Android portrait, landscape, and short-height portrait.
 
 To measure Telegram-shaped cold start repeatably, run the local stack and use fresh cache-disabled Playwright contexts with the fixed iPhone portrait profile:
 

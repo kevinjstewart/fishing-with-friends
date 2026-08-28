@@ -15,7 +15,7 @@ import {
 
 const BASE_INPUT = process.env.GAME_URL ?? "http://127.0.0.1:5173";
 const BASE_URL = new URL(BASE_INPUT);
-const WORKER_ORIGIN = process.env.WORKER_ORIGIN ?? "http://127.0.0.1:8787";
+const WORKER_ORIGIN = process.env.WORKER_ORIGIN ?? BASE_INPUT;
 const ARTIFACT_DIR = resolve(process.env.ENCOUNTER_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-encounter");
 const SCREENSHOT_DIR = join(ARTIFACT_DIR, "screenshots");
 const REPORT_PATH = join(ARTIFACT_DIR, "browser-report.json");

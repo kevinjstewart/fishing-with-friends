@@ -1,5 +1,5 @@
 // Layout verification for the redesigned main screen + shop.
-// Requires the dev stack running (game on :5173, worker on :8787).
+// Requires the Vite + Cloudflare Worker dev server running on :5173.
 // Covers iPhone portrait, Android portrait, landscape, and short-height mobile
 // viewports with deterministic external-image and accessibility fixtures.
 import { chromium } from "playwright";

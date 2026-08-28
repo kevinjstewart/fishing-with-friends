@@ -5,7 +5,7 @@ import { build } from "vite";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const gameSourceDirectory = join(repoRoot, "apps/game/src");
-const gameDistDirectory = resolve(process.env.GAME_DIST_DIR ?? "apps/game/dist");
+const gameDistDirectory = resolve(process.env.GAME_DIST_DIR ?? "apps/game/dist/client");
 const catalogMarkers = [
   "Wind-driven current funnels baitfish",
   "A vast northern reach of cold open water",
