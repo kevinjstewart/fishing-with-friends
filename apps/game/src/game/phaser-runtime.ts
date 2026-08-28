@@ -3,6 +3,18 @@ import type { FishingEncounterResponse } from "@fishing/shared/contracts";
 import type { SafeAreaInsets } from "../safe-area";
 import { createGame } from "./create-game";
 
+const noop = (): void => {};
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
 export interface FishingCompleteEvent {
   encounterId: string;
   performance: number;
@@ -10,7 +22,8 @@ export interface FishingCompleteEvent {
 
 export interface FishingRuntime {
   setSafeArea(insets: SafeAreaInsets): void;
-  startFight(encounter: FishingEncounterResponse): void;
+  preload?(): Promise<void>;
+  startFight(encounter: FishingEncounterResponse): void | Promise<void>;
   returnToLobby(): Promise<void>;
   onComplete(handler: (event: FishingCompleteEvent) => void): () => void;
   onAmbient(handler: (encounterId?: string) => void): () => void;
@@ -28,6 +41,7 @@ interface RuntimeGame {
     emit(event: string, ...args: unknown[]): void;
   };
   registry: { set(key: string, value: unknown): void };
+  isRunning?: boolean;
   destroy(removeCanvas?: boolean): void;
 }
 
@@ -42,6 +56,22 @@ export function createFishingRuntime(parent: HTMLElement, gameFactory: GameFacto
   const completeHandlers = new Set<(event: FishingCompleteEvent) => void>();
   const ambientHandlers = new Set<(encounterId?: string) => void>();
   let destroyed = false;
+  let ready = Boolean(game.isRunning);
+  let resolveReady: () => void = noop;
+  const readyPromise = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
+  const readyListener = (): void => {
+    if (ready) return;
+    ready = true;
+    game.events.off("ready", readyListener);
+    resolveReady();
+  };
+  if (!ready) game.events.on("ready", readyListener);
+
+  const emitFightStart = (encounter: FishingEncounterResponse): Promise<void> => nextFrame().then(() => {
+    if (!destroyed) game.events.emit("fight:start", encounter);
+  });
 
   const completeListener = (...args: unknown[]): void => {
     const event = args[0] as FishingCompleteEvent;
@@ -63,7 +93,7 @@ export function createFishingRuntime(parent: HTMLElement, gameFactory: GameFacto
     },
     startFight(encounter) {
       if (destroyed) return;
-      game.events.emit("fight:start", encounter);
+      return ready ? emitFightStart(encounter) : readyPromise.then(() => emitFightStart(encounter));
     },
     returnToLobby() {
       if (!destroyed) game.events.emit("fishing:lobby");
@@ -82,6 +112,8 @@ export function createFishingRuntime(parent: HTMLElement, gameFactory: GameFacto
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      game.events.off("ready", readyListener);
+      resolveReady();
       game.events.off("fishing:complete", completeListener);
       game.events.off("fishing:ambient", ambientListener);
       completeHandlers.clear();

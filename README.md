@@ -138,6 +138,7 @@ npm run build:game
 npm run build:worker
 npm run verify:layout
 npm run verify:encounter
+npm run verify:lazy-loading
 node scripts/shots.mjs
 ```
 
@@ -293,3 +294,14 @@ npm run verify:layout
 ```
 
 `verify:layout` uses an iPhone-class viewport and checks fixed-chrome geometry, complete scrolling, loading/retry states, stale navigation cancellation, duplicate-submit protection, pending control semantics, one-time session recovery, and active/expired encounter startup behavior. The checked-in verifier currently covers iPhone portrait; Android portrait, landscape, and short-height viewport coverage remains part of the verification backlog.
+
+To measure Telegram-shaped cold start repeatably, run the local stack and use fresh cache-disabled Playwright contexts with the fixed iPhone portrait profile:
+
+```bash
+COLD_START_REPORT_PATH=/private/tmp/fishing-with-friends-phase8-cold-start.json \
+npm run measure:telegram-cold-start
+```
+
+Run the command before and after a client bundle change with the same `GAME_URL`, profile, and `COLD_START_SAMPLES` value. The report records app-ready timing and initial static-resource sizes; the initial screen must be ready before any noninitial screen or Phaser navigation.
+
+`verify:lazy-loading` uses the same profile to prove that Phaser is absent from the initial request graph, loads after the initial shell for the existing ambient backdrop, the four noninitial feature route modules load on navigation, the encounter reuses the initialized runtime, and the browser reports no console errors.

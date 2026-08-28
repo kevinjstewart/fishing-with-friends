@@ -1,6 +1,7 @@
 import { AuthenticatedClient } from "../api/authenticated-client";
 import { ApiClient } from "../api/client";
-import { createFishingRuntime, type FishingRuntime } from "../game/phaser-runtime";
+import { createLazyFishingRuntime } from "../game/lazy-phaser-runtime";
+import type { FishingRuntime } from "../game/phaser-runtime";
 import { createTelegramLifecycle, type TelegramLifecycle } from "../telegram/lifecycle";
 import type { BootstrapApi } from "./use-bootstrap";
 
@@ -16,7 +17,7 @@ export function createReactAppServices(): ReactAppServices {
   const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
   if (!gameRoot || !safeAreaProbe) throw new Error("The game roots are missing.");
 
-  const runtime = createFishingRuntime(gameRoot);
+  const runtime = createLazyFishingRuntime(gameRoot);
   const telegram = createTelegramLifecycle({
     target: document.documentElement,
     safeAreaProbe,

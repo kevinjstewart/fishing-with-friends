@@ -51,8 +51,9 @@ const javascript = files.filter((file) => file.type === "js");
 const css = files.filter((file) => file.type === "css");
 const html = files.filter((file) => file.type === "html");
 const phaserFiles = javascript.filter((file) => /phaser/i.test(file.file) || /(?:Phaser|SceneManager|WebGLRenderer|CanvasRenderer)/.test(file.content));
-const applicationFiles = javascript.filter((file) => !phaserFiles.includes(file));
-const applicationRoleFiles = applicationFiles.length > 0 ? applicationFiles : javascript.filter((file) => /(?:^|[/])index[-.]/i.test(basename(file.file)));
+const entryFiles = javascript.filter((file) => /(?:^|[/])index(?:-[^/]+)?\.js$/i.test(file.file));
+const applicationRoleFiles = entryFiles.length > 0 ? entryFiles : javascript.filter((file) => /(?:^|[/])index[-.]/i.test(basename(file.file)));
+const noninitialScreenFiles = javascript.filter((file) => !applicationRoleFiles.includes(file) && !phaserFiles.includes(file));
 const phaserRoleFiles = phaserFiles.length > 0 ? phaserFiles : applicationRoleFiles;
 const total = sumSizes(assets);
 const totalGzipOfConcatenated = sizeFor(Buffer.concat(await Promise.all(files.map(async (file) => readFile(join(distDirectory, file.file))))));
@@ -88,6 +89,14 @@ const report = {
         ? "Phaser is emitted in a separate chunk."
         : "Phaser is inlined in the application chunk; this role intentionally overlaps applicationChunk for baseline attribution.",
     },
+    noninitialScreenChunks: {
+      emitted: noninitialScreenFiles.length > 0,
+      files: noninitialScreenFiles.map(withoutContent),
+      ...sumSizes(noninitialScreenFiles),
+      note: noninitialScreenFiles.length > 0
+        ? "Noninitial feature code is emitted outside the application entry chunk."
+        : "No noninitial feature chunks were emitted.",
+    },
   },
   sharedPackage: {
     catalogueIncluded: catalogueMarkersFound.length > 0,
@@ -112,6 +121,7 @@ const markdown = [
   `| Total concatenated gzip reference | ${kb(totalGzipOfConcatenated.minifiedBytes)} | ${kb(totalGzipOfConcatenated.gzipBytes)} |`,
   `| Application chunk role | ${kb(report.roles.applicationChunk.minifiedBytes)} | ${kb(report.roles.applicationChunk.gzipBytes)} |`,
   `| Phaser chunk role | ${kb(report.roles.phaserChunk.minifiedBytes)} | ${kb(report.roles.phaserChunk.gzipBytes)} |`,
+  `| Noninitial feature chunks | ${kb(report.roles.noninitialScreenChunks.minifiedBytes)} | ${kb(report.roles.noninitialScreenChunks.gzipBytes)} |`,
   "",
   "## Shared package scope",
   "",
@@ -126,6 +136,7 @@ const markdown = [
   ...assets.map((asset) => `| \`${asset.file}\` | ${asset.type} | ${kb(asset.minifiedBytes)} | ${kb(asset.gzipBytes)} |`),
   "",
   `Phaser role: ${report.roles.phaserChunk.note}`,
+  `Noninitial feature role: ${report.roles.noninitialScreenChunks.note}`,
   "",
 ].join("\n");
 await writeFile(markdownPath, markdown);

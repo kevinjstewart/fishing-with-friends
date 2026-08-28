@@ -174,7 +174,7 @@ export async function installDeterministicReadFixtures(page, options = {}) {
         body: JSON.stringify(normalizedState),
       });
     } catch (error) {
-      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      if (error instanceof Error && /context disposed|target closed|request was aborted|response (?:was|has been) disposed/i.test(error.message)) return;
       throw error;
     }
   });

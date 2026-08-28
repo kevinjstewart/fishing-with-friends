@@ -90,11 +90,13 @@ async function verifyLatestNavigation({ browser, base, check, recordConsoleError
   const page = await createPage(browser, recordConsoleError);
   const friendsGate = deferred();
   let friendsAborted = false;
+  let friendsRequestStarted = false;
   let friendsResponseReleased = false;
   let friendsResponseFulfillFailed = false;
   let collectionAttempts = 0;
 
   await page.route("**/api/game/friends", async (route) => {
+    friendsRequestStarted = true;
     try {
       await friendsGate.promise;
       friendsResponseReleased = true;
@@ -113,6 +115,7 @@ async function verifyLatestNavigation({ browser, base, check, recordConsoleError
   await page.getByRole("button", { name: "Friends" }).click();
   await page.waitForSelector(".fishing-status.is-loading", { timeout: 5_000 });
   check("navigation shows loading screen", (await page.locator(".fishing-status.is-loading").count()) === 1, "loading panel rendered");
+  await waitUntil(() => friendsRequestStarted, 5_000);
 
   await page.getByRole("button", { name: "Collection" }).click();
   await page.waitForSelector(".collection-screen", { timeout: 10_000 });
@@ -496,7 +499,7 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
       gameStateReady.release();
       await fulfillJson(route, gameState);
     } catch (error) {
-      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      if (error instanceof Error && /context disposed|target closed|request was aborted|response (?:was|has been) disposed/i.test(error.message)) return;
       throw error;
     }
   });
@@ -505,7 +508,7 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
       if (!expired) await gameStateReady.promise;
       await fulfillJson(route, expired ? { encounter: null, expired: true } : { encounter: activeEncounterFromState(gameState), expired: false });
     } catch (error) {
-      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      if (error instanceof Error && /context disposed|target closed|request was aborted|response (?:was|has been) disposed/i.test(error.message)) return;
       throw error;
     }
   });
