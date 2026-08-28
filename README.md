@@ -247,7 +247,7 @@ The `Deploy staging` GitHub Actions workflow runs on pushes to the `staging` bra
 1. Runs typechecking, tests, and linting.
 2. Creates or reuses the `fishing-with-friends-staging` D1 database in Eastern North America.
 3. Generates a temporary Wrangler config that refuses the production D1 database ID.
-4. Builds, migrates, and deploys staging serially.
+4. Builds the staging client and Worker artifact once, applies migrations, and deploys that artifact serially.
 5. Installs the staging Telegram bot token when configured.
 6. Smoke-tests health, frontend delivery, and rejection of development auth.
 
@@ -261,6 +261,7 @@ export STAGING_TELEGRAM_BOT_TOKEN="your-staging-bot-token"
 
 npm run build:staging
 npm run db:migrate:staging
+# Deploys the artifact produced by build:staging; it does not rebuild the game.
 npm run deploy:staging
 npm run secret:set:telegram:staging
 ```

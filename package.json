@@ -35,7 +35,7 @@
     "db:migrate:staging": "npm run staging:config && wrangler d1 migrations apply fishing-with-friends-staging --remote --env staging --config .wrangler.staging.jsonc",
     "db:migrations:staging": "npm run staging:config && wrangler d1 migrations list fishing-with-friends-staging --remote --env staging --config .wrangler.staging.jsonc",
     "deploy": "CLOUDFLARE_ENV=production npm run build:game && npm run deploy --workspace @fishing/game",
-    "deploy:staging": "npm run staging:config && CLOUDFLARE_ENV=staging CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=./.wrangler.staging.jsonc npm run build:game && npm run deploy --workspace @fishing/game",
+    "deploy:staging": "npm run staging:config && CLOUDFLARE_ENV=staging CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=./.wrangler.staging.jsonc npm run deploy --workspace @fishing/game",
     "staging:config": "node scripts/create-staging-config.mjs",
     "secret:set:telegram": "node scripts/set-worker-secret.mjs TELEGRAM_BOT_TOKEN production TELEGRAM_BOT_TOKEN",
     "secret:set:telegram:staging": "npm run staging:config && node scripts/set-worker-secret.mjs TELEGRAM_BOT_TOKEN staging STAGING_TELEGRAM_BOT_TOKEN .wrangler.staging.jsonc"
