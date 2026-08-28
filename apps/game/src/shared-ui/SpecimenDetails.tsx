@@ -1,5 +1,5 @@
 import type { FishSpecimen } from "@fishing/shared/contracts";
-import { getSpeciesSizeComparison } from "../ui/specimen-size";
+import { getSpeciesSizeComparison } from "./specimen-size";
 import { capitalize, formatDate } from "./presenters";
 
 export interface SpecimenDetailsProps {

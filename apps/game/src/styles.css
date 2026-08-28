@@ -128,7 +128,7 @@ select:disabled {
 }
 
 #game-root,
-#ui-root {
+#react-root {
   position: fixed;
   inset: 0;
 }
@@ -142,14 +142,8 @@ select:disabled {
   touch-action: none;
 }
 
-#ui-root {
+#react-root {
   z-index: 1;
-  pointer-events: none;
-}
-
-body.is-fighting game-app {
-  opacity: 0;
-  visibility: hidden;
   pointer-events: none;
 }
 

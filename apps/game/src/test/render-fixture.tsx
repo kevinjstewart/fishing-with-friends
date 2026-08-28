@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import type { CatchDecisionResponse, CompleteFishingResponse, GameStateResponse } from "@fishing/shared/contracts";
+import { unmountReactApp } from "../app/mount";
 import { GameTabbar } from "../features/chrome/GameTabbar";
 import { GameTopbar } from "../features/chrome/GameTopbar";
 import { RetryPanel } from "../features/chrome/ScreenStatus";
@@ -69,11 +70,12 @@ function FixtureShell({ options, children }: { options: EncounterFixtureOptions;
 }
 
 export function renderEncounterFixture(options: EncounterFixtureOptions): void {
-  const rootElement = document.querySelector<HTMLElement>("#ui-root");
-  if (!rootElement) throw new Error("UI root is missing.");
+  const rootElement = document.querySelector<HTMLElement>("#react-root");
+  if (!rootElement) throw new Error("React root is missing.");
   if (!fixtureRoot) {
-    // The fixture runs against the legacy page so the production Lit shell can
-    // stay intact while this test-only React surface owns the host element.
+    // Replace the production root only for this test-only fixture, so the page
+    // never has two React roots competing for the same application surface.
+    unmountReactApp(rootElement);
     rootElement.replaceChildren();
     fixtureRoot = createRoot(rootElement);
   }

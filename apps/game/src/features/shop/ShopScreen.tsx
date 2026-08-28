@@ -2,7 +2,7 @@ import type { GameStateResponse, PurchaseRequest } from "@fishing/shared/contrac
 import { useCallback, useMemo, useState } from "react";
 import { Icon, type IconName } from "../../shared-ui/icons";
 import { formatCoins } from "../../shared-ui/presenters";
-import type { ShopCategory } from "../../ui/types";
+import type { ShopCategory } from "../../app/app-types";
 import { ShopItem, type ShopDefinition } from "./ShopItem";
 import { usePurchaseMutation, type PurchaseApi } from "./mutations";
 import "./shop.css";

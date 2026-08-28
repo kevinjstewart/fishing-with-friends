@@ -4,7 +4,7 @@ import { Icon } from "../../shared-ui/icons";
 import { FishImage } from "../../shared-ui/FishImage";
 import { SpecimenDetails } from "../../shared-ui/SpecimenDetails";
 import { capitalize, collectionSorters, formatCoins } from "../../shared-ui/presenters";
-import type { CollectionSortMode } from "../../ui/types";
+import type { CollectionSortMode } from "../../app/app-types";
 import type { CollectionMutationApi, CollectionReconciliation, SellAllOutcome, SellOneOutcome } from "./mutations";
 import { useCollectionMutations } from "./mutations";
 import "./collection.css";

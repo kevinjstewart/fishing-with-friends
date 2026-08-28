@@ -5,15 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "dev:react": "vite --host 127.0.0.1 --port 5174 --mode react-migration",
     "build": "vite build",
-    "build:react": "vite build --mode react-migration --outDir dist-react",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fishing/shared": "*",
     "@tanstack/react-query": "^5.102.8",
-    "lit": "^3.3.3",
     "phaser": "^4.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

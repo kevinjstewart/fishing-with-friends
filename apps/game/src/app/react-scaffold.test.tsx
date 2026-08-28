@@ -74,7 +74,7 @@ function renderApp(services: ReactAppServices) {
   );
 }
 
-describe("React migration shell", () => {
+describe("React application shell", () => {
   it("renders a deterministic loading state and passes query abort signals to the transport", async () => {
     let resolveAuth: ((response: AuthResponse) => void) | undefined;
     const services = createServices();
@@ -163,7 +163,7 @@ describe("React migration shell", () => {
     expect(gameStateAttempts).toBe(2);
   });
 
-  it("disables automatic query and mutation retries for the migration client", () => {
+  it("disables automatic query and mutation retries for the application client", () => {
     const queryClient = createAppQueryClient();
     expect(queryClient.getDefaultOptions().queries?.retry).toBe(false);
     expect(queryClient.getDefaultOptions().mutations?.retry).toBe(false);

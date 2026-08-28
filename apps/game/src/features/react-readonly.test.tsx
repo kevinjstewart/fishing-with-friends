@@ -154,7 +154,7 @@ beforeEach(() => {
   vi.mocked(loadImageWithRetries).mockReset().mockResolvedValue("https://upload.wikimedia.org/fish.jpg");
 });
 
-describe("React Phase 3 read-only components", () => {
+describe("React read-only components", () => {
   it("renders the React chrome with accessible states and callbacks", async () => {
     const onNavigate = vi.fn();
     const onShop = vi.fn();

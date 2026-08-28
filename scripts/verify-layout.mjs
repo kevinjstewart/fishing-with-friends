@@ -236,52 +236,38 @@ async function verifyAccessibilityModes({ browser, base, check, recordConsoleErr
 
 async function verifyToastAndStyleIsolation({ page, check }) {
   const readToastLayout = () => page.locator(".app-content").evaluate((element) => {
-    const app = element.getRootNode().host;
-    const frame = app instanceof Element ? app.shadowRoot?.querySelector(".app-frame") : undefined;
+    const frame = element.closest(".app-frame");
     const contentStyles = getComputedStyle(element);
     return {
       paddingTop: Number.parseFloat(contentStyles.paddingTop),
       frameToastVisible: frame?.dataset.toastVisible ?? "missing",
-      toastHostHidden: app instanceof Element ? app.shadowRoot?.querySelector("status-toast")?.hasAttribute("hidden") ?? false : false,
+      toastHostHidden: document.querySelector(".status-toast-host")?.hasAttribute("hidden") ?? false,
     };
   });
 
-  await page.locator("game-app").evaluate((element) => {
-    const app = element;
-    app.dismissStatus?.();
-  });
-  await page.locator('.app-frame[data-toast-visible="false"]').waitFor({ state: "visible" });
-  const hidden = await readToastLayout();
-  check("hidden toast reserves zero layout space", hidden.paddingTop === 4 && hidden.frameToastVisible === "false" && hidden.toastHostHidden, JSON.stringify(hidden));
-
-  await page.locator("game-app").evaluate((element) => {
-    const app = element;
-    app.status = { message: "Layout verification toast", state: "ready" };
-    app.requestUpdate();
-  });
-  await page.locator('.toast[data-state="ready"]').waitFor({ state: "visible" });
+  // A fresh bootstrap in development produces a short-lived status toast.
+  // Measure it before and after React clears it rather than reaching into a
+  // component instance or dispatching an application-wide event.
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
+  await page.locator(".toast").waitFor({ state: "visible", timeout: 5_000 });
   const visible = await readToastLayout();
+  await page.locator('.status-toast-host[hidden]').waitFor({ state: "attached", timeout: 8_000 });
+  const hidden = await readToastLayout();
   const expectedReserve = page.viewportSize()?.height && page.viewportSize().height <= 640 ? 56 : 64;
   check("visible toast reserves the expected layout space", visible.paddingTop - hidden.paddingTop === expectedReserve && visible.frameToastVisible === "true" && !visible.toastHostHidden, `${JSON.stringify(visible)}; delta ${(visible.paddingTop - hidden.paddingTop).toFixed(1)}px expected ${expectedReserve}px`);
+  check("hidden toast reserves zero layout space", hidden.paddingTop === 4 && hidden.frameToastVisible === "false" && hidden.toastHostHidden, JSON.stringify(hidden));
 
-  const isolation = await page.locator("game-app").evaluate((element) => {
-    const root = element.shadowRoot;
-    const topbar = root?.querySelector("game-topbar");
-    const tabbar = root?.querySelector("game-tabbar");
+  const isolation = await page.evaluate(() => {
+    const shell = document.querySelector(".react-app-shell");
     return {
-      topbarShadow: !!topbar?.shadowRoot,
-      tabbarShadow: !!tabbar?.shadowRoot,
-      topbarCannotSeeTabbarMarkup: !topbar?.shadowRoot?.querySelector(".tabbar"),
-      tabbarCannotSeeTopbarMarkup: !tabbar?.shadowRoot?.querySelector(".app-topbar"),
+      oneReactRoot: document.querySelectorAll("#react-root").length === 1,
+      oneReactSurface: document.querySelectorAll(".react-app-shell").length === 1,
+      chromeInsideReactShell: Boolean(shell?.querySelector(".app-topbar") && shell.querySelector(".tabbar") && shell.querySelector(".status-toast-host")),
+      noCustomElements: !Array.from(document.querySelectorAll("*")).some((element) => element.tagName.includes("-")),
     };
   });
-  check("component styles stay isolated in Shadow DOM", Object.values(isolation).every(Boolean), JSON.stringify(isolation));
-
-  await page.locator("game-app").evaluate((element) => {
-    const app = element;
-    app.dismissStatus?.();
-  });
-  await page.locator('.app-frame[data-toast-visible="false"]').waitFor({ state: "visible" });
+  check("React chrome stays within one isolated application surface", Object.values(isolation).every(Boolean), JSON.stringify(isolation));
 }
 
 async function verifyLandscapeScreens({ browser, base, check, recordConsoleError }) {
@@ -340,11 +326,11 @@ async function verifyGearSelector({ browser, base, check, recordConsoleError }) 
   });
 
   await page.goto(`${base}/?telegramMock=ios`, { waitUntil: "networkidle" });
-  const baitTile = page.locator('gear-selector[equipmenttype="bait"] .gear-tile').first();
+  const baitTile = page.locator('.gear-slot[data-equipment-type="bait"] .gear-tile').first();
   await baitTile.waitFor({ state: "visible", timeout: 20_000 });
   check("gear selector exposes expanded state", (await baitTile.getAttribute("aria-expanded")) === "false", "collapsed before tap");
   await baitTile.tap();
-  await page.locator('gear-selector[equipmenttype="bait"] .equipment-options:not([hidden])').waitFor({ state: "visible", timeout: 5_000 });
+  await page.locator('.gear-slot[data-equipment-type="bait"] .equipment-options:not([hidden])').waitFor({ state: "visible", timeout: 5_000 });
   check("gear selector opens on tap", (await page.locator(".equipment-options:not([hidden])").count()) === 1, "one menu open");
   check(
     "gear selector keeps full mobile names",
@@ -411,12 +397,11 @@ async function verifyCatchResults({ browser, base, check, recordConsoleError }) 
   const catchTabbar = await rectOf(page, ".tabbar");
   const initialDecision = await rectOf(page, ".catch-decision");
   const decisionStyles = await page.locator(".catch-decision").evaluate((element) => {
-    const host = element.getRootNode() instanceof ShadowRoot ? element.getRootNode().host : element.parentElement;
     return {
       position: getComputedStyle(element).position,
       bottom: getComputedStyle(element).bottom,
-      parentTransform: host instanceof Element ? getComputedStyle(host).transform : "none",
-      parentAnimation: host instanceof Element ? getComputedStyle(host).animationName : "none",
+      parentTransform: element.parentElement ? getComputedStyle(element.parentElement).transform : "none",
+      parentAnimation: element.parentElement ? getComputedStyle(element.parentElement).animationName : "none",
     };
   });
   recordMeasurement("catch result decision to tabbar", catchTabbar.top - initialDecision.bottom);

@@ -14,7 +14,7 @@ export interface ReactAppServices {
 export function createReactAppServices(): ReactAppServices {
   const gameRoot = document.querySelector<HTMLElement>("#game-root");
   const safeAreaProbe = document.querySelector<HTMLElement>("#safe-area-probe");
-  if (!gameRoot || !safeAreaProbe) throw new Error("The React migration shell is missing its game roots.");
+  if (!gameRoot || !safeAreaProbe) throw new Error("The game roots are missing.");
 
   const runtime = createFishingRuntime(gameRoot);
   const telegram = createTelegramLifecycle({

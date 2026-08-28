@@ -9,7 +9,7 @@ import type {
 } from "@fishing/shared/contracts";
 import { Icon, type IconName } from "../../shared-ui/icons";
 import { formatCoins, locationNamesForBoat, speciesNamesForIds } from "../../shared-ui/presenters";
-import type { ShopCategory } from "../../ui/types";
+import type { ShopCategory } from "../../app/app-types";
 
 export type ShopDefinition = BoatDefinition | RodDefinition | LureDefinition | BaitDefinition;
 

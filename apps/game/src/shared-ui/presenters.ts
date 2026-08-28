@@ -1,5 +1,5 @@
 import type { FishSpecimen, FishSpecies, GameStateResponse, LocationAvailability, RiskBand } from "@fishing/shared/contracts";
-import type { CollectionSortMode } from "../ui/types";
+import type { CollectionSortMode } from "../app/app-types";
 
 export const collectionSorters: Record<CollectionSortMode, (a: FishSpecimen, b: FishSpecimen) => number> = {
   newest: (a, b) => b.caughtAt.localeCompare(a.caughtAt),

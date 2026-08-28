@@ -115,7 +115,7 @@ function renderWithClient(element: React.ReactNode) {
   return render(<QueryClientProvider client={createAppQueryClient()}>{element}</QueryClientProvider>);
 }
 
-describe("React Phase 4 mutation components", () => {
+describe("React mutation components", () => {
   it("locks a purchase before rerender, exposes matching disabled state, and releases it in finally", async () => {
     const request = deferred<PurchaseResponse>();
     const purchase = vi.fn(() => request.promise);

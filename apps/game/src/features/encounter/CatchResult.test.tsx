@@ -53,7 +53,7 @@ const caught: CompleteFishingResponse = { outcome: "caught", message: "A clean f
 
 afterEach(() => cleanup());
 
-describe("React Phase 6 result components", () => {
+describe("React result components", () => {
   it("renders catch decisions, preserves native disabled state, and accepts keyboard decisions", async () => {
     const onDecision = vi.fn();
     const user = userEvent.setup();

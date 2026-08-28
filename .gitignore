@@ -7,7 +7,6 @@
 
 node_modules/
 dist/
-dist-react/
 .wrangler/
 .wrangler.staging.jsonc
 coverage/

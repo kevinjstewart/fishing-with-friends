@@ -1,5 +1,5 @@
 import type { FishingEncounterResponse } from "@fishing/shared/contracts";
-import type { ScreenId } from "./app-types";
+import type { ScreenId, ShopCategory } from "./app-types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactAppServices } from "./react-services";
 import { useBootstrap, type BootstrapState } from "./use-bootstrap";
@@ -15,7 +15,6 @@ import { ShopRoute } from "../features/shop/ShopRoute";
 import { LakesScreen } from "../features/lakes/LakesScreen";
 import { CatchResult, DecisionResult } from "../features/encounter/CatchResult";
 import { useEncounter } from "../features/encounter/use-encounter";
-import type { ShopCategory } from "../ui/types";
 
 export interface AppProps {
   services: ReactAppServices;
@@ -168,12 +167,12 @@ export function App({ services }: AppProps) {
 
   if (bootstrap.phase !== "ready" || !bootstrap.gameState) {
     return (
-      <div className="react-scaffold" data-testid="react-scaffold">
-        <header className="react-scaffold-header">
-          <span className="react-scaffold-mark" aria-hidden="true">FWF</span>
-          <div><p className="react-scaffold-kicker">Fishing with Friends</p><p className="react-scaffold-subtitle">React migration entry</p></div>
+      <div className="bootstrap-shell" data-testid="bootstrap-shell">
+        <header className="bootstrap-shell-header">
+          <span className="bootstrap-shell-mark" aria-hidden="true">FWF</span>
+          <div><p className="bootstrap-shell-kicker">Fishing with Friends</p><p className="bootstrap-shell-subtitle">Connecting to the lake</p></div>
         </header>
-        <main className="react-scaffold-content" aria-busy={bootstrap.phase === "booting"}><BootstrapContent bootstrap={bootstrap} /></main>
+        <main className="bootstrap-shell-content" aria-busy={bootstrap.phase === "booting"}><BootstrapContent bootstrap={bootstrap} /></main>
       </div>
     );
   }

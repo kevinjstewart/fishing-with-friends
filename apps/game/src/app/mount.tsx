@@ -33,3 +33,7 @@ export function mountReactApp(rootElement: HTMLElement, services: ReactAppServic
   );
   return mount;
 }
+
+export function unmountReactApp(rootElement: HTMLElement): void {
+  activeMounts.get(rootElement)?.unmount();
+}

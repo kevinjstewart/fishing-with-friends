@@ -1,4 +1,4 @@
-import type { ToastState } from "../../ui/types";
+import type { ToastState } from "../../app/app-types";
 
 export interface StatusToastProps {
   message?: string;

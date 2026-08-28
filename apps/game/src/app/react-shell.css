@@ -380,10 +380,6 @@ body.is-fighting #react-root {
   border-color: rgba(214, 184, 106, 0.55);
 }
 
-.react-app-shell .migration-placeholder .dashboard-header {
-  min-height: 120px;
-}
-
 .react-app-shell .app-topbar {
   display: flex;
   align-items: center;
@@ -1198,7 +1194,7 @@ body.is-fighting #react-root {
   background: var(--gold);
 }
 
-.react-scaffold {
+.bootstrap-shell {
   position: fixed;
   inset: 0;
   display: grid;
@@ -1210,14 +1206,14 @@ body.is-fighting #react-root {
   scrollbar-gutter: stable;
 }
 
-.react-scaffold-header,
-.react-scaffold-content {
+.bootstrap-shell-header,
+.bootstrap-shell-content {
   width: min(100%, 620px);
   margin-inline: auto;
   pointer-events: auto;
 }
 
-.react-scaffold-header {
+.bootstrap-shell-header {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1229,7 +1225,7 @@ body.is-fighting #react-root {
   box-shadow: var(--shadow-card);
 }
 
-.react-scaffold-mark {
+.bootstrap-shell-mark {
   display: grid;
   width: 36px;
   height: 36px;
@@ -1242,17 +1238,17 @@ body.is-fighting #react-root {
   letter-spacing: 0.08em;
 }
 
-.react-scaffold-kicker,
-.react-scaffold-subtitle {
+.bootstrap-shell-kicker,
+.bootstrap-shell-subtitle {
   margin: 0;
 }
 
-.react-scaffold-kicker {
+.bootstrap-shell-kicker {
   color: var(--ink);
   font: 700 14px/1.2 var(--font-display);
 }
 
-.react-scaffold-subtitle {
+.bootstrap-shell-subtitle {
   margin-top: 3px;
   color: var(--ink-faint);
   font-size: 12px;

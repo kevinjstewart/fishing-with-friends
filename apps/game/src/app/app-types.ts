@@ -1,5 +1,10 @@
 export type ScreenId = "lakes" | "friends" | "shop" | "collection" | "journal";
 
+export type ShopCategory = "boats" | "rods" | "lures" | "bait";
+export type CollectionSortMode = "newest" | "heaviest" | "value" | "species";
+export type JournalFilterMode = "all" | "discovered" | "undiscovered";
+export type ToastState = "loading" | "ready" | "error";
+
 export type AppPhase = "booting" | "ready" | "recoverable-error";
 
 export interface AppError {

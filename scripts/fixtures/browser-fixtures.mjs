@@ -33,7 +33,7 @@ export const FISH_IMAGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="
 
 const FIXTURE_DATE = "2026-01-01T12:00:00.000Z";
 
-export function normalizeGameState(rawState) {
+export function normalizeGameState(rawState, { multipleEquipment = false } = {}) {
   const state = JSON.parse(JSON.stringify(rawState));
   const boat = state.catalog.boats[0];
   const rod = state.catalog.rods[0];
@@ -49,9 +49,9 @@ export function normalizeGameState(rawState) {
   state.inventory = {
     ...state.inventory,
     boats: [{ id: boat.id, quantity: 1, durability: null }],
-    rods: [{ id: rod.id, quantity: 1, durability: null }],
-    lures: [{ id: lure.id, quantity: 1, durability: lure.maximumDurability }],
-    baits: [{ id: bait.id, quantity: 12, durability: null }],
+    rods: [{ id: rod.id, quantity: 1, durability: null }, ...(multipleEquipment && state.catalog.rods[1] ? [{ id: state.catalog.rods[1].id, quantity: 1, durability: null }] : [])],
+    lures: [{ id: lure.id, quantity: 1, durability: lure.maximumDurability }, ...(multipleEquipment && state.catalog.lures[1] ? [{ id: state.catalog.lures[1].id, quantity: 1, durability: state.catalog.lures[1].maximumDurability }] : [])],
+    baits: [{ id: bait.id, quantity: 12, durability: null }, ...(multipleEquipment && state.catalog.baits[1] ? [{ id: state.catalog.baits[1].id, quantity: 3, durability: null }] : [])],
   };
   return state;
 }
@@ -156,16 +156,27 @@ export async function installExternalFishFixtures(page) {
   });
 }
 
-export async function installDeterministicReadFixtures(page) {
+export async function installDeterministicReadFixtures(page, options = {}) {
   let normalizedState;
   await page.route("**/api/game/state", async (route) => {
-    const response = await route.fetch();
-    normalizedState = normalizeGameState(await response.json());
-    await route.fulfill({
-      status: response.status(),
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(normalizedState),
-    });
+    try {
+      const response = await route.fetch();
+      const rawState = await response.json();
+      if (!response.ok()) {
+        await route.fulfill({ status: response.status(), headers: { "content-type": "application/json" }, body: JSON.stringify(rawState) });
+        return;
+      }
+      if (!rawState.catalog) throw new Error(`Deterministic game-state fixture received HTTP ${response.status()} with keys ${Object.keys(rawState).join(",")}.`);
+      normalizedState = normalizeGameState(rawState, options);
+      await route.fulfill({
+        status: response.status(),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(normalizedState),
+      });
+    } catch (error) {
+      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      throw error;
+    }
   });
   await page.route("**/api/game/encounters/active", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ encounter: null, expired: false }) });

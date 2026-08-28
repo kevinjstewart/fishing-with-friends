@@ -105,7 +105,7 @@ function baseApi(overrides: Partial<LakesMutationApi> = {}): LakesMutationApi {
 
 afterEach(() => cleanup());
 
-describe("React Phase 5 lakes", () => {
+describe("React lakes", () => {
   it("renders authoritative lakes state, selects locations, and routes locked locations to boats", async () => {
     const onOpenShop = vi.fn();
     const user = userEvent.setup();

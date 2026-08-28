@@ -3,7 +3,7 @@ import { useState, type ChangeEvent } from "react";
 import { Icon } from "../../shared-ui/icons";
 import { FishImage } from "../../shared-ui/FishImage";
 import { capitalize, formatDate, journalDiscoveryHint } from "../../shared-ui/presenters";
-import type { JournalFilterMode } from "../../ui/types";
+import type { JournalFilterMode } from "../../app/app-types";
 
 export interface JournalScreenProps {
   journal: FishJournalResponse;

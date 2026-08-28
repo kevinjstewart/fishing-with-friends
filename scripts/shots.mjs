@@ -26,10 +26,7 @@ async function capture(name) {
 }
 
 async function dismissToasts() {
-  await page.locator(".status-toast-host").evaluateAll((elements) => elements.forEach((element) => {
-    element.querySelectorAll(".toast").forEach((toast) => toast.remove());
-    element.hidden = true;
-  }));
+  await page.locator(".status-toast-host").evaluateAll((elements) => elements.forEach((element) => { element.hidden = true; }));
   await page.waitForTimeout(250);
 }
 
@@ -48,7 +45,8 @@ await page.locator("[data-testid=app-content]").evaluate((element) => element.sc
 await page.getByRole("button", { name: "Shop", exact: true }).tap();
 await page.waitForSelector(".shop-list .shop-item", { timeout: 10_000 });
 for (const tab of ["Bait", "Lures", "Rods", "Boats"]) {
-  await page.locator(".shop-tab", { hasText: tab }).tap();
+  await page.getByRole("tab", { name: tab, exact: true }).tap();
+  await page.locator(".shop-tab.is-active").filter({ hasText: tab }).waitFor({ state: "visible", timeout: 5_000 });
   await page.waitForTimeout(300);
   await dismissToasts();
   await capture(`shot-screen-shop-${tab.toLowerCase()}`);

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { queryKeys } from "../../api/query-keys";
 import { LoadingPanel, RetryPanel } from "../chrome/ScreenStatus";
 import { ShopScreen } from "./ShopScreen";
-import type { ShopCategory } from "../../ui/types";
+import type { ShopCategory } from "../../app/app-types";
 
 export interface ShopRouteApi {
   getGameState(signal?: AbortSignal): Promise<GameStateResponse>;

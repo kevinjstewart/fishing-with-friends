@@ -1,6 +1,6 @@
-// Phase 6 browser verification for the React encounter lifecycle.
+// Browser verification for the production React encounter lifecycle.
 //
-// The page is the real React migration entry. API responses are deterministic
+// The page is the production React entry. API responses are deterministic
 // route fixtures so delayed, stale, ambiguous, and failed mutations can be
 // exercised without changing the Worker or replaying a real catch.
 import { chromium } from "playwright";
@@ -13,10 +13,10 @@ import {
   normalizeGameState,
 } from "./fixtures/browser-fixtures.mjs";
 
-const BASE_INPUT = process.env.REACT_GAME_URL ?? "http://127.0.0.1:5174/index.react.html";
+const BASE_INPUT = process.env.GAME_URL ?? "http://127.0.0.1:5173";
 const BASE_URL = new URL(BASE_INPUT);
-const WORKER_ORIGIN = process.env.PHASE6_WORKER_ORIGIN ?? "http://127.0.0.1:8787";
-const ARTIFACT_DIR = resolve(process.env.REACT_PHASE6_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-phase6-react");
+const WORKER_ORIGIN = process.env.WORKER_ORIGIN ?? "http://127.0.0.1:8787";
+const ARTIFACT_DIR = resolve(process.env.ENCOUNTER_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-encounter");
 const SCREENSHOT_DIR = join(ARTIFACT_DIR, "screenshots");
 const REPORT_PATH = join(ARTIFACT_DIR, "browser-report.json");
 const failures = [];
@@ -29,7 +29,6 @@ const unexpectedResponses = [];
 
 function pageUrl(mock = "ios") {
   const url = new URL(BASE_URL);
-  if (!url.pathname.endsWith(".html")) url.pathname = `${url.pathname.replace(/\/$/, "")}/index.react.html`;
   url.searchParams.set("telegramMock", mock);
   return url.toString();
 }
@@ -62,7 +61,7 @@ async function waitUntil(predicate, timeoutMs = 10_000) {
   throw new Error(`Timed out after ${timeoutMs}ms waiting for the browser fixture.`);
 }
 
-function encounterForState(state, encounterId = "phase6-encounter") {
+function encounterForState(state, encounterId = "encounter-browser") {
   const location = state.locations.find((candidate) => candidate.unlocked) ?? state.locations[0];
   const species = state.catalog.fish.find((candidate) => candidate.availableLocationIds.includes(location.id)) ?? state.catalog.fish[0];
   return {
@@ -121,9 +120,9 @@ function attachDiagnostics(page, label, fixture) {
   });
 }
 
-async function installPhase6Fixtures(page, sourceState, options = {}) {
+async function installEncounterFixtures(page, sourceState, options = {}) {
   const state = clone(sourceState);
-  const encounter = encounterForState(state, options.encounterId ?? "phase6-encounter");
+  const encounter = encounterForState(state, options.encounterId ?? "encounter-browser");
   const fixture = {
     state,
     encounter,
@@ -160,13 +159,13 @@ async function installPhase6Fixtures(page, sourceState, options = {}) {
     fixture.authCalls += 1;
     if (fixture.authCalls > 1) fixture.recoveryAuthCalls += 1;
     await fulfillJson(route, {
-      accessToken: "phase6-browser-token",
+      accessToken: "encounter-browser-token",
       expiresAt: "2099-01-01T00:00:00.000Z",
-      player: { id: "phase6-player", telegramUsername: "phase6", displayName: "Phase 6 Angler", createdAt: "2099-01-01T00:00:00.000Z", updatedAt: "2099-01-01T00:00:00.000Z" },
+      player: { id: "encounter-player", telegramUsername: "encounter", displayName: "Encounter Angler", createdAt: "2099-01-01T00:00:00.000Z", updatedAt: "2099-01-01T00:00:00.000Z" },
     });
   });
   await page.route("**/api/me", async (route) => {
-    await fulfillJson(route, { player: { id: "phase6-player", telegramUsername: "phase6", displayName: "Phase 6 Angler", createdAt: "2099-01-01T00:00:00.000Z", updatedAt: "2099-01-01T00:00:00.000Z" } });
+    await fulfillJson(route, { player: { id: "encounter-player", telegramUsername: "encounter", displayName: "Encounter Angler", createdAt: "2099-01-01T00:00:00.000Z", updatedAt: "2099-01-01T00:00:00.000Z" } });
   });
   await page.route("**/api/game/state", async (route) => {
     await fulfillJson(route, fixture.state);
@@ -178,7 +177,7 @@ async function installPhase6Fixtures(page, sourceState, options = {}) {
     await fulfillJson(route, { entries: [] });
   });
   await page.route("**/api/game/friends", async (route) => {
-    await fulfillJson(route, { metric: "kept", metricDescription: "Ranked by kept fish.", viewer: { playerId: "phase6-player", displayName: "Phase 6 Angler", rank: null, keptFishCount: 0, heaviestKeptFishKg: 0 }, entries: [] });
+    await fulfillJson(route, { metric: "kept", metricDescription: "Ranked by kept fish.", viewer: { playerId: "encounter-player", displayName: "Encounter Angler", rank: null, keptFishCount: 0, heaviestKeptFishKg: 0 }, entries: [] });
   });
   await page.route("**/api/game/collection", async (route) => {
     await fulfillJson(route, { fish: [] });
@@ -216,7 +215,7 @@ async function installPhase6Fixtures(page, sourceState, options = {}) {
     fixture.completionResult ??= completionResultFromState(fixture.state, {
       outcome: fixture.outcome,
       rodBroke: fixture.rodBroke,
-      id: "phase6-catch",
+      id: "encounter-catch",
       saleValueCoins: 184,
     });
     fixture.completionSettled = true;
@@ -261,7 +260,7 @@ async function installPhase6Fixtures(page, sourceState, options = {}) {
 async function openPage(browser, sourceState, label, options = {}) {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
-  const fixture = await installPhase6Fixtures(page, sourceState, options);
+  const fixture = await installEncounterFixtures(page, sourceState, options);
   attachDiagnostics(page, label, fixture);
   await page.goto(pageUrl(options.mock ?? "ios"), { waitUntil: "domcontentloaded" });
   // A resumed encounter intentionally hides the React shell behind Phaser.
@@ -398,8 +397,8 @@ async function verifyCompletionAndDecision(browser, sourceState) {
     await emitAmbient(page, fixture.encounter.encounterId);
     await page.waitForSelector('[data-testid="catch-decision"]', { timeout: 10_000 });
     requireCheck("resolved catch clears the completion loading toast", await page.locator('[data-testid="app-frame"]').getAttribute("data-toast-visible") === "false", "completion toast remains visible after ambient");
-    await capture(page, "react-phase6-caught-result");
-    await measureEncounter(page, "React Phase 6 caught result");
+    await capture(page, "encounter-caught-result");
+    await measureEncounter(page, "production caught result");
     await page.locator(".keep-choice").click();
     await waitUntil(() => fixture.decisionCalls === 1);
     const pending = await page.locator(".catch-choice").evaluateAll((buttons) => buttons.map((button) => ({ disabled: button.disabled, ariaDisabled: button.getAttribute("aria-disabled") })));
@@ -409,7 +408,7 @@ async function verifyCompletionAndDecision(browser, sourceState) {
     fixture.releaseDecision();
     await page.waitForSelector('[data-testid="decision-result"]', { timeout: 10_000 });
     requireCheck("keep decision receipt is rendered", /Into the livewell|Trophy secured/i.test(await page.locator('[data-testid="decision-result"]').textContent() ?? ""), "keep receipt missing");
-    await capture(page, "react-phase6-keep-receipt");
+    await capture(page, "encounter-keep-receipt");
     await page.locator(".decision-continue").click();
     await page.waitForSelector('[data-testid="lakes-screen"]', { timeout: 10_000 });
     requireCheck("return to lakes clears Phaser fight mode", !(await page.locator("body").evaluate((element) => element.classList.contains("is-fighting"))), "body remains in fight mode");
@@ -427,7 +426,7 @@ async function verifyCompletionAndDecision(browser, sourceState) {
     await page.waitForSelector('[data-testid="decision-result"]');
     const textContent = await page.locator('[data-testid="decision-result"]').textContent();
     requireCheck("sell decision receipt shows the payout", /Nice payday|\+184 coins/i.test(textContent ?? ""), textContent ?? "sell receipt missing");
-    await capture(page, "react-phase6-sell-receipt");
+    await capture(page, "encounter-sell-receipt");
     await page.close();
   });
 }
@@ -570,7 +569,7 @@ async function verifyAccessibilityAndModes(browser, sourceState) {
     requireCheck("keyboard decision exposes native pending state", pending.disabled && pending.ariaDisabled === "true", JSON.stringify(pending));
     fixture.releaseDecision();
     await page.waitForSelector('[data-testid="decision-result"]');
-    await measureEncounter(page, "React Phase 6 accessibility result");
+    await measureEncounter(page, "production accessibility result");
     await page.close();
   });
 }
@@ -589,11 +588,11 @@ try {
     await browser.close();
   }
 } catch (error) {
-  failures.push(`Phase 6 browser setup: ${String(error)}`);
+  failures.push(`Encounter browser setup: ${String(error)}`);
 }
 
-check("Phase 6 browser console health", consoleErrors.length === 0, consoleErrors.join(" | ") || "no page or console errors");
-check("Phase 6 browser response health", unexpectedResponses.length === 0, JSON.stringify(unexpectedResponses));
+check("Encounter browser console health", consoleErrors.length === 0, consoleErrors.join(" | ") || "no page or console errors");
+check("Encounter browser response health", unexpectedResponses.length === 0, JSON.stringify(unexpectedResponses));
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -608,15 +607,15 @@ const report = {
   failures,
 };
 await writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-console.log(`React Phase 6 browser report: ${REPORT_PATH}`);
-console.log(`React Phase 6 screenshots: ${SCREENSHOT_DIR}`);
-console.log(`React Phase 6 flows: ${flows.filter((flow) => flow.passed).length}/${flows.length} passed`);
-console.log(`React Phase 6 checks: ${checks.filter((item) => item.passed).length}/${checks.length} passed`);
+console.log(`Encounter browser report: ${REPORT_PATH}`);
+console.log(`Encounter screenshots: ${SCREENSHOT_DIR}`);
+console.log(`Encounter flows: ${flows.filter((flow) => flow.passed).length}/${flows.length} passed`);
+console.log(`Encounter checks: ${checks.filter((item) => item.passed).length}/${checks.length} passed`);
 if (consoleErrors.length > 0) console.log(`Unexpected console errors: ${consoleErrors.length}`);
 if (unexpectedResponses.length > 0) console.log(`Unexpected responses: ${unexpectedResponses.length}`);
 if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exitCode = 1;
 } else {
-  console.log("React Phase 6 browser verification passed.");
+  console.log("Production encounter browser verification passed.");
 }

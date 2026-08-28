@@ -152,7 +152,7 @@ afterEach(() => {
   document.body.classList.remove("is-fighting");
 });
 
-describe("React Phase 6 encounter lifecycle", () => {
+describe("React encounter lifecycle", () => {
   it("resumes, gates DOM results on ambient mode, and sends completion/decision once", async () => {
     const decisionRequest = new Promise<CatchDecisionResponse>(() => {});
     const api = createApi({ decideCatch: vi.fn(() => decisionRequest) });

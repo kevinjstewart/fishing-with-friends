@@ -1,7 +1,7 @@
 import type { GameStateResponse, LocationAvailability, SelectEquipmentRequest } from "@fishing/shared/contracts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../../shared-ui/icons";
-import type { ShopCategory } from "../../ui/types";
+import type { ShopCategory } from "../../app/app-types";
 import { CastBar, type RestockCategory } from "./CastBar";
 import { GearDock } from "./GearDock";
 import { LocationCarousel } from "./LocationCarousel";
