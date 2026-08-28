@@ -68,8 +68,8 @@ export class OceanEffects {
     const centerX = this.context.scene.scale.width / 2;
     const centerY = (layout.trackTop + layout.trackBottom) / 2;
     this.context.scene.tweens.killTweensOf([view.banner, view.bannerSub]);
-    view.banner.setText("FISH ON!").setColor("#fff7dd").setPosition(centerX, centerY - 14).setAlpha(0).setScale(0.5);
-    view.bannerSub.setText(`${encounter.species.commonName} took your bait!`).setPosition(centerX, centerY + 26).setAlpha(0);
+    view.banner.setText("READY").setColor("#fff7dd").setPosition(centerX, centerY - 14).setAlpha(0).setScale(0.5);
+    view.bannerSub.setText("TIME STARTS ON GO").setPosition(centerX, centerY + 26).setAlpha(0);
     navigator.vibrate?.([14, 60, 22]);
     this.burstSparkles(centerX, centerY, COLORS.foam);
     this.context.scene.tweens.add({ targets: view.banner, alpha: 1, scale: 1, duration: 300, ease: "Back.easeOut" });

@@ -81,9 +81,25 @@ const rarityWeights = { common: 70, uncommon: 28, rare: 10, legendary: 2 } as co
 const rarityAttractionScales = { common: 0.35, uncommon: 0.8, rare: 1.55, legendary: 2.5 } as const;
 const rarityValueMultipliers = { common: 1, uncommon: 1.12, rare: 1.32, legendary: 1.7 } as const;
 const qualityValueMultipliers: Record<FishQuality, number> = { common: 0.9, good: 1, large: 1.18, trophy: 1.55, exceptional: 2.2 };
+const BASE_FIGHT_DURATION_SCALE = 0.55;
+const BASE_FIGHT_DURATION_MIN_SECONDS = 9;
+const BASE_FIGHT_DURATION_MAX_SECONDS = 24;
+
+// Single balance knob for the mobile fight window. Keep the species pacing
+// curve intact while making the current encounter long enough to feel earned.
+export const FIGHT_DURATION_MULTIPLIER = 2;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function fightDurationSecondsFor(movementDurationSeconds: number): number {
+  const baseDuration = clamp(
+    movementDurationSeconds * BASE_FIGHT_DURATION_SCALE,
+    BASE_FIGHT_DURATION_MIN_SECONDS,
+    BASE_FIGHT_DURATION_MAX_SECONDS,
+  );
+  return Math.round(baseDuration * FIGHT_DURATION_MULTIPLIER);
 }
 
 function getEquipment(rows: EquipmentRow[], type: EquipmentType, id: string): EquipmentRow | undefined {
@@ -145,7 +161,7 @@ function miniGameFor(species: (typeof GAME_CATALOG.fish)[number], rod: (typeof G
     catchZoneSize: Number(clamp(0.2 + rod.catchZoneBonus + lure.catchZoneBonus - species.difficulty * 0.08, 0.12, 0.44).toFixed(3)),
     catchMeterGainRate: Number((0.34 + rod.control * 0.08).toFixed(3)),
     catchMeterLossRate: Number((0.26 + species.difficulty * 0.34 + lure.difficultyModifier * 0.1).toFixed(3)),
-    durationSeconds: Math.round(clamp(species.movementProfile.fightDurationSeconds * 0.55, 9, 24)),
+    durationSeconds: fightDurationSecondsFor(species.movementProfile.fightDurationSeconds),
   };
 }
 

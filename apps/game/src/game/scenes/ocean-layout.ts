@@ -26,7 +26,7 @@ export function computeFightLayout(width: number, height: number, safe: SafeArea
   const left = sideInset("left");
   const right = sideInset("right");
   const top = safe.top + (compact ? 8 : 12);
-  const headerH = compact ? 66 : 76;
+  const headerH = compact ? 50 : 58;
   const bottomH = compact ? 96 : 114;
   return {
     headerX: left,

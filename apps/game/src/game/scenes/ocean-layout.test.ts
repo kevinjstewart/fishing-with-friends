@@ -8,9 +8,11 @@ describe("OceanScene layout", () => {
     expect(layout.headerX).toBe(12);
     expect(layout.headerY).toBe(36);
     expect(layout.headerW).toBe(369);
+    expect(layout.headerH).toBe(58);
     expect(layout.bottomY + layout.bottomH).toBe(808);
     expect(layout.trackX).toBe(196.5);
     expect(layout.trackW).toBeCloseTo(235.8);
+    expect(layout.trackTop).toBe(112);
     expect(netWidth(layout)).toBeCloseTo(141.48);
   });
 
@@ -19,9 +21,9 @@ describe("OceanScene layout", () => {
 
     expect(layout.headerX).toBe(20);
     expect(layout.headerY).toBe(8);
-    expect(layout.headerH).toBe(66);
+    expect(layout.headerH).toBe(50);
     expect(layout.bottomH).toBe(96);
-    expect(layout.trackTop).toBe(84);
+    expect(layout.trackTop).toBe(68);
     expect(layout.trackBottom).toBe(406);
     expect(layout.trackW).toBeCloseTo(235.8);
   });

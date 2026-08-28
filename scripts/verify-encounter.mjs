@@ -26,6 +26,9 @@ const measurements = [];
 const screenshots = [];
 const consoleErrors = [];
 const unexpectedResponses = [];
+// Keep deterministic delayed-resolution flows from expiring while using a
+// value that is inside the current production fight-duration range.
+const VERIFIER_FIGHT_DURATION_SECONDS = 48;
 
 function pageUrl(mock = "ios") {
   const url = new URL(BASE_URL);
@@ -72,7 +75,7 @@ function encounterForState(state, encounterId = "encounter-browser") {
     species,
     // Keep the real Phaser scene in its playing state until the verifier emits
     // the deterministic completion event through the development seam.
-    miniGame: { catchZoneSize: 0.3, catchMeterGainRate: 0, catchMeterLossRate: 0, durationSeconds: 600 },
+    miniGame: { catchZoneSize: 0.3, catchMeterGainRate: 0, catchMeterLossRate: 0, durationSeconds: VERIFIER_FIGHT_DURATION_SECONDS },
     rodRiskBand: location.riskBand,
     expiresAt: "2099-01-01T12:05:00.000Z",
   };
@@ -258,7 +261,7 @@ async function installEncounterFixtures(page, sourceState, options = {}) {
 }
 
 async function openPage(browser, sourceState, label, options = {}) {
-  const context = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ viewport: options.viewport ?? { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const fixture = await installEncounterFixtures(page, sourceState, options);
   attachDiagnostics(page, label, fixture);
@@ -384,6 +387,8 @@ async function verifyCompletionAndDecision(browser, sourceState) {
   await runFlow("completion ambient gate and keep decision exactly once", async () => {
     const { page, fixture } = await openPage(browser, sourceState, "completion-keep", { completionMode: "delayed", decisionMode: "delayed" });
     await startEncounter(page, fixture);
+    await page.waitForTimeout(1_900);
+    await capture(page, "encounter-fight-timer");
     await emitComplete(page, fixture.encounter.encounterId);
     await emitComplete(page, fixture.encounter.encounterId);
     await waitUntil(() => fixture.completionCalls === 1);
@@ -428,6 +433,27 @@ async function verifyCompletionAndDecision(browser, sourceState) {
     requireCheck("sell decision receipt shows the payout", /Nice payday|\+184 coins/i.test(textContent ?? ""), textContent ?? "sell receipt missing");
     await capture(page, "encounter-sell-receipt");
     await page.close();
+  });
+}
+
+async function verifyFightViewports(browser, sourceState) {
+  await runFlow("fight timer stays inside portrait and compact viewports", async () => {
+    for (const scenario of [
+      { name: "portrait", viewport: { width: 393, height: 852 } },
+      { name: "compact", viewport: { width: 393, height: 540 } },
+    ]) {
+      const { page, fixture } = await openPage(browser, sourceState, `fight-timer-${scenario.name}`, { viewport: scenario.viewport });
+      await startEncounter(page, fixture);
+      await page.waitForTimeout(1_900);
+      await capture(page, `encounter-fight-timer-${scenario.name}`);
+      const canvas = await page.locator("canvas").boundingBox();
+      requireCheck(
+        `${scenario.name} fight canvas fills the viewport`,
+        Boolean(canvas) && Math.abs(canvas.width - scenario.viewport.width) < 1 && Math.abs(canvas.height - scenario.viewport.height) < 1,
+        JSON.stringify({ canvas, viewport: scenario.viewport }),
+      );
+      await page.close();
+    }
   });
 }
 
@@ -580,6 +606,7 @@ try {
   const browser = await chromium.launch();
   try {
     await verifyStartup(browser, sourceState);
+    await verifyFightViewports(browser, sourceState);
     await verifyCompletionAndDecision(browser, sourceState);
     await verifyFailuresAndRecovery(browser, sourceState);
     await verifyReloadRecovery(browser, sourceState);
