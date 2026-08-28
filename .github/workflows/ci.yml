@@ -45,6 +45,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check game bundle budget
+        env:
+          BUNDLE_REPORT_PATH: ${{ runner.temp }}/fishing-with-friends-bundle-report.json
+          BUNDLE_REPORT_MARKDOWN_PATH: ${{ runner.temp }}/fishing-with-friends-bundle-report.md
+        run: |
+          npm run report:bundle
+          npm run check:bundle-budget
+
+      - name: Test bundle budget thresholds
+        run: npm run test:bundle-budget
+
   deploy:
     name: Deploy production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

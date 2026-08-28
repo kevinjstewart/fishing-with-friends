@@ -47,6 +47,7 @@ export type EncounterEvent =
   | { type: "START_REQUESTED" }
   | { type: "START_SUCCEEDED"; encounter: FishingEncounterResponse }
   | { type: "START_FAILED"; message: string }
+  | { type: "RUNTIME_FAILED"; encounterId: string; message: string }
   | { type: "COMPLETE_REQUESTED"; encounterId: string; performance: number }
   | { type: "COMPLETE_SUCCEEDED"; encounterId: string; result: CompleteFishingResponse }
   | { type: "COMPLETE_FAILED"; encounterId: string; message: string }
@@ -151,6 +152,9 @@ export function encounterReducer(state: EncounterState, event: EncounterEvent): 
     case "START_FAILED":
       if (state.phase !== "starting") return state;
       return recoverableError(state, { operation: "start", message: event.message });
+    case "RUNTIME_FAILED":
+      if (state.phase !== "fighting" || state.encounter?.encounterId !== event.encounterId) return state;
+      return recoverableError(state, { operation: "start", encounterId: event.encounterId, message: event.message });
     case "COMPLETE_REQUESTED":
       if (state.phase !== "fighting" || state.encounter?.encounterId !== event.encounterId) return state;
       return { ...state, phase: "resolving", completionPerformance: event.performance, error: undefined };

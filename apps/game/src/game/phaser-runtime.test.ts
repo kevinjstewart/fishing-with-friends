@@ -6,7 +6,7 @@ vi.mock("./create-game", () => ({ createGame: vi.fn() }));
 
 type Listener = (...args: unknown[]) => void;
 
-function fakeGame() {
+function fakeGame(isRunning = true) {
   const listeners = new Map<string, Set<Listener>>();
   const events = {
     on: vi.fn((event: string, listener: Listener) => {
@@ -22,6 +22,7 @@ function fakeGame() {
   return {
     events,
     registry: { set: vi.fn() },
+    isRunning,
     destroy: vi.fn(),
   };
 }
@@ -39,7 +40,7 @@ describe("createFishingRuntime", () => {
     runtime.onAmbient(ambient);
     const event = { encounterId: "encounter-1", performance: 0.75 };
 
-    runtime.startFight({} as never);
+    await runtime.startFight({} as never);
     runtime.setSafeArea({ top: 1, right: 2, bottom: 3, left: 4 });
     runtime.emitCompleteForTest(event);
     game.events.emit("fishing:ambient");
@@ -56,7 +57,7 @@ describe("createFishingRuntime", () => {
     runtime.destroy();
     runtime.destroy();
     runtime.startFight({} as never);
-    expect(game.events.off).toHaveBeenCalledTimes(2);
+    expect(game.events.off).toHaveBeenCalledTimes(3);
     expect(game.destroy).toHaveBeenCalledTimes(1);
     expect(game.destroy).toHaveBeenCalledWith(true);
   });
@@ -65,5 +66,20 @@ describe("createFishingRuntime", () => {
     vi.mocked(createGame).mockReturnValue(fakeGame() as never);
     createFishingRuntime({} as HTMLElement);
     expect(createGame).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues the first fight until Phaser is ready", async () => {
+    const game = fakeGame(false);
+    vi.mocked(createGame).mockReturnValue(game as never);
+    const runtime = createFishingRuntime({} as HTMLElement);
+
+    const start = runtime.startFight({} as never);
+    expect(game.events.emit).not.toHaveBeenCalledWith("fight:start", {});
+
+    game.events.emit("ready");
+    await start;
+
+    expect(game.events.emit).toHaveBeenCalledWith("fight:start", {});
+    runtime.destroy();
   });
 });

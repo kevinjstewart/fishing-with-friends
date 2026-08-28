@@ -90,11 +90,13 @@ async function verifyLatestNavigation({ browser, base, check, recordConsoleError
   const page = await createPage(browser, recordConsoleError);
   const friendsGate = deferred();
   let friendsAborted = false;
+  let friendsRequestStarted = false;
   let friendsResponseReleased = false;
   let friendsResponseFulfillFailed = false;
   let collectionAttempts = 0;
 
   await page.route("**/api/game/friends", async (route) => {
+    friendsRequestStarted = true;
     try {
       await friendsGate.promise;
       friendsResponseReleased = true;
@@ -113,6 +115,7 @@ async function verifyLatestNavigation({ browser, base, check, recordConsoleError
   await page.getByRole("button", { name: "Friends" }).click();
   await page.waitForSelector(".fishing-status.is-loading", { timeout: 5_000 });
   check("navigation shows loading screen", (await page.locator(".fishing-status.is-loading").count()) === 1, "loading panel rendered");
+  await waitUntil(() => friendsRequestStarted, 5_000);
 
   await page.getByRole("button", { name: "Collection" }).click();
   await page.waitForSelector(".collection-screen", { timeout: 10_000 });
@@ -377,13 +380,13 @@ async function verifyCatchDecisionRetry({ browser, base, check, recordConsoleErr
     await fulfillJson(route, encounter);
   });
 
-  await page.route("**/api/game/encounters/phase0-catch-encounter/complete", async (route) => {
+  await page.route("**/api/game/encounters/fixture-catch-encounter/complete", async (route) => {
     completionRequests += 1;
     const state = fixtures.getState();
     if (!state) throw new Error("The deterministic fixture state did not initialize.");
-    await fulfillJson(route, completionResultFromState(state, { id: "phase0-catch" }));
+    await fulfillJson(route, completionResultFromState(state, { id: "fixture-catch" }));
   });
-  await page.route("**/api/game/catches/phase0-catch/decision", async (route) => {
+  await page.route("**/api/game/catches/fixture-catch/decision", async (route) => {
     decisionRequests += 1;
     if (decisionRequests === 1) {
       await decisionFailureGate.promise;
@@ -399,18 +402,18 @@ async function verifyCatchDecisionRetry({ browser, base, check, recordConsoleErr
     });
   });
 
-  await page.goto(`${base}/?telegramMock=ios&phase0=results`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/?telegramMock=ios&fixture=results`, { waitUntil: "networkidle" });
   await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
   const state = fixtures.getState();
   if (!state) throw new Error("The deterministic game-state fixture did not initialize.");
   encounter = activeEncounterFromState(state);
-  encounter.encounterId = "phase0-catch-encounter";
+  encounter.encounterId = "fixture-catch-encounter";
   await page.locator('[data-testid="cast-cta"]').click();
   await page.waitForFunction(() => document.body.classList.contains("is-fighting"), null, { timeout: 10_000 });
   await page.evaluate(() => {
     const hook = window.__FISHING_REACT__;
     if (!hook) throw new Error("React result test hook is missing.");
-    hook.emitFishingComplete({ encounterId: "phase0-catch-encounter", performance: 1 });
+    hook.emitFishingComplete({ encounterId: "fixture-catch-encounter", performance: 1 });
   });
   await page.waitForSelector("[data-testid=catch-decision]", { timeout: 10_000 });
 
@@ -450,11 +453,11 @@ async function verifySellAllPartialReconciliation({ browser, base, check, record
     const fish = collectionRequests >= 3 ? [specimens[1]] : specimens;
     await fulfillJson(route, { fish });
   });
-  await page.route("**/api/game/catches/phase0-collection-1/sell", async (route) => {
+  await page.route("**/api/game/catches/fixture-collection-1/sell", async (route) => {
     sellRequests += 1;
     await fulfillJson(route, { coins: 1_000_041, catch: specimens?.[0] });
   });
-  await page.route("**/api/game/catches/phase0-collection-2/sell", async (route) => {
+  await page.route("**/api/game/catches/fixture-collection-2/sell", async (route) => {
     sellRequests += 1;
     await fulfillJson(route, apiError("The second sale timed out."), 503);
   });
@@ -496,7 +499,7 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
       gameStateReady.release();
       await fulfillJson(route, gameState);
     } catch (error) {
-      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      if (error instanceof Error && /context disposed|target closed|request was aborted|response (?:was|has been) disposed/i.test(error.message)) return;
       throw error;
     }
   });
@@ -505,7 +508,7 @@ async function verifyEncounterStartup({ browser, base, check, recordConsoleError
       if (!expired) await gameStateReady.promise;
       await fulfillJson(route, expired ? { encounter: null, expired: true } : { encounter: activeEncounterFromState(gameState), expired: false });
     } catch (error) {
-      if (error instanceof Error && /context disposed|target closed|request was aborted/i.test(error.message)) return;
+      if (error instanceof Error && /context disposed|target closed|request was aborted|response (?:was|has been) disposed/i.test(error.message)) return;
       throw error;
     }
   });

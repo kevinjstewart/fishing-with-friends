@@ -1,11 +1,11 @@
-// Deterministic Phase 0 screenshots for every screen and encounter result.
+// Deterministic screenshots for every screen and encounter result.
 import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { installDeterministicReadFixtures } from "./fixtures/browser-fixtures.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
-const ARTIFACT_DIR = resolve(process.env.PHASE0_ARTIFACT_DIR ?? "/tmp/fishing-with-friends-phase0");
+const ARTIFACT_DIR = resolve(process.env.BROWSER_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-browser");
 const SCREENSHOT_DIR = join(ARTIFACT_DIR, "screenshots");
 await mkdir(SCREENSHOT_DIR, { recursive: true });
 

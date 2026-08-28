@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "CLOUDFLARE_ENV=development vite --host 127.0.0.1",
     "build": "vite build",
+    "build:worker": "wrangler deploy --dry-run --config dist/fishing_with_friends/wrangler.json",
+    "deploy": "wrangler deploy --config dist/fishing_with_friends/wrangler.json",
+    "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +19,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.6",

@@ -18,6 +18,7 @@ interface LakesFeedback {
 export interface LakesScreenProps {
   state: GameStateResponse;
   api: LakesMutationApi;
+  actionPending?: boolean;
   onOpenShop: (category: ShopCategory) => void;
   onEncounterStarted: (encounter: NonNullable<Awaited<ReturnType<LakesMutationApi["startFishing"]>>>) => void;
   onEncounterStartRequested?: () => void;
@@ -32,7 +33,7 @@ function firstLocation(state: GameStateResponse): LocationAvailability | undefin
   return state.locations.find((location) => location.unlocked) ?? state.locations[0];
 }
 
-export function LakesScreen({ state, api, onOpenShop, onEncounterStarted, onEncounterStartRequested, onEncounterStartFailed }: LakesScreenProps) {
+export function LakesScreen({ state, api, actionPending = false, onOpenShop, onEncounterStarted, onEncounterStartRequested, onEncounterStartFailed }: LakesScreenProps) {
   const [selectedLocationId, setSelectedLocationId] = useState(() => firstLocation(state)?.id ?? "");
   const [feedback, setFeedback] = useState<LakesFeedback>();
   const mutations = useLakesMutations(api);
@@ -133,17 +134,17 @@ export function LakesScreen({ state, api, onOpenShop, onEncounterStarted, onEnco
           <div className="screen-hero-text"><span className="eyebrow">Choose your water</span><h1>{selected.name}</h1></div>
           <span className="hero-value" aria-label={`Typical catch value: ${selected.expectedValueMinCoins.toLocaleString()}–${selected.expectedValueMaxCoins.toLocaleString()} coins`}><Icon name="coin" /><span>{selected.expectedValueMinCoins.toLocaleString()}–{selected.expectedValueMaxCoins.toLocaleString()}</span></span>
         </header>
-        <GearDock state={state} actionPending={Boolean(mutations.pendingAction)} onSelectEquipment={runEquipmentSelection} />
+        <GearDock state={state} actionPending={actionPending || Boolean(mutations.pendingAction)} onSelectEquipment={runEquipmentSelection} />
         <LocationCarousel state={state} selectedLocationId={selected.id} onSelect={(location) => setSelectedLocationId(location.id)} onOpenShop={() => openShop("boats")} />
         {stuck ? (
           <aside className="recovery-banner">
             <div><strong>Out of tackle?</strong><p>You can dig the shallows for worms and untangle your old spinner to keep fishing.</p></div>
-            <button className="secondary-action" type="button" disabled={Boolean(mutations.pendingAction)} aria-disabled={Boolean(mutations.pendingAction)} onClick={runRecovery}>Dig for worms</button>
+            <button className="secondary-action" type="button" disabled={actionPending || Boolean(mutations.pendingAction)} aria-disabled={actionPending || Boolean(mutations.pendingAction)} onClick={runRecovery}>Dig for worms</button>
           </aside>
         ) : null}
         {feedback ? <div className={`lakes-feedback is-${feedback.state}`} data-testid="mutation-feedback" role={feedback.state === "error" ? "alert" : "status"} aria-live={feedback.state === "error" ? "assertive" : "polite"}><span>{feedback.message}</span>{feedback.retry ? <button className="secondary-action" type="button" onClick={feedback.retry}>{feedback.retryLabel ?? "Try again"}</button> : null}</div> : null}
       </section>
-      <CastBar state={state} location={selected} actionPending={Boolean(mutations.pendingAction)} onCast={() => runCast(selected.id)} onOpenShop={openShop} />
+      <CastBar state={state} location={selected} actionPending={actionPending || Boolean(mutations.pendingAction)} onCast={() => runCast(selected.id)} onOpenShop={openShop} />
     </>
   );
 }

@@ -75,6 +75,10 @@ describe("encounterReducer", () => {
     const failed = encounterReducer(starting, { type: "START_FAILED", message: "no connection" });
     expect(failed).toMatchObject({ phase: "recoverable-error", error: { operation: "start", message: "no connection" } });
     expect(encounterReducer(failed, { type: "RETRY" }).phase).toBe("starting");
+
+    const fighting = encounterReducer(starting, { type: "START_SUCCEEDED", encounter });
+    const runtimeFailed = encounterReducer(fighting, { type: "RUNTIME_FAILED", encounterId: encounter.encounterId, message: "chunk unavailable" });
+    expect(runtimeFailed).toMatchObject({ phase: "recoverable-error", error: { operation: "start", encounterId: encounter.encounterId } });
   });
 
   it("accepts boot retry and successful start, and returns every active phase to lobby", () => {

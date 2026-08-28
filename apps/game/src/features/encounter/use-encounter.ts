@@ -109,9 +109,28 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
     if (!mountedRef.current) return;
     if (activeRuntimeEncounterId.current === encounter.encounterId && document.body.classList.contains("is-fighting")) return;
     activeRuntimeEncounterId.current = encounter.encounterId;
+    const runtimeSession = sessionRef.current;
+    setEncounterStatus("Loading the fishing game…", "loading");
+    const activation = runtime.startFight(encounter);
+    if (activation && typeof activation.then === "function") {
+      void activation.then(
+        () => {
+          if (!mountedRef.current || runtimeSession !== sessionRef.current || activeRuntimeEncounterId.current !== encounter.encounterId) return;
+          document.body.classList.add("is-fighting");
+          setEncounterStatus(message, "ready");
+        },
+        () => {
+          if (!mountedRef.current || runtimeSession !== sessionRef.current || activeRuntimeEncounterId.current !== encounter.encounterId) return;
+          activeRuntimeEncounterId.current = undefined;
+          document.body.classList.remove("is-fighting");
+          dispatch({ type: "RUNTIME_FAILED", encounterId: encounter.encounterId, message: "The fishing game could not load. Check your connection and try again." });
+          setEncounterStatus("The fishing game could not load. Check your connection and try again.", "error");
+        },
+      );
+      return;
+    }
     document.body.classList.add("is-fighting");
     setEncounterStatus(message, "ready");
-    runtime.startFight(encounter);
   }, [runtime, setEncounterStatus]);
 
   const runCompletionRequest = useCallback((event: { encounterId: string; performance: number }, retrying: boolean): void => {
@@ -348,6 +367,18 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
   const retry = useCallback(() => {
     const current = stateRef.current;
     const operation = current.error?.operation;
+    if (operation === "start" && current.encounter) {
+      const encounter = current.encounter;
+      dispatch({ type: "RETRY" });
+      sessionRef.current += 1;
+      activeRuntimeEncounterId.current = undefined;
+      window.setTimeout(() => {
+        if (!mountedRef.current) return;
+        dispatch({ type: "START_SUCCEEDED", encounter });
+        activateRuntimeEncounter(encounter, "Your line is ready. Fish on…");
+      }, 0);
+      return;
+    }
     if (operation === "completion" && current.encounter && typeof current.completionPerformance === "number") {
       const event = { encounterId: current.encounter.encounterId, performance: current.completionPerformance };
       const ambientReady = ambientEncounterRef.current?.encounterId === event.encounterId && ambientEncounterRef.current.session === sessionRef.current;
@@ -361,7 +392,7 @@ export function useEncounter({ api, runtime, bootstrapPhase, bootstrapError, act
       dispatch({ type: "RETRY" });
       window.setTimeout(() => runDecisionRequest(catchId, decision, true), 0);
     }
-  }, [runCompletionRequest, runDecisionRequest]);
+  }, [activateRuntimeEncounter, runCompletionRequest, runDecisionRequest]);
 
   const returnToLakes = useCallback(async () => {
     sessionRef.current += 1;

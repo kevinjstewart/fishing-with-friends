@@ -233,4 +233,20 @@ describe("React encounter lifecycle", () => {
     expect(activeRuntime.returnToLobby).toHaveBeenCalledTimes(1);
     activeView.unmount();
   });
+
+  it("exposes a Phaser chunk failure with a retry that does not create another encounter", async () => {
+    const api = createApi();
+    const runtime = createRuntime();
+    runtime.startFight = vi.fn().mockRejectedValueOnce(new Error("Phaser chunk unavailable.")).mockResolvedValueOnce(undefined);
+    renderHarness(api, runtime, { encounter, expired: false });
+
+    await waitFor(() => expect(screen.getByTestId("phase")).toHaveTextContent("recoverable-error"));
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(api.startFishing).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.getByTestId("phase")).toHaveTextContent("fighting"));
+    expect(runtime.startFight).toHaveBeenCalledTimes(2);
+    expect(document.body).toHaveClass("is-fighting");
+  });
 });
