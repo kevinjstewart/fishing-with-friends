@@ -1,4 +1,4 @@
-// Deterministic browser fixtures used by the Phase 0 baseline and async checks.
+// Deterministic browser fixtures used by the visual baseline and async checks.
 
 export const FISH_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/fixture-fish.svg";
 export const FISH_IMAGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
@@ -76,7 +76,7 @@ export function specimenFromState(state, { id, speciesIndex = 0, saleValueCoins 
 export function collectionFromState(state, { count = 3 } = {}) {
   return {
     fish: Array.from({ length: Math.min(count, state.catalog.fish.length) }, (_, index) => specimenFromState(state, {
-      id: `phase0-collection-${index + 1}`,
+      id: `fixture-collection-${index + 1}`,
       speciesIndex: index,
       saleValueCoins: [42, 81, 127][index] ?? 184,
       weightMultiplier: 1 + index * 0.12,
@@ -106,21 +106,21 @@ export function leaderboardFixture() {
     metric: "kept",
     metricDescription: "Ranked by kept fish. Sold fish do not count.",
     viewer: {
-      playerId: "phase0-viewer",
-      displayName: "Phase 0 Angler",
+      playerId: "fixture-viewer",
+      displayName: "Fixture Angler",
       rank: 2,
       keptFishCount: 3,
       heaviestKeptFishKg: 4.2,
     },
     entries: [
-      { rank: 1, playerId: "phase0-leader", displayName: "Lake Captain", keptFishCount: 5, heaviestKeptFishKg: 6.1, catchCount: 5, heaviestCatchKg: 6.1 },
-      { rank: 2, playerId: "phase0-viewer", displayName: "Phase 0 Angler", keptFishCount: 3, heaviestKeptFishKg: 4.2, catchCount: 3, heaviestCatchKg: 4.2 },
-      { rank: 3, playerId: "phase0-third", displayName: "Dockside Scout", keptFishCount: 1, heaviestKeptFishKg: 2.7, catchCount: 1, heaviestCatchKg: 2.7 },
+      { rank: 1, playerId: "fixture-leader", displayName: "Lake Captain", keptFishCount: 5, heaviestKeptFishKg: 6.1, catchCount: 5, heaviestCatchKg: 6.1 },
+      { rank: 2, playerId: "fixture-viewer", displayName: "Fixture Angler", keptFishCount: 3, heaviestKeptFishKg: 4.2, catchCount: 3, heaviestCatchKg: 4.2 },
+      { rank: 3, playerId: "fixture-third", displayName: "Dockside Scout", keptFishCount: 1, heaviestKeptFishKg: 2.7, catchCount: 1, heaviestCatchKg: 2.7 },
     ],
   };
 }
 
-export function completionResultFromState(state, { outcome = "caught", rodBroke = false, id = "phase0-catch", saleValueCoins = 184 } = {}) {
+export function completionResultFromState(state, { outcome = "caught", rodBroke = false, id = "fixture-catch", saleValueCoins = 184 } = {}) {
   const specimen = specimenFromState(state, { id, saleValueCoins });
   return {
     outcome,
@@ -135,7 +135,7 @@ export function completionResultFromState(state, { outcome = "caught", rodBroke 
   };
 }
 
-export function decisionResultFromState(state, decision, { id = `phase0-${decision}`, saleValueCoins = 184 } = {}) {
+export function decisionResultFromState(state, decision, { id = `fixture-${decision}`, saleValueCoins = 184 } = {}) {
   return {
     decision,
     coins: decision === "sell" ? state.coins + saleValueCoins : state.coins,

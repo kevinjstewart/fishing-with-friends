@@ -380,13 +380,13 @@ async function verifyCatchDecisionRetry({ browser, base, check, recordConsoleErr
     await fulfillJson(route, encounter);
   });
 
-  await page.route("**/api/game/encounters/phase0-catch-encounter/complete", async (route) => {
+  await page.route("**/api/game/encounters/fixture-catch-encounter/complete", async (route) => {
     completionRequests += 1;
     const state = fixtures.getState();
     if (!state) throw new Error("The deterministic fixture state did not initialize.");
-    await fulfillJson(route, completionResultFromState(state, { id: "phase0-catch" }));
+    await fulfillJson(route, completionResultFromState(state, { id: "fixture-catch" }));
   });
-  await page.route("**/api/game/catches/phase0-catch/decision", async (route) => {
+  await page.route("**/api/game/catches/fixture-catch/decision", async (route) => {
     decisionRequests += 1;
     if (decisionRequests === 1) {
       await decisionFailureGate.promise;
@@ -402,18 +402,18 @@ async function verifyCatchDecisionRetry({ browser, base, check, recordConsoleErr
     });
   });
 
-  await page.goto(`${base}/?telegramMock=ios&phase0=results`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/?telegramMock=ios&fixture=results`, { waitUntil: "networkidle" });
   await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
   const state = fixtures.getState();
   if (!state) throw new Error("The deterministic game-state fixture did not initialize.");
   encounter = activeEncounterFromState(state);
-  encounter.encounterId = "phase0-catch-encounter";
+  encounter.encounterId = "fixture-catch-encounter";
   await page.locator('[data-testid="cast-cta"]').click();
   await page.waitForFunction(() => document.body.classList.contains("is-fighting"), null, { timeout: 10_000 });
   await page.evaluate(() => {
     const hook = window.__FISHING_REACT__;
     if (!hook) throw new Error("React result test hook is missing.");
-    hook.emitFishingComplete({ encounterId: "phase0-catch-encounter", performance: 1 });
+    hook.emitFishingComplete({ encounterId: "fixture-catch-encounter", performance: 1 });
   });
   await page.waitForSelector("[data-testid=catch-decision]", { timeout: 10_000 });
 
@@ -453,11 +453,11 @@ async function verifySellAllPartialReconciliation({ browser, base, check, record
     const fish = collectionRequests >= 3 ? [specimens[1]] : specimens;
     await fulfillJson(route, { fish });
   });
-  await page.route("**/api/game/catches/phase0-collection-1/sell", async (route) => {
+  await page.route("**/api/game/catches/fixture-collection-1/sell", async (route) => {
     sellRequests += 1;
     await fulfillJson(route, { coins: 1_000_041, catch: specimens?.[0] });
   });
-  await page.route("**/api/game/catches/phase0-collection-2/sell", async (route) => {
+  await page.route("**/api/game/catches/fixture-collection-2/sell", async (route) => {
     sellRequests += 1;
     await fulfillJson(route, apiError("The second sale timed out."), 503);
   });

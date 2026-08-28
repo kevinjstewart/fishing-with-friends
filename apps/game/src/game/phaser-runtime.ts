@@ -28,7 +28,7 @@ export interface FishingRuntime {
   onComplete(handler: (event: FishingCompleteEvent) => void): () => void;
   onAmbient(handler: (encounterId?: string) => void): () => void;
   destroy(): void;
-  /** Development/test seam for the existing Phase 0 deterministic fixtures. */
+  /** Development/test seam for deterministic browser fixtures. */
   emitCompleteForTest(event: FishingCompleteEvent): void;
   /** Development/test seam for verifying the ambient-result gate. */
   emitAmbientForTest(encounterId?: string): void;

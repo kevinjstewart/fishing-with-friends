@@ -1,11 +1,11 @@
-// Browser proof for the Phase 8 lazy-loading boundary.
+// Browser proof for the production lazy-loading boundary.
 import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { installDeterministicReadFixtures } from "./fixtures/browser-fixtures.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
-const ARTIFACT_DIR = resolve(process.env.LAZY_LOADING_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-phase8-lazy-loading");
+const ARTIFACT_DIR = resolve(process.env.LAZY_LOADING_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-lazy-loading");
 const REPORT_PATH = join(ARTIFACT_DIR, "browser-report.json");
 const profile = { width: 393, height: 852, deviceScaleFactor: 2, isMobile: true, hasTouch: true, telegramMock: "ios" };
 const failures = [];

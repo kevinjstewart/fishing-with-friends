@@ -313,7 +313,7 @@ npm run verify:layout
 To measure Telegram-shaped cold start repeatably, run the local stack and use fresh cache-disabled Playwright contexts with the fixed iPhone portrait profile:
 
 ```bash
-COLD_START_REPORT_PATH=/private/tmp/fishing-with-friends-phase8-cold-start.json \
+COLD_START_REPORT_PATH=/private/tmp/fishing-with-friends-cold-start.json \
 npm run measure:telegram-cold-start
 ```
 

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const defaultBudgetPath = "bundle-budget.json";
-const defaultReportPath = "/tmp/fishing-with-friends-phase0/bundle-report.json";
+const defaultReportPath = "/private/tmp/fishing-with-friends-browser/bundle-report.json";
 
 function metric(id, label, actual, limit) {
   return { id, label, actual, limit };

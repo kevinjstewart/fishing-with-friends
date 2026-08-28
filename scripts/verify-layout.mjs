@@ -9,7 +9,7 @@ import { verifyAsyncFlows } from "./verify-async.mjs";
 import { completionResultFromState, decisionResultFromState, installDeterministicReadFixtures } from "./fixtures/browser-fixtures.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
-const ARTIFACT_DIR = resolve(process.env.PHASE0_ARTIFACT_DIR ?? "/tmp/fishing-with-friends-phase0");
+const ARTIFACT_DIR = resolve(process.env.BROWSER_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-browser");
 await mkdir(ARTIFACT_DIR, { recursive: true });
 const failures = [];
 const report = [];
@@ -432,7 +432,7 @@ async function verifyResultViewportBaselines({ browser, base, check, recordConso
     });
     attachConsoleListeners(page, recordConsoleError);
     const fixtures = await installDeterministicReadFixtures(page);
-    await page.goto(`${base}/?telegramMock=${scenario.mock}&phase0=results`, { waitUntil: "networkidle" });
+    await page.goto(`${base}/?telegramMock=${scenario.mock}&fixture=results`, { waitUntil: "networkidle" });
     await page.waitForSelector(".locations-list .location-card", { timeout: 20_000 });
     const state = fixtures.getState();
     if (!state) throw new Error("The deterministic result fixture did not initialize.");
@@ -900,7 +900,7 @@ check("no browser console errors", consoleErrors.length === 0, consoleErrors.sli
 
 await browser.close();
 
-const browserReportPath = resolve(process.env.PHASE0_BROWSER_REPORT_PATH ?? join(ARTIFACT_DIR, "browser-report.json"));
+const browserReportPath = resolve(process.env.BROWSER_REPORT_PATH ?? join(ARTIFACT_DIR, "browser-report.json"));
 await mkdir(resolve(browserReportPath, ".."), { recursive: true });
 await writeFile(browserReportPath, `${JSON.stringify({
   generatedAt: new Date().toISOString(),

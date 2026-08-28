@@ -7,7 +7,7 @@ import { installDeterministicReadFixtures } from "./fixtures/browser-fixtures.mj
 
 const BASE = process.env.GAME_URL ?? "http://127.0.0.1:5173";
 const SAMPLE_COUNT = Math.max(1, Number.parseInt(process.env.COLD_START_SAMPLES ?? "5", 10));
-const REPORT_PATH = resolve(process.env.COLD_START_REPORT_PATH ?? "/private/tmp/fishing-with-friends-phase8-cold-start.json");
+const REPORT_PATH = resolve(process.env.COLD_START_REPORT_PATH ?? "/private/tmp/fishing-with-friends-cold-start.json");
 const profile = {
   name: "Telegram iPhone portrait mock",
   viewport: { width: 393, height: 852 },

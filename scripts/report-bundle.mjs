@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 
 const distDirectory = resolve(process.env.GAME_DIST_DIR ?? "apps/game/dist/client");
-const artifactDirectory = resolve(process.env.PHASE0_ARTIFACT_DIR ?? "/tmp/fishing-with-friends-phase0");
+const artifactDirectory = resolve(process.env.BROWSER_ARTIFACT_DIR ?? "/private/tmp/fishing-with-friends-browser");
 const reportPath = resolve(process.env.BUNDLE_REPORT_PATH ?? join(artifactDirectory, "bundle-report.json"));
 const markdownPath = resolve(process.env.BUNDLE_REPORT_MARKDOWN_PATH ?? reportPath.replace(/\.json$/i, ".md"));
 
